@@ -175,4 +175,98 @@ class ProductDeleteResponse(BaseModel):
     """
     product_id: UUID = Field(..., description="ID del producto eliminado")
     message: str = Field(..., description="Mensaje de confirmación")
-    success: bool = Field(default=True, description="Indica si la operación fue exitosa") 
+    success: bool = Field(default=True, description="Indica si la operación fue exitosa")
+
+
+# Esquemas de inventario
+# Re-exportamos los esquemas del dominio para mantener la separación de capas
+from app.domain.models.movimiento_inventario import (
+    MovimientoInventarioCreate as DomainMovimientoInventarioCreate,
+    MovimientoInventarioResponse as DomainMovimientoInventarioResponse,
+    MovimientoInventarioListResponse as DomainMovimientoInventarioListResponse,
+    KardexResponse as DomainKardexResponse,
+    InventarioResumenResponse as DomainInventarioResumenResponse,
+    EstadisticasInventario as DomainEstadisticasInventario,
+    TipoMovimiento,
+    MovimientoInventarioFilter
+)
+
+
+# Esquemas específicos para la API de inventario
+class MovimientoInventarioCreateRequest(DomainMovimientoInventarioCreate):
+    """
+    Esquema para la solicitud de creación de movimiento de inventario.
+    Hereda de DomainMovimientoInventarioCreate para mantener la consistencia.
+    """
+    pass
+
+
+class MovimientoInventarioResponse(DomainMovimientoInventarioResponse):
+    """
+    Esquema para la respuesta de información de movimiento.
+    Hereda de DomainMovimientoInventarioResponse para mantener la consistencia.
+    """
+    pass
+
+
+class MovimientoInventarioListResponse(DomainMovimientoInventarioListResponse):
+    """
+    Esquema para la respuesta de lista paginada de movimientos.
+    Hereda de DomainMovimientoInventarioListResponse para mantener la consistencia.
+    """
+    pass
+
+
+class KardexResponse(DomainKardexResponse):
+    """
+    Esquema para la respuesta del kardex de un producto.
+    Hereda de DomainKardexResponse para mantener la consistencia.
+    """
+    pass
+
+
+class InventarioResumenResponse(DomainInventarioResumenResponse):
+    """
+    Esquema para la respuesta del resumen de inventario.
+    Hereda de DomainInventarioResumenResponse para mantener la consistencia.
+    """
+    pass
+
+
+class EstadisticasInventarioResponse(DomainEstadisticasInventario):
+    """
+    Esquema para la respuesta de estadísticas de inventario.
+    Hereda de DomainEstadisticasInventario para mantener la consistencia.
+    """
+    pass
+
+
+class ValidarStockRequest(BaseModel):
+    """
+    Esquema para la solicitud de validación de stock.
+    """
+    producto_id: UUID = Field(..., description="ID del producto")
+    cantidad_requerida: int = Field(..., gt=0, description="Cantidad requerida")
+
+
+class ValidarStockResponse(BaseModel):
+    """
+    Esquema para la respuesta de validación de stock.
+    """
+    producto_id: UUID = Field(..., description="ID del producto")
+    stock_actual: int = Field(..., description="Stock actual del producto")
+    cantidad_requerida: int = Field(..., description="Cantidad requerida")
+    stock_suficiente: bool = Field(..., description="Si hay stock suficiente")
+    cantidad_disponible: int = Field(..., description="Cantidad disponible después de la operación")
+
+
+class MovimientoInventarioFilterRequest(BaseModel):
+    """
+    Esquema para filtros de búsqueda de movimientos.
+    """
+    producto_id: Optional[UUID] = Field(None, description="Filtrar por producto")
+    tipo_movimiento: Optional[TipoMovimiento] = Field(None, description="Filtrar por tipo")
+    fecha_desde: Optional[datetime] = Field(None, description="Fecha desde")
+    fecha_hasta: Optional[datetime] = Field(None, description="Fecha hasta")
+    referencia: Optional[str] = Field(None, description="Filtrar por referencia")
+    created_by: Optional[UUID] = Field(None, description="Filtrar por usuario") 

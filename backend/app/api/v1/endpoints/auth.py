@@ -20,7 +20,7 @@ from app.infrastructure.database.session import get_session
 from app.domain.models.user import UserCreate
 
 
-router = APIRouter(prefix="/auth", tags=["Autenticación"])
+router = APIRouter(tags=["Autenticación"])
 security = HTTPBearer()
 
 
