@@ -5,28 +5,29 @@ Este archivo inicializa la aplicación FastAPI siguiendo los principios de Clean
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import datetime
 
 from app.api.v1.endpoints.auth import router as auth_router
+from app.api.v1.endpoints.products import router as products_router
 
 app = FastAPI(
     title="Sistema de Gestión Empresarial",
-    description="API para la gestión integral de productos, inventario, facturación y contabilidad",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    description="API para gestión de inventario, contabilidad, facturación y ventas",
+    version="1.0.0"
 )
 
-# Configuración de CORS para permitir el frontend
+# Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend en desarrollo
+    allow_origins=["*"],  # En producción, especificar dominios exactos
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Incluir routers de la API
-app.include_router(auth_router, prefix="/api/v1")
+# Incluir routers
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(products_router, prefix="/api/v1/products", tags=["products"])
 
 
 @app.get("/")
@@ -35,14 +36,18 @@ async def root():
     return {
         "message": "Sistema de Gestión Empresarial API",
         "version": "1.0.0",
-        "docs": "/docs"
+        "status": "active",
+        "timestamp": datetime.now()
     }
 
 
 @app.get("/health")
 async def health_check():
     """Endpoint de verificación de salud del servicio."""
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "timestamp": datetime.now()
+    }
 
 
 if __name__ == "__main__":

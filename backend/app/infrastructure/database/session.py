@@ -9,6 +9,7 @@ from sqlmodel import Session, SQLModel
 
 # Importar todos los modelos para que estén disponibles para Alembic
 from app.domain.models.user import User  # noqa: F401
+from app.domain.models.product import Product
 
 # Configuración de la base de datos desde variables de entorno
 # Usar postgresql+psycopg para especificar el dialecto de psycopg3
