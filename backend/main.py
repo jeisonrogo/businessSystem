@@ -6,6 +6,8 @@ Este archivo inicializa la aplicación FastAPI siguiendo los principios de Clean
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.endpoints.auth import router as auth_router
+
 app = FastAPI(
     title="Sistema de Gestión Empresarial",
     description="API para la gestión integral de productos, inventario, facturación y contabilidad",
@@ -22,6 +24,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Incluir routers de la API
+app.include_router(auth_router, prefix="/api/v1")
 
 
 @app.get("/")

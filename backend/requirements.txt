@@ -9,4 +9,6 @@ passlib[bcrypt]
 pytest
 pytest-cov
 pytest-asyncio
-python-multipart 
+python-multipart
+email-validator
+httpx 
