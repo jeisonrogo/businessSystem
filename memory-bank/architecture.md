@@ -25,13 +25,15 @@ Este documento explica la arquitectura actual implementada del Sistema de Gesti�
 - Inicializa la aplicación FastAPI con metadatos (título, descripción, versión)
 - Configura middleware de CORS para permitir peticiones del frontend
 - **✅ ACTUALIZADO:** Incluye router de autenticación (`/api/v1/auth`)
-- **✅ NUEVO:** Incluye router de productos (`/api/v1/products`)
+- **✅ IMPLEMENTADO:** Incluye router de productos (`/api/v1/products`)
+- **✅ IMPLEMENTADO:** Incluye router de inventario (`/api/v1/inventario`)
+- **✅ NUEVO:** Incluye routers de contabilidad (`/api/v1/contabilidad` y `/api/v1/asientos`)
 - Define endpoints básicos:
   - `GET /` - Información básica de la API con timestamp
   - `GET /health` - Endpoint de verificación de salud del servicio
 - Configuración para ejecutar con Uvicorn cuando se ejecuta directamente
 
-**Dependencias:** FastAPI, FastAPI CORS middleware, routers de autenticación y productos
+**Dependencias:** FastAPI, FastAPI CORS middleware, routers de autenticación, productos, inventario y contabilidad
 
 ---
 
