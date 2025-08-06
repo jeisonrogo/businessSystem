@@ -10,6 +10,8 @@ from datetime import datetime
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.products import router as products_router
 from app.api.v1.endpoints.inventario import router as inventario_router
+from app.api.v1.endpoints.contabilidad import router as contabilidad_router
+from app.api.v1.endpoints.asientos import router as asientos_router
 
 app = FastAPI(
     title="Sistema de Gestión Empresarial",
@@ -30,6 +32,8 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(products_router, prefix="/api/v1/products", tags=["products"])
 app.include_router(inventario_router, prefix="/api/v1/inventario", tags=["inventario"])
+app.include_router(contabilidad_router, prefix="/api/v1/cuentas", tags=["contabilidad"])
+app.include_router(asientos_router, prefix="/api/v1/asientos", tags=["asientos-contables"])
 
 
 @app.get("/")

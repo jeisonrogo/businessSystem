@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from sqlmodel import SQLModel, Field as SQLField, Column, String, Integer, DECIMAL
 
 
@@ -44,10 +44,11 @@ class ProductCreate(ProductBase):
     """Esquema para crear un nuevo producto."""
     stock: int = Field(0, ge=0, description="Cantidad inicial en inventario")
     
-    @validator('precio_publico')
-    def precio_publico_mayor_que_base(cls, v, values):
+    @field_validator('precio_publico')
+    @classmethod
+    def precio_publico_mayor_que_base(cls, v, info):
         """Validar que el precio público sea mayor o igual al precio base."""
-        if 'precio_base' in values and v < values['precio_base']:
+        if hasattr(info, 'data') and 'precio_base' in info.data and v < info.data['precio_base']:
             raise ValueError('El precio público debe ser mayor o igual al precio base')
         return v
 
@@ -62,11 +63,12 @@ class ProductUpdate(BaseModel):
     # Nota: SKU no se puede modificar (BR-02)
     # Nota: stock se modifica a través de movimientos de inventario
     
-    @validator('precio_publico')
-    def precio_publico_mayor_que_base(cls, v, values):
+    @field_validator('precio_publico')
+    @classmethod
+    def precio_publico_mayor_que_base(cls, v, info):
         """Validar que el precio público sea mayor o igual al precio base."""
-        if v is not None and 'precio_base' in values and values['precio_base'] is not None:
-            if v < values['precio_base']:
+        if v is not None and hasattr(info, 'data') and 'precio_base' in info.data and info.data['precio_base'] is not None:
+            if v < info.data['precio_base']:
                 raise ValueError('El precio público debe ser mayor o igual al precio base')
         return v
 

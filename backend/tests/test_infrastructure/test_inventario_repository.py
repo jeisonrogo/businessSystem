@@ -68,6 +68,12 @@ def sample_product_data():
 
 
 @pytest.fixture
+async def sample_product(product_repository, sample_product_data):
+    """Crear un producto de ejemplo en la base de datos."""
+    return await product_repository.create(sample_product_data)
+
+
+@pytest.fixture
 def sample_product_data_2():
     """Datos de ejemplo para crear un segundo producto."""
     return ProductCreate(

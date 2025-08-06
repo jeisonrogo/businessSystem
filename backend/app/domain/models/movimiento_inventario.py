@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from sqlmodel import SQLModel, Field as SQLField, Column, String, DECIMAL, Relationship
 
 
@@ -76,14 +76,16 @@ class MovimientoInventarioBase(BaseModel):
 class MovimientoInventarioCreate(MovimientoInventarioBase):
     """Esquema para crear un nuevo movimiento de inventario."""
     
-    @validator('cantidad')
+    @field_validator('cantidad')
+    @classmethod
     def cantidad_debe_ser_positiva(cls, v):
         """Validar que la cantidad sea positiva."""
         if v <= 0:
             raise ValueError('La cantidad debe ser mayor a cero')
         return v
     
-    @validator('precio_unitario')
+    @field_validator('precio_unitario')
+    @classmethod
     def precio_unitario_debe_ser_positivo(cls, v):
         """Validar que el precio unitario sea positivo."""
         if v <= 0:

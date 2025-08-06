@@ -101,7 +101,7 @@ Implementar la funcionalidad final del ciclo contable.
 Construir la interfaz de usuario y empaquetar la aplicación.
 
 1.  **Paso 7.1: Implementar UI por Módulos**
-    -   **Instrucción:** Desarrollar las vistas de React para cada módulo en el siguiente orden: Login, Gestión de Productos, Gestión de Plan de Cuentas, Facturación, Reportes.
+    -   **Instrucción:** Desarrollar las vistas de React para cada módulo en el siguiente orden: Login, Gestión de Productos, Gestión de Plan de Cuentas, Facturación (ventas), Reportes.
     -   **Prueba de Validación:** Para cada módulo, verificar que la UI se comunique correctamente con la API y que los datos se muestren y actualicen de forma reactiva.
 
 2.  **Paso 7.2: Containerizar la Aplicación**

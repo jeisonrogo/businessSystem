@@ -269,4 +269,192 @@ class MovimientoInventarioFilterRequest(BaseModel):
     fecha_desde: Optional[datetime] = Field(None, description="Fecha desde")
     fecha_hasta: Optional[datetime] = Field(None, description="Fecha hasta")
     referencia: Optional[str] = Field(None, description="Filtrar por referencia")
-    created_by: Optional[UUID] = Field(None, description="Filtrar por usuario") 
+    created_by: Optional[UUID] = Field(None, description="Filtrar por usuario")
+
+
+# Esquemas de contabilidad
+# Re-exportamos los esquemas del dominio para mantener la separación de capas
+from app.domain.models.contabilidad import (
+    CuentaContableCreate as DomainCuentaContableCreate,
+    CuentaContableUpdate as DomainCuentaContableUpdate,
+    CuentaContableResponse as DomainCuentaContableResponse,
+    AsientoContableCreate as DomainAsientoContableCreate,
+    AsientoContableResponse as DomainAsientoContableResponse,
+    AsientoContableListResponse as DomainAsientoContableListResponse,
+    DetalleAsientoCreate as DomainDetalleAsientoCreate,
+    DetalleAsientoResponse as DomainDetalleAsientoResponse,
+    TipoCuenta,
+    TipoMovimiento as TipoMovimientoContable
+)
+
+
+# Esquemas específicos para la API de contabilidad
+class CuentaContableCreateRequest(DomainCuentaContableCreate):
+    """
+    Esquema para la solicitud de creación de cuenta contable.
+    Hereda de DomainCuentaContableCreate para mantener la consistencia.
+    """
+    pass
+
+
+class CuentaContableUpdateRequest(DomainCuentaContableUpdate):
+    """
+    Esquema para la solicitud de actualización de cuenta contable.
+    Hereda de DomainCuentaContableUpdate para mantener la consistencia.
+    """
+    pass
+
+
+class CuentaContableResponse(DomainCuentaContableResponse):
+    """
+    Esquema para la respuesta de información de cuenta contable.
+    Hereda de DomainCuentaContableResponse para mantener la consistencia.
+    """
+    pass
+
+
+class CuentaContableListResponse(BaseModel):
+    """
+    Esquema para la respuesta de lista paginada de cuentas contables.
+    """
+    cuentas: list[CuentaContableResponse]
+    total: int
+    page: int
+    limit: int
+    has_next: bool
+    has_prev: bool
+
+
+class AsientoContableCreateRequest(DomainAsientoContableCreate):
+    """
+    Esquema para la solicitud de creación de asiento contable.
+    Hereda de DomainAsientoContableCreate para mantener la consistencia.
+    """
+    pass
+
+
+class AsientoContableResponse(DomainAsientoContableResponse):
+    """
+    Esquema para la respuesta de información de asiento contable.
+    Hereda de DomainAsientoContableResponse para mantener la consistencia.
+    """
+    pass
+
+
+class AsientoContableListResponse(DomainAsientoContableListResponse):
+    """
+    Esquema para la respuesta de lista paginada de asientos contables.
+    Hereda de DomainAsientoContableListResponse para mantener la consistencia.
+    """
+    pass
+
+
+class DetalleAsientoCreateRequest(DomainDetalleAsientoCreate):
+    """
+    Esquema para la solicitud de creación de detalle de asiento.
+    Hereda de DomainDetalleAsientoCreate para mantener la consistencia.
+    """
+    pass
+
+
+class DetalleAsientoResponse(DomainDetalleAsientoResponse):
+    """
+    Esquema para la respuesta de información de detalle de asiento.
+    Hereda de DomainDetalleAsientoResponse para mantener la consistencia.
+    """
+    pass
+
+
+# Esquemas específicos para contabilidad
+class PlanCuentasJerarquicoResponse(BaseModel):
+    """
+    Esquema para la respuesta del plan de cuentas jerárquico.
+    """
+    plan_cuentas: list[dict] = Field(..., description="Plan de cuentas en formato jerárquico")
+
+
+class SeedPlanCuentasResponse(BaseModel):
+    """
+    Esquema para la respuesta del seeding del plan de cuentas.
+    """
+    mensaje: str = Field(..., description="Mensaje de confirmación")
+    cuentas_creadas: int = Field(..., description="Número de cuentas creadas")
+    total_procesadas: int = Field(..., description="Total de cuentas procesadas")
+
+
+class CuentasPrincipalesResponse(BaseModel):
+    """
+    Esquema para la respuesta de cuentas principales por tipo.
+    """
+    cuentas: list[CuentaContableResponse] = Field(..., description="Lista de cuentas principales")
+    tipo_cuenta: Optional[TipoCuenta] = Field(None, description="Tipo de cuenta filtrado")
+
+
+class SubcuentasResponse(BaseModel):
+    """
+    Esquema para la respuesta de subcuentas.
+    """
+    subcuentas: list[CuentaContableResponse] = Field(..., description="Lista de subcuentas")
+    cuenta_padre_id: UUID = Field(..., description="ID de la cuenta padre")
+    total_subcuentas: int = Field(..., description="Total de subcuentas")
+
+
+# Esquemas específicos para asientos contables
+class AsientoContableListResponse(BaseModel):
+    """
+    Esquema para la respuesta de lista paginada de asientos contables.
+    """
+    asientos: list[AsientoContableResponse] = Field(..., description="Lista de asientos contables")
+    total: int = Field(..., description="Total de asientos")
+    page: int = Field(..., description="Página actual")
+    limit: int = Field(..., description="Elementos por página")
+    has_next: bool = Field(..., description="Si hay página siguiente")
+    has_prev: bool = Field(..., description="Si hay página anterior")
+
+
+class ValidacionBalanceRequest(BaseModel):
+    """
+    Esquema para la solicitud de validación de balance.
+    """
+    detalles: list[DetalleAsientoCreateRequest] = Field(..., description="Lista de detalles del asiento")
+
+
+class ValidacionBalanceResponse(BaseModel):
+    """
+    Esquema para la respuesta de validación de balance.
+    """
+    esta_balanceado: bool = Field(..., description="Si el asiento está balanceado")
+    total_debitos: float = Field(..., description="Total de débitos")
+    total_creditos: float = Field(..., description="Total de créditos")
+    diferencia: float = Field(..., description="Diferencia entre débitos y créditos")
+    cantidad_detalles: int = Field(..., description="Número de detalles")
+
+
+class BalanceCuentaResponse(BaseModel):
+    """
+    Esquema para la respuesta del balance de una cuenta.
+    """
+    cuenta_id: UUID = Field(..., description="ID de la cuenta")
+    total_debitos: float = Field(..., description="Total de débitos")
+    total_creditos: float = Field(..., description="Total de créditos")
+    saldo: float = Field(..., description="Saldo de la cuenta")
+    cantidad_movimientos: int = Field(..., description="Número de movimientos")
+    fecha_hasta: Optional[str] = Field(None, description="Fecha hasta la cual se calculó")
+
+
+class LibroDiarioRequest(BaseModel):
+    """
+    Esquema para la solicitud del libro diario.
+    """
+    fecha_desde: str = Field(..., description="Fecha desde en formato YYYY-MM-DD")
+    fecha_hasta: str = Field(..., description="Fecha hasta en formato YYYY-MM-DD")
+
+
+class LibroDiarioResponse(BaseModel):
+    """
+    Esquema para la respuesta del libro diario.
+    """
+    asientos: list[AsientoContableResponse] = Field(..., description="Lista de asientos contables")
+    fecha_desde: str = Field(..., description="Fecha desde")
+    fecha_hasta: str = Field(..., description="Fecha hasta")
+    total_asientos: int = Field(..., description="Total de asientos en el período") 
