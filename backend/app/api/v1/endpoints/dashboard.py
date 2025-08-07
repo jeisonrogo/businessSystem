@@ -58,6 +58,18 @@ def get_dashboard_repository(session: Session = Depends(get_session)) -> SQLDash
 # Endpoints principales del dashboard
 
 @router.get(
+    "/test",
+    status_code=status.HTTP_200_OK,
+    summary="Test endpoint", 
+    description="Simple test endpoint for debugging"
+)
+async def test_dashboard():
+    """Test endpoint."""
+    from datetime import datetime
+    return {"status": "dashboard endpoints working", "timestamp": str(datetime.now())}
+
+
+@router.get(
     "/completo",
     response_model=DashboardCompleto,
     status_code=status.HTTP_200_OK,
