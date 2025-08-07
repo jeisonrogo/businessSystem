@@ -3,9 +3,10 @@ Esquemas Pydantic para la API.
 Define los modelos de datos de entrada y salida para los endpoints.
 """
 
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, date
+from typing import Optional, List
 from uuid import UUID
+from decimal import Decimal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -457,4 +458,63 @@ class LibroDiarioResponse(BaseModel):
     asientos: list[AsientoContableResponse] = Field(..., description="Lista de asientos contables")
     fecha_desde: str = Field(..., description="Fecha desde")
     fecha_hasta: str = Field(..., description="Fecha hasta")
-    total_asientos: int = Field(..., description="Total de asientos en el período") 
+    total_asientos: int = Field(..., description="Total de asientos en el período")
+
+
+# Re-exportar esquemas de dashboard desde el dominio
+from app.domain.models.dashboard import (
+    # Modelos principales
+    DashboardCompleto,
+    FiltrosDashboard,
+    KPIDashboard,
+    VentasPorPeriodo,
+    ProductoTopVentas,
+    ClienteTopVentas,
+    MovimientoInventarioResumen,
+    BalanceContableResumen,
+    AlertaDashboard,
+    MetricasRapidas,
+    MetricaPeriodo,
+    
+    # Enums
+    PeriodoReporte,
+    TipoMetrica,
+    
+    # Esquemas para API
+    DashboardRequest,
+    DashboardResponse
+)
+
+# Esquemas específicos para endpoints de dashboard
+class DashboardCompletoRequest(BaseModel):
+    """Esquema para solicitud de dashboard completo."""
+    periodo: PeriodoReporte = Field(PeriodoReporte.MES, description="Período del reporte")
+    fecha_inicio: Optional[date] = Field(None, description="Fecha inicio personalizada")
+    fecha_fin: Optional[date] = Field(None, description="Fecha fin personalizada")
+    limite_tops: int = Field(10, ge=1, le=50, description="Límite para rankings")
+    incluir_comparacion: bool = Field(True, description="Incluir comparación con período anterior")
+
+class AnalisisRentabilidadResponse(BaseModel):
+    """Esquema para respuesta de análisis de rentabilidad."""
+    periodo: dict = Field(description="Información del período analizado")
+    metricas_financieras: dict = Field(description="Métricas financieras calculadas")
+    metricas_ventas: dict = Field(description="Métricas de ventas")
+    productos_mas_rentables: List[ProductoTopVentas] = Field(description="Productos más rentables")
+    clientes_mas_rentables: List[ClienteTopVentas] = Field(description="Clientes más rentables")
+
+class TendenciasVentasResponse(BaseModel):
+    """Esquema para respuesta de análisis de tendencias."""
+    periodo_analisis: dict = Field(description="Información del período analizado")
+    tendencia_general: str = Field(description="Tendencia general (creciente, decreciente, estable)")
+    crecimiento_promedio: Optional[Decimal] = Field(description="Crecimiento promedio en porcentaje")
+    mejor_periodo: dict = Field(description="Mejor período de ventas")
+    peor_periodo: dict = Field(description="Peor período de ventas")
+    datos_detallados: List[VentasPorPeriodo] = Field(description="Datos detallados por período")
+
+class EstadoSistemaResponse(BaseModel):
+    """Esquema para respuesta del estado del sistema."""
+    fecha_consulta: date = Field(description="Fecha de la consulta")
+    metricas_rapidas: MetricasRapidas = Field(description="Métricas rápidas del sistema")
+    salud_sistema: dict = Field(description="Índice de salud del sistema")
+    alertas: dict = Field(description="Resumen de alertas por tipo")
+    resumen_modulos: dict = Field(description="Estado de cada módulo principal") 
