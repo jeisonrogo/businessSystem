@@ -34,11 +34,11 @@ Este documento explica la arquitectura actual implementada del Sistema de Gesti�
   - `GET /health` - Endpoint de verificación de salud del servicio
 - Configuración para ejecutar con Uvicorn cuando se ejecuta directamente
 
-**Total APIs:** 61 endpoints REST funcionando across 7 modules
+**Total APIs:** 76 endpoints REST funcionando across 8 modules
 
-**Dependencias:** FastAPI, FastAPI CORS middleware, routers de autenticación, productos, inventario, contabilidad y facturación
+**Dependencias:** FastAPI, FastAPI CORS middleware, routers de autenticación, productos, inventario, contabilidad, facturación y dashboard
 
-## 🌐 Endpoints API Disponibles (61 total)
+## 🌐 Endpoints API Disponibles (76 total)
 
 ### Autenticación (3 endpoints)
 - `POST /api/v1/auth/login` - Iniciar sesión con email/password
@@ -119,6 +119,23 @@ Este documento explica la arquitectura actual implementada del Sistema de Gesti�
 - `GET /api/v1/facturas/reportes/valor-cartera` - **Cartera pendiente** total y vencida (general o por cliente)
 - `GET /api/v1/facturas/reportes/estadisticas-completas` - **Dashboard completo** con análisis integral
 - `GET /api/v1/facturas/configuracion/validar-integracion-contable` - **Validar configuración** contable
+
+### Dashboard y Reportes Gerenciales (15 endpoints)
+- `GET /api/v1/dashboard/test` - **Test endpoint** para verificación de salud
+- `GET /api/v1/dashboard/completo` - **Dashboard consolidado** con métricas de todos los módulos
+- `GET /api/v1/dashboard/kpis` - **KPIs principales** con comparación de períodos
+- `GET /api/v1/dashboard/metricas-rapidas` - **Widgets de métricas** instantáneas (ventas hoy/mes, stock crítico)
+- `GET /api/v1/dashboard/ventas-por-periodo` - **Tendencias de ventas** con agrupación temporal
+- `GET /api/v1/dashboard/productos-top` - **Ranking de productos** más vendidos
+- `GET /api/v1/dashboard/clientes-top` - **Mejores clientes** por volumen de compras
+- `GET /api/v1/dashboard/inventario-resumen` - **Estadísticas de inventario** por tipo de movimiento
+- `GET /api/v1/dashboard/balance-contable` - **Resumen contable** por cuenta principal
+- `GET /api/v1/dashboard/alertas` - **Sistema de notificaciones** automáticas
+- `GET /api/v1/dashboard/analisis/rentabilidad` - **Análisis financiero** detallado
+- `GET /api/v1/dashboard/analisis/tendencias-ventas` - **Patrones de crecimiento** de ventas
+- `GET /api/v1/dashboard/estado-sistema` - **Estado de salud** del sistema completo
+- `GET /api/v1/dashboard/export/excel` - **Exportación a Excel** (preparado)
+- `GET /api/v1/dashboard/configuracion/periodos` - **Períodos disponibles** para reportes
 
 ### Endpoints Generales (2 endpoints)
 - `GET /` - **Información de la API** con timestamp y versión del sistema
@@ -340,6 +357,132 @@ Este documento explica la arquitectura actual implementada del Sistema de Gesti�
 - **BR-20**: Integración contable automática
 
 **Dependencias:** SQLModel, Pydantic, Decimal, UUID, datetime, Enum
+
+### ✅ NUEVO: `/backend/app/domain/models/dashboard.py` - Modelos de Dashboard
+**Propósito:** Define las entidades para el sistema de dashboard y reportes gerenciales con métricas consolidadas
+
+**Componentes implementados:**
+- **`PeriodoReporte`** - Enum con 7 tipos de períodos:
+  - `HOY` - Período de un día (hoy)
+  - `SEMANA` - Esta semana completa
+  - `MES` - Este mes completo
+  - `TRIMESTRE` - Este trimestre
+  - `SEMESTRE` - Este semestre
+  - `ANO` - Este año
+  - `PERSONALIZADO` - Rango de fechas personalizado
+
+- **`TipoAlerta`** - Enum con 3 niveles de alerta:
+  - `INFO` - Información general
+  - `WARNING` - Advertencia importante
+  - `DANGER` - Situación crítica que requiere acción
+
+- **`CategoriaMetrica`** - Enum de categorías de métricas:
+  - `VENTAS` - Métricas relacionadas con facturación
+  - `INVENTARIO` - Métricas de stock y movimientos
+  - `CONTABILIDAD` - Métricas financieras y contables
+  - `CLIENTES` - Métricas de gestión de clientes
+
+**Modelos principales de dashboard:**
+
+- **`DashboardCompleto`** - Dashboard consolidado principal:
+  - `fecha_generacion: datetime` - Timestamp de generación
+  - `periodo: PeriodoReporte` - Período del reporte
+  - `fecha_inicio: date` - Fecha de inicio del período
+  - `fecha_fin: date` - Fecha de fin del período
+  - `kpis: KPIDashboard` - Indicadores clave consolidados
+  - `ventas_por_periodo: List[VentasPorPeriodo]` - Tendencias temporales
+  - `productos_top: List[ProductoTopVentas]` - Rankings de productos
+  - `clientes_top: List[ClienteTopVentas]` - Rankings de clientes
+  - `movimientos_inventario: List[MovimientoInventarioResumen]` - Stats de inventario
+  - `balance_principales: List[BalanceContableResumen]` - Resumen contable
+  - `alertas: List[AlertaDashboard]` - Notificaciones del sistema
+
+- **`KPIDashboard`** - 11 indicadores clave de rendimiento:
+  - `ventas_del_periodo: Decimal` - Total de ventas en el período
+  - `numero_facturas: int` - Cantidad de facturas emitidas
+  - `ticket_promedio: Decimal` - Valor promedio por factura
+  - `cartera_pendiente: Decimal` - Total por cobrar
+  - `cartera_vencida: Decimal` - Facturas vencidas sin pago
+  - `valor_inventario: Decimal` - Valor total del inventario
+  - `productos_activos: int` - Productos en catálogo activo
+  - `productos_sin_stock: int` - Productos agotados
+  - `productos_stock_bajo: int` - Productos con stock crítico
+  - `clientes_activos: int` - Clientes registrados activos
+  - `clientes_nuevos: int` - Clientes registrados en el período
+
+- **`MetricasRapidas`** - Widgets para información instantánea:
+  - `ventas_hoy: Decimal` - Ventas del día actual
+  - `ventas_mes: Decimal` - Ventas acumuladas del mes
+  - `facturas_pendientes: int` - Facturas por cobrar
+  - `stock_critico: int` - Productos con stock bajo
+  - `nuevos_clientes_mes: int` - Clientes nuevos este mes
+
+- **`VentasPorPeriodo`** - Análisis temporal de ventas:
+  - `periodo: str` - Etiqueta del período (ej: "2025-08")
+  - `fecha_inicio: date` - Inicio del período
+  - `fecha_fin: date` - Fin del período
+  - `total_ventas: Decimal` - Ventas totales del período
+  - `numero_facturas: int` - Cantidad de facturas
+  - `ticket_promedio: Decimal` - Promedio por factura
+
+- **`ProductoTopVentas`** - Rankings de productos exitosos:
+  - `producto_id: UUID` - ID del producto
+  - `sku: str` - Código SKU único
+  - `nombre: str` - Nombre del producto
+  - `cantidad_vendida: int` - Unidades vendidas
+  - `total_ventas: Decimal` - Ingresos generados
+  - `numero_facturas: int` - Facturas que incluyen el producto
+  - `ticket_promedio: Decimal` - Venta promedio por factura
+
+- **`ClienteTopVentas`** - Rankings de mejores clientes:
+  - `cliente_id: UUID` - ID del cliente
+  - `numero_documento: str` - Documento de identificación
+  - `nombre_completo: str` - Nombre o razón social
+  - `total_compras: Decimal` - Monto total de compras
+  - `numero_facturas: int` - Cantidad de facturas
+  - `ticket_promedio: Decimal` - Compra promedio
+
+- **`MovimientoInventarioResumen`** - Estadísticas de inventario:
+  - `tipo_movimiento: str` - Tipo (ENTRADA, SALIDA, MERMA, AJUSTE)
+  - `cantidad_movimientos: int` - Número total de movimientos
+  - `cantidad_total: int` - Unidades totales movidas
+  - `valor_total: Decimal` - Valor monetario total
+
+- **`BalanceContableResumen`** - Resumen por cuenta contable:
+  - `codigo_cuenta: str` - Código de la cuenta
+  - `nombre_cuenta: str` - Nombre de la cuenta
+  - `tipo_cuenta: str` - Tipo (ACTIVO, PASIVO, etc.)
+  - `total_debitos: Decimal` - Suma de débitos
+  - `total_creditos: Decimal` - Suma de créditos
+  - `saldo: Decimal` - Saldo final (débitos - créditos)
+
+- **`AlertaDashboard`** - Sistema de notificaciones:
+  - `tipo: TipoAlerta` - Nivel de severidad
+  - `titulo: str` - Título de la alerta
+  - `mensaje: str` - Descripción detallada
+  - `fecha: datetime` - Fecha/hora de la alerta
+  - `modulo: str` - Módulo que genera la alerta
+  - `requiere_accion: bool` - Si requiere intervención del usuario
+
+**Modelos de configuración:**
+- **`FiltrosDashboard`** - Configuración de filtros:
+  - `periodo: PeriodoReporte` - Período seleccionado
+  - `fecha_inicio: Optional[date]` - Para período personalizado
+  - `fecha_fin: Optional[date]` - Para período personalizado
+  - `limite_tops: int` - Límite para rankings (1-50)
+  - `incluir_comparacion_periodos: bool` - Si incluir comparaciones
+
+**Funciones de utilidad:**
+- **`calcular_fechas_periodo(periodo, fecha_inicio, fecha_fin)`** - Calcula fechas según período
+- **`validar_filtros_dashboard(filtros)`** - Valida consistencia de filtros
+
+**Validaciones implementadas:**
+- Períodos válidos con fechas consistentes
+- Límites de rankings entre 1 y 50 elementos
+- Filtros de fecha requeridos para período personalizado
+- Tipos de alerta válidos con severidad apropiada
+
+**Dependencias:** SQLModel, Pydantic, Decimal, UUID, datetime, Enum, typing
 
 ---
 
