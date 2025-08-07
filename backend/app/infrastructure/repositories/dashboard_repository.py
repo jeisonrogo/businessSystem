@@ -7,7 +7,7 @@ from typing import List, Optional, Tuple, Dict, Any
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from sqlmodel import Session, select, func, text, or_, and_
-from sqlalchemy import extract
+from sqlalchemy import extract, case
 
 from app.application.services.i_dashboard_repository import IDashboardRepository
 from app.domain.models.dashboard import (
@@ -173,20 +173,20 @@ class SQLDashboardRepository(IDashboardRepository):
         nuevos_clientes_anterior = await self._get_nuevos_clientes_periodo(fecha_inicio_anterior, fecha_fin_anterior) if incluir_comparacion else None
         clientes_nuevos = await self.calcular_metrica_con_comparacion(Decimal(nuevos_clientes_actual), Decimal(nuevos_clientes_anterior) if nuevos_clientes_anterior else None)
 
-        # 7. Contabilidad (temporalmente simplificado para evitar errores)
-        ingresos_actual = Decimal('0')  # await self._get_ingresos_periodo(fecha_inicio, fecha_fin)
-        ingresos_anterior = None
+        # 7. Contabilidad
+        ingresos_actual = await self._get_ingresos_periodo(fecha_inicio, fecha_fin)
+        ingresos_anterior = await self._get_ingresos_periodo(fecha_inicio_anterior, fecha_fin_anterior) if incluir_comparacion else None
         ingresos_periodo = await self.calcular_metrica_con_comparacion(ingresos_actual, ingresos_anterior)
 
-        gastos_actual = Decimal('0')  # await self._get_gastos_periodo(fecha_inicio, fecha_fin)  
-        gastos_anterior = None
+        gastos_actual = await self._get_gastos_periodo(fecha_inicio, fecha_fin)
+        gastos_anterior = await self._get_gastos_periodo(fecha_inicio_anterior, fecha_fin_anterior) if incluir_comparacion else None
         gastos_periodo = await self.calcular_metrica_con_comparacion(gastos_actual, gastos_anterior)
 
         utilidad_actual = ingresos_actual - gastos_actual
-        utilidad_anterior = None
+        utilidad_anterior = (ingresos_anterior - gastos_anterior) if (ingresos_anterior and gastos_anterior) else None
         utilidad_bruta = await self.calcular_metrica_con_comparacion(utilidad_actual, utilidad_anterior)
 
-        margen_utilidad = None  # await self.calcular_margen_utilidad(fecha_inicio, fecha_fin)
+        margen_utilidad = await self.calcular_margen_utilidad(fecha_inicio, fecha_fin)
 
         return KPIDashboard(
             ventas_del_periodo=ventas_del_periodo,
@@ -396,9 +396,59 @@ class SQLDashboardRepository(IDashboardRepository):
         fecha_fin: date,
         solo_principales: bool = True
     ) -> List[BalanceContableResumen]:
-        """Obtiene resumen del balance contable (temporalmente simplificado)."""
-        # Temporalmente devolver lista vacía para evitar errores de consulta
-        return []
+        """Obtiene resumen del balance contable."""
+        where_conditions = [
+            func.date(AsientoContable.fecha) >= fecha_inicio,
+            func.date(AsientoContable.fecha) <= fecha_fin
+        ]
+        
+        if solo_principales:
+            where_conditions.append(func.length(CuentaContable.codigo) <= 4)  # Solo cuentas principales
+
+        query = select(
+            CuentaContable.codigo,
+            CuentaContable.nombre,
+            CuentaContable.tipo_cuenta.label('tipo'),
+            func.sum(
+                case(
+                    (DetalleAsiento.tipo_movimiento == 'DEBITO', DetalleAsiento.monto),
+                    else_=0
+                )
+            ).label('total_debitos'),
+            func.sum(
+                case(
+                    (DetalleAsiento.tipo_movimiento == 'CREDITO', DetalleAsiento.monto),
+                    else_=0
+                )
+            ).label('total_creditos')
+        ).join(
+            DetalleAsiento, CuentaContable.id == DetalleAsiento.cuenta_id
+        ).join(
+            AsientoContable, DetalleAsiento.asiento_id == AsientoContable.id
+        ).where(
+            and_(*where_conditions)
+        ).group_by(
+            CuentaContable.codigo, CuentaContable.nombre, CuentaContable.tipo_cuenta
+        ).order_by(CuentaContable.codigo)
+
+        results = self.session.exec(query).all()
+        
+        balance = []
+        for row in results:
+            total_debitos = row.total_debitos or Decimal('0')
+            total_creditos = row.total_creditos or Decimal('0')
+            saldo = total_debitos - total_creditos
+
+            balance.append(BalanceContableResumen(
+                codigo_cuenta=row.codigo,
+                nombre_cuenta=row.nombre,
+                tipo_cuenta=str(row.tipo),
+                total_debitos=total_debitos,
+                total_creditos=total_creditos,
+                saldo=saldo
+            ))
+
+        return balance
 
     async def get_alertas_dashboard(self) -> List[AlertaDashboard]:
         """Obtiene alertas relevantes para mostrar en el dashboard."""
@@ -639,11 +689,15 @@ class SQLDashboardRepository(IDashboardRepository):
         }
 
     async def get_datos_contables_periodo(self, fecha_inicio: date, fecha_fin: date) -> dict:
-        """Obtiene datos contables para el período especificado (temporalmente simplificado)."""
+        """Obtiene datos contables para el período especificado."""
+        ingresos = await self._get_ingresos_periodo(fecha_inicio, fecha_fin)
+        gastos = await self._get_gastos_periodo(fecha_inicio, fecha_fin)
+        utilidad = ingresos - gastos
+        
         return {
-            "ingresos": Decimal('0'),
-            "gastos": Decimal('0'),
-            "utilidad_bruta": Decimal('0')
+            "ingresos": ingresos,
+            "gastos": gastos,
+            "utilidad_bruta": utilidad
         }
 
     async def get_datos_clientes_periodo(self, fecha_inicio: date, fecha_fin: date) -> dict:
@@ -687,8 +741,16 @@ class SQLDashboardRepository(IDashboardRepository):
         return rotacion
 
     async def calcular_margen_utilidad(self, fecha_inicio: date, fecha_fin: date) -> Optional[Decimal]:
-        """Calcula el margen de utilidad para el período (temporalmente simplificado)."""
-        return None
+        """Calcula el margen de utilidad para el período."""
+        ingresos = await self._get_ingresos_periodo(fecha_inicio, fecha_fin)
+        gastos = await self._get_gastos_periodo(fecha_inicio, fecha_fin)
+        
+        if ingresos == 0:
+            return None
+        
+        utilidad = ingresos - gastos
+        margen = (utilidad / ingresos) * 100
+        return margen
 
     async def generar_alertas_automaticas(self) -> List[AlertaDashboard]:
         """Genera alertas automáticas basadas en reglas del negocio."""
