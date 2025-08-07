@@ -27,13 +27,102 @@ Este documento explica la arquitectura actual implementada del Sistema de Gesti�
 - **✅ ACTUALIZADO:** Incluye router de autenticación (`/api/v1/auth`)
 - **✅ IMPLEMENTADO:** Incluye router de productos (`/api/v1/products`)
 - **✅ IMPLEMENTADO:** Incluye router de inventario (`/api/v1/inventario`)
-- **✅ NUEVO:** Incluye routers de contabilidad (`/api/v1/contabilidad` y `/api/v1/asientos`)
+- **✅ NUEVO:** Incluye routers de contabilidad (`/api/v1/cuentas` y `/api/v1/asientos`)
+- **✅ NUEVO:** Incluye routers de facturación (`/api/v1/clientes` y `/api/v1/facturas`)
 - Define endpoints básicos:
   - `GET /` - Información básica de la API con timestamp
   - `GET /health` - Endpoint de verificación de salud del servicio
 - Configuración para ejecutar con Uvicorn cuando se ejecuta directamente
 
-**Dependencias:** FastAPI, FastAPI CORS middleware, routers de autenticación, productos, inventario y contabilidad
+**Total APIs:** 61 endpoints REST funcionando across 7 modules
+
+**Dependencias:** FastAPI, FastAPI CORS middleware, routers de autenticación, productos, inventario, contabilidad y facturación
+
+## 🌐 Endpoints API Disponibles (61 total)
+
+### Autenticación (3 endpoints)
+- `POST /api/v1/auth/login` - Iniciar sesión con email/password
+- `POST /api/v1/auth/register` - Registrar nuevo usuario en el sistema
+- `GET /api/v1/auth/me` - Obtener información del usuario autenticado actual
+
+### Productos (13 endpoints)
+- `GET /api/v1/products/` - Listar productos con paginación, búsqueda y filtros
+- `POST /api/v1/products/` - Crear nuevo producto con validación de SKU único
+- `GET /api/v1/products/{product_id}` - Obtener producto específico por UUID
+- `PUT /api/v1/products/{product_id}` - Actualizar producto existente
+- `DELETE /api/v1/products/{product_id}` - Eliminar producto (soft delete)
+- `POST /api/v1/products/{product_id}/reactivate` - Reactivar producto eliminado
+- `GET /api/v1/products/search` - Búsqueda rápida para autocompletado
+- `GET /api/v1/products/low-stock` - Productos con stock bajo umbral configurable
+- `POST /api/v1/products/{product_id}/update-stock` - Actualizar stock específico
+- `GET /api/v1/products/{product_id}/stock-movements` - Historial de movimientos
+- `GET /api/v1/products/sku/{sku}` - Obtener producto por código SKU único
+- `PATCH /api/v1/products/{product_id}/stock` - Actualización específica de stock
+- `GET /api/v1/products/low-stock/` - Lista de productos con stock crítico
+
+### Inventario (6 endpoints)
+- `GET /api/v1/inventario/` - Listar movimientos con filtros y paginación
+- `POST /api/v1/inventario/` - Crear movimiento de inventario (entrada/salida)
+- `GET /api/v1/inventario/{movimiento_id}` - Obtener movimiento específico
+- `GET /api/v1/inventario/producto/{producto_id}/kardex` - Kardex de producto
+- `GET /api/v1/inventario/resumen` - Resumen general de inventario
+- `GET /api/v1/inventario/estadisticas` - Estadísticas de movimientos por período
+
+### Plan de Cuentas Contables (9 endpoints)
+- `POST /api/v1/cuentas-contables/` - Crear nueva cuenta contable
+- `GET /api/v1/cuentas-contables/{cuenta_id}` - Obtener cuenta por UUID
+- `GET /api/v1/cuentas-contables/codigo/{codigo}` - Obtener cuenta por código único
+- `GET /api/v1/cuentas-contables/` - Listar cuentas con filtros y jerarquía
+- `PUT /api/v1/cuentas-contables/{cuenta_id}` - Actualizar cuenta existente
+- `DELETE /api/v1/cuentas-contables/{cuenta_id}` - Eliminar cuenta contable
+- `GET /api/v1/cuentas-contables/jerarquia` - Estructura jerárquica completa
+- `GET /api/v1/cuentas-contables/padre/{cuenta_padre_id}/hijas` - Subcuentas
+- `GET /api/v1/cuentas-contables/tipo/{tipo}` - Cuentas filtradas por tipo
+
+### Asientos Contables (9 endpoints)
+- `POST /api/v1/asientos-contables/` - Crear asiento con validación de equilibrio
+- `GET /api/v1/asientos-contables/{asiento_id}` - Obtener asiento por UUID
+- `GET /api/v1/asientos-contables/numero/{numero}` - Obtener por número consecutivo
+- `GET /api/v1/asientos-contables/` - Listar asientos con filtros temporales
+- `PUT /api/v1/asientos-contables/{asiento_id}` - Actualizar asiento (solo borradores)
+- `DELETE /api/v1/asientos-contables/{asiento_id}` - Anular asiento contable
+- `POST /api/v1/asientos-contables/{asiento_id}/validate` - Validar equilibrio contable
+- `GET /api/v1/asientos-contables/reportes/libro-diario` - Libro diario por período
+- `GET /api/v1/asientos-contables/reportes/balance-comprobacion` - Balance de comprobación
+
+### Clientes (11 endpoints)
+- `POST /api/v1/clientes/` - Crear cliente con validación de documento único (BR-16)
+- `GET /api/v1/clientes/{cliente_id}` - Obtener cliente específico por UUID
+- `GET /api/v1/clientes/documento/{numero_documento}` - Buscar por documento único
+- `GET /api/v1/clientes/` - Listar clientes con paginación, búsqueda y filtros por tipo
+- `PUT /api/v1/clientes/{cliente_id}` - Actualizar información del cliente
+- `DELETE /api/v1/clientes/{cliente_id}` - Desactivar cliente (soft delete con protección)
+- `POST /api/v1/clientes/{cliente_id}/activate` - Reactivar cliente desactivado
+- `GET /api/v1/clientes/search/quick` - Búsqueda rápida para autocompletado
+- `GET /api/v1/clientes/frecuentes/top` - Clientes más frecuentes por número de facturas
+- `GET /api/v1/clientes/{cliente_id}/estadisticas` - Estadísticas completas del cliente
+- `GET /api/v1/clientes/tipo/{tipo_cliente}` - Filtrar por tipo (PERSONA_NATURAL/EMPRESA)
+
+### Facturas (15 endpoints)
+- `POST /api/v1/facturas/` - **Crear factura** con integración contable automática y validación de stock (BR-18)
+- `GET /api/v1/facturas/{factura_id}` - **Obtener factura** completa por UUID con todos los detalles
+- `GET /api/v1/facturas/numero/{numero_factura}` - **Buscar por número** consecutivo único (BR-17)
+- `GET /api/v1/facturas/` - **Listar facturas** con filtros avanzados (cliente, estado, tipo, fechas, búsqueda)
+- `PUT /api/v1/facturas/{factura_id}` - **Actualizar factura** existente (solo permitido en estado EMITIDA)
+- `DELETE /api/v1/facturas/{factura_id}` - **Anular factura** con reversión contable y stock automática
+- `POST /api/v1/facturas/{factura_id}/marcar-pagada` - **Marcar como pagada** con contabilización automática
+- `GET /api/v1/facturas/vencidas/lista` - **Facturas vencidas** pendientes de pago por fecha de corte
+- `GET /api/v1/facturas/cliente/{cliente_id}/lista` - **Facturas por cliente** con paginación y filtro de estado
+- `GET /api/v1/facturas/reportes/resumen-ventas` - **Resumen de ventas** por período (totales, impuestos, promedios)
+- `GET /api/v1/facturas/reportes/productos-mas-vendidos` - **Top productos vendidos** en período específico
+- `GET /api/v1/facturas/reportes/clientes-top` - **Mejores clientes** por compras/facturación en período
+- `GET /api/v1/facturas/reportes/valor-cartera` - **Cartera pendiente** total y vencida (general o por cliente)
+- `GET /api/v1/facturas/reportes/estadisticas-completas` - **Dashboard completo** con análisis integral
+- `GET /api/v1/facturas/configuracion/validar-integracion-contable` - **Validar configuración** contable
+
+### Endpoints Generales (2 endpoints)
+- `GET /` - **Información de la API** con timestamp y versión del sistema
+- `GET /health` - **Health Check** para monitoreo y verificación de estado
 
 ---
 
@@ -147,6 +236,108 @@ Este documento explica la arquitectura actual implementada del Sistema de Gesti�
 **Constantes y utilidades:**
 - **`TipoReferencia`** - Constantes para tipos de referencia (FC, FV, OC, DEV, AJ, MER)
 - **`EstadisticasInventario`** - Schema para estadísticas de inventario por período
+
+**Dependencias:** SQLModel, Pydantic, Decimal, UUID, datetime, Enum
+
+### ✅ NUEVO: `/backend/app/domain/models/contabilidad.py` - Modelos Contables
+**Propósito:** Define las entidades para el sistema contable con principio de doble partida
+
+**Componentes implementados:**
+- **`CuentaContable`** - Plan de cuentas con estructura jerárquica
+- **`AsientoContable`** - Asientos contables con validación de equilibrio
+- **`DetalleAsiento`** - Movimientos contables (débito/crédito)
+- **`TipoMovimiento`** - Enum (DEBITO, CREDITO)
+
+**Reglas de negocio implementadas:**
+- **BR-12**: Principio de doble partida obligatorio
+- **BR-13**: Códigos de cuenta únicos (1-8 dígitos)
+- **BR-14**: Mínimo 2 detalles por asiento
+- **BR-15**: Montos siempre positivos en detalles
+
+### ✅ NUEVO: `/backend/app/domain/models/facturacion.py` - Modelos de Facturación
+**Propósito:** Define las entidades para el sistema de facturación con integración contable automática
+
+**Componentes implementados:**
+- **`TipoDocumento`** - Enum con tipos de documento colombianos:
+  - `CC` - Cédula de Ciudadanía
+  - `NIT` - Número de Identificación Tributaria  
+  - `CEDULA_EXTRANJERIA` - Cédula de Extranjería
+  - `PASAPORTE` - Pasaporte
+
+- **`TipoCliente`** - Enum con tipos de cliente:
+  - `PERSONA_NATURAL` - Persona física
+  - `EMPRESA` - Persona jurídica
+
+- **`Cliente`** - Entidad principal de clientes:
+  - `id: UUID` - Identificador único primario
+  - `tipo_documento: TipoDocumento` - Tipo de documento
+  - `numero_documento: str` - Documento único del cliente (único)
+  - `nombre_completo: str` - Nombre completo o razón social
+  - `nombre_comercial: Optional[str]` - Nombre comercial para empresas
+  - `email: Optional[str]` - Email de contacto
+  - `telefono: Optional[str]` - Teléfono principal
+  - `direccion: Optional[str]` - Dirección de facturación
+  - `tipo_cliente: TipoCliente` - Tipo de cliente
+  - `is_active: bool` - Estado activo para soft delete
+  - `created_at: datetime` - Fecha de creación (UTC)
+
+- **`EstadoFactura`** - Enum con estados de factura:
+  - `EMITIDA` - Factura emitida pendiente de pago
+  - `PAGADA` - Factura pagada completamente
+  - `ANULADA` - Factura anulada
+
+- **`TipoFactura`** - Enum con tipos de factura:
+  - `VENTA` - Factura de venta de productos
+  - `SERVICIO` - Factura de prestación de servicios
+
+- **`Factura`** - Entidad principal de facturas:
+  - `id: UUID` - Identificador único primario
+  - `numero_factura: str` - Número consecutivo único
+  - `prefijo: str` - Prefijo de facturación (FV)
+  - `cliente_id: UUID` - Foreign key al cliente
+  - `tipo_factura: TipoFactura` - Tipo de factura
+  - `estado: EstadoFactura` - Estado actual
+  - `fecha_emision: date` - Fecha de emisión
+  - `fecha_vencimiento: Optional[date]` - Fecha de vencimiento
+  - `subtotal: Decimal` - Subtotal antes de descuentos e impuestos
+  - `total_descuento: Decimal` - Total de descuentos aplicados
+  - `total_impuestos: Decimal` - Total de impuestos (IVA)
+  - `total_factura: Decimal` - Total final de la factura
+  - `observaciones: Optional[str]` - Observaciones adicionales
+  - `created_by: Optional[UUID]` - Usuario que creó la factura
+  - `created_at: datetime` - Fecha de creación (UTC)
+
+- **`DetalleFactura`** - Entidad de detalles de factura:
+  - `id: UUID` - Identificador único primario
+  - `factura_id: UUID` - Foreign key a la factura
+  - `producto_id: UUID` - Foreign key al producto
+  - `descripcion_producto: str` - Descripción del producto
+  - `codigo_producto: str` - SKU del producto
+  - `cantidad: int` - Cantidad facturada
+  - `precio_unitario: Decimal` - Precio unitario
+  - `descuento_porcentaje: Decimal` - Porcentaje de descuento
+  - `porcentaje_iva: Decimal` - Porcentaje de IVA
+  - `subtotal_item: Decimal` - Subtotal del item
+  - `descuento_valor: Decimal` - Valor del descuento
+  - `base_gravable: Decimal` - Base gravable después del descuento
+  - `valor_iva: Decimal` - Valor del IVA calculado
+  - `total_item: Decimal` - Total del item
+
+**Esquemas Pydantic complementarios:**
+- **Cliente**: `ClienteCreate`, `ClienteUpdate`, `ClienteResponse`
+- **Factura**: `FacturaCreate`, `FacturaUpdate`, `FacturaResponse`
+- **Detalle**: `DetalleFacturaCreate`, `DetalleFacturaResponse`
+
+**Funciones de negocio:**
+- **`generar_numero_factura(prefijo, consecutivo)`** - Genera número de factura con formato FV-000001
+- **`calcular_totales_factura(detalles)`** - Calcula automáticamente todos los totales de la factura
+
+**Reglas de negocio implementadas:**
+- **BR-16**: Documentos únicos por cliente
+- **BR-17**: Numeración consecutiva de facturas
+- **BR-18**: Validación de stock antes de facturar
+- **BR-19**: Cálculo automático de impuestos (IVA)
+- **BR-20**: Integración contable automática
 
 **Dependencias:** SQLModel, Pydantic, Decimal, UUID, datetime, Enum
 
@@ -321,6 +512,98 @@ Este documento explica la arquitectura actual implementada del Sistema de Gesti�
 - Documentación completa de reglas de negocio
 
 **Dependencias:** ABC, UUID, datetime, typing, domain models
+
+### ✅ NUEVO: `/backend/app/application/services/i_cliente_repository.py` - Interfaz de Repositorio Cliente
+**Propósito:** Define el contrato abstracto para el acceso a datos de clientes
+
+**Métodos CRUD implementados:**
+- `create(cliente_data: ClienteCreate) -> Cliente` - Crear cliente con validación de documento único
+- `get_by_id(cliente_id: UUID) -> Optional[Cliente]` - Buscar por UUID
+- `get_by_documento(numero_documento: str) -> Optional[Cliente]` - Buscar por documento único
+- `get_by_email(email: str) -> Optional[Cliente]` - Buscar por email
+- `get_all(skip, limit, search, tipo_cliente, only_active) -> List[Cliente]` - Listar con filtros
+- `update(cliente_id: UUID, cliente_data: ClienteUpdate) -> Optional[Cliente]` - Actualizar
+- `delete(cliente_id: UUID) -> bool` - Soft delete con verificación de facturas
+
+**Métodos especializados:**
+- `exists_by_documento(numero_documento: str, exclude_id) -> bool` - Verificar unicidad
+- `count_total(search, tipo_cliente, only_active) -> int` - Contar con filtros
+- `get_clientes_frecuentes(limit: int) -> List[Cliente]` - Clientes con más facturas
+- `get_clientes_by_tipo(tipo_cliente: TipoCliente) -> List[Cliente]` - Filtrar por tipo
+- `search_clientes(term: str, limit: int) -> List[Cliente]` - Búsqueda rápida
+- `get_estadisticas_cliente(cliente_id: UUID) -> dict` - Estadísticas de compras
+- `activate_cliente(cliente_id: UUID) -> bool` - Reactivar cliente desactivado
+
+**Características especiales:**
+- **Validación de documentos únicos**: Implementación de BR-16
+- **Soft delete con protección**: No permite eliminar clientes con facturas
+- **Búsqueda avanzada**: Por nombre, documento, email, nombre comercial
+- **Estadísticas integradas**: Total facturas, monto compras, promedio
+- **Tipos de cliente colombianos**: Soporte completo para CC, NIT, etc.
+
+### ✅ NUEVO: `/backend/app/application/services/i_factura_repository.py` - Interfaz de Repositorio Factura
+**Propósito:** Define el contrato abstracto para el acceso a datos de facturas con lógica de negocio compleja
+
+**Métodos CRUD implementados:**
+- `create(factura_data: FacturaCreate, created_by) -> Factura` - Crear con validaciones completas
+- `get_by_id(factura_id: UUID) -> Optional[Factura]` - Buscar por UUID con detalles
+- `get_by_numero(numero_factura: str) -> Optional[Factura]` - Buscar por número
+- `get_all(skip, limit, cliente_id, estado, tipo_factura, fechas, search) -> List[Factura]` - Listar con filtros avanzados
+- `update(factura_id: UUID, factura_data: FacturaUpdate) -> Optional[Factura]` - Actualizar con restricciones
+- `delete(factura_id: UUID) -> bool` - Anular con reversión de stock
+
+**Métodos especializados de negocio:**
+- `generar_numero_consecutivo(prefijo: str) -> str` - Numeración automática (BR-17)
+- `get_siguiente_consecutivo(prefijo: str) -> int` - Obtener próximo número
+- `cambiar_estado_factura(factura_id, nuevo_estado) -> bool` - Gestión de estados
+- `marcar_como_pagada(factura_id, fecha_pago) -> bool` - Procesar pagos
+- `existe_numero_factura(numero_factura: str) -> bool` - Verificar unicidad
+
+**Métodos de análisis y reportes:**
+- `get_facturas_vencidas(fecha_corte) -> List[Factura]` - Cartera vencida
+- `get_facturas_por_cliente(cliente_id, skip, limit, estado) -> List[Factura]` - Por cliente
+- `get_resumen_ventas(fecha_desde, fecha_hasta, cliente_id) -> dict` - Estadísticas de ventas
+- `get_productos_mas_vendidos(fecha_desde, fecha_hasta, limit) -> List[dict]` - Top productos
+- `get_clientes_top(fecha_desde, fecha_hasta, limit) -> List[dict]` - Mejores clientes
+- `get_valor_cartera(cliente_id, solo_vencida) -> dict` - Análisis de cartera
+- `get_estadisticas_facturacion(fecha_desde, fecha_hasta) -> dict` - Dashboard completo
+- `count_total(filtros...) -> int` - Conteo con filtros múltiples
+
+**Características especiales:**
+- **Integración con inventario**: Validación y actualización automática de stock (BR-18)
+- **Cálculos automáticos**: Totales, descuentos, impuestos (BR-19)
+- **Numeración consecutiva**: Generación automática de números únicos (BR-17)
+- **Estados de factura**: Gestión completa del ciclo de vida
+- **Reportes integrados**: Analytics de ventas, productos y clientes
+- **Validación de reglas**: Implementación completa de BR-16 a BR-20
+
+### ✅ NUEVO: `/backend/app/application/services/integracion_contable_service.py` - Servicio de Integración Contable
+**Propósito:** Maneja la creación automática de asientos contables para eventos de facturación
+
+**Métodos principales:**
+- `generar_asiento_emision_factura(factura, created_by) -> UUID` - Asiento al emitir factura
+- `generar_asiento_pago_factura(factura, forma_pago, created_by) -> UUID` - Asiento de pago
+- `generar_asiento_anulacion_factura(factura, motivo, created_by) -> UUID` - Asiento de anulación
+- `validar_cuentas_configuradas() -> dict` - Verificar configuración contable
+
+**Principios contables implementados:**
+- **Doble partida**: Débitos = Créditos en todos los asientos (BR-12)
+- **Plan de cuentas colombiano**: Códigos estándar implementados
+- **Mapeo automático**: Formas de pago → cuentas contables
+- **Auditoria**: Usuario y fecha en todos los movimientos
+
+**Asientos generados:**
+- **Emisión de factura**:
+  * DÉBITO: Cuentas por Cobrar (13050500)
+  * CRÉDITO: Ingresos por Ventas (41359500)
+  * CRÉDITO: IVA por Pagar (24080500)
+- **Pago de factura**:
+  * DÉBITO: Caja/Bancos (según forma de pago)
+  * CRÉDITO: Cuentas por Cobrar (13050500)
+- **Anulación de factura**:
+  * Reversión completa del asiento de emisión
+
+**Dependencias:** ICuentaContableRepository, IAsientoContableRepository, domain models
 
 ---
 

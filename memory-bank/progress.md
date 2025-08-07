@@ -5,8 +5,8 @@ Este documento registra el progreso detallado del desarrollo del sistema, docume
 ## 📋 Estado General del Proyecto
 
 **Última actualización:** 06/08/2025  
-**Fase actual:** Fase 4 - Módulo de Contabilidad (COMPLETADA - Steps 4.1-4.3 ✅)  
-**Próxima fase:** Fase 5 - Facturación e Integración Contable
+**Fase actual:** Fase 5 - Facturación e Integración Contable (COMPLETADA ✅)  
+**Próxima fase:** Fase 6 - Dashboard y Reportes Gerenciales
 
 ## 🎯 Fase 4: Módulo de Contabilidad (COMPLETADA)
 
@@ -40,6 +40,334 @@ Este documento registra el progreso detallado del desarrollo del sistema, docume
 - ✅ **BR-13**: Códigos de cuenta únicos (1-8 dígitos)
 - ✅ **BR-14**: Mínimo 2 detalles por asiento
 - ✅ **BR-15**: Montos siempre positivos en detalles
+
+---
+
+## 🎯 Fase 5: Facturación e Integración Contable (COMPLETADA)
+
+### ✅ Implementación Completa del Sistema de Facturación
+
+**Estado:** COMPLETADO Y VALIDADO  
+**Fecha:** 06/08/2025
+
+**Resumen de Implementación:**
+- ✅ **Paso 5.1**: Modelos de Facturación (Cliente, Factura, DetalleFactura)
+- ✅ **Paso 5.2**: CRUD Completo de Clientes y Facturas con Validaciones  
+- ✅ **Paso 5.3**: Integración Contable Automática con Asientos Doble Partida
+- ✅ **Paso 5.4**: Reportes Completos de Ventas y Facturación
+
+### ✅ Paso 5.1: Modelos de Dominio de Facturación
+
+**Implementación realizada:**
+
+#### **👥 Modelo Cliente** (`app/domain/models/facturacion.py`)
+- ✅ **Entidad Cliente** con SQLModel siguiendo Clean Architecture:
+  - `id: UUID` - Identificador único primario
+  - `tipo_documento: TipoDocumento` - Enum (CC, NIT, CEDULA_EXTRANJERIA, PASAPORTE)
+  - `numero_documento: str` - Documento único del cliente (BR-16: único)
+  - `nombre_completo: str` - Nombre completo o razón social
+  - `nombre_comercial: Optional[str]` - Nombre comercial para empresas
+  - `email: Optional[str]` - Email de contacto
+  - `telefono: Optional[str]` - Teléfono principal
+  - `direccion: Optional[str]` - Dirección de facturación
+  - `tipo_cliente: TipoCliente` - Enum (PERSONA_NATURAL, EMPRESA)
+  - `is_active: bool` - Estado activo para soft delete
+  - `created_at: datetime` - Fecha de creación (UTC)
+
+#### **🧾 Modelo Factura** (`app/domain/models/facturacion.py`)
+- ✅ **Entidad Factura** con SQLModel siguiendo Clean Architecture:
+  - `id: UUID` - Identificador único primario
+  - `numero_factura: str` - Número consecutivo único generado automáticamente
+  - `prefijo: str` - Prefijo de facturación (FV)
+  - `cliente_id: UUID` - Foreign key al cliente
+  - `tipo_factura: TipoFactura` - Enum (VENTA, SERVICIO)
+  - `estado: EstadoFactura` - Enum (EMITIDA, PAGADA, ANULADA)
+  - `fecha_emision: date` - Fecha de emisión de la factura
+  - `fecha_vencimiento: Optional[date]` - Fecha de vencimiento para pago
+  - `subtotal: Decimal` - Subtotal antes de descuentos e impuestos
+  - `total_descuento: Decimal` - Total de descuentos aplicados
+  - `total_impuestos: Decimal` - Total de impuestos (IVA)
+  - `total_factura: Decimal` - Total final de la factura
+  - `observaciones: Optional[str]` - Observaciones adicionales
+  - `created_by: Optional[UUID]` - Usuario que creó la factura
+  - `created_at: datetime` - Fecha de creación (UTC)
+
+#### **📋 Modelo DetalleFactura** (`app/domain/models/facturacion.py`)
+- ✅ **Entidad DetalleFactura** con SQLModel siguiendo Clean Architecture:
+  - `id: UUID` - Identificador único primario
+  - `factura_id: UUID` - Foreign key a la factura
+  - `producto_id: UUID` - Foreign key al producto
+  - `descripcion_producto: str` - Descripción del producto facturado
+  - `codigo_producto: str` - SKU del producto
+  - `cantidad: int` - Cantidad facturada
+  - `precio_unitario: Decimal` - Precio unitario del producto
+  - `descuento_porcentaje: Decimal` - Porcentaje de descuento aplicado
+  - `porcentaje_iva: Decimal` - Porcentaje de IVA aplicado
+  - `subtotal_item: Decimal` - Subtotal del item
+  - `descuento_valor: Decimal` - Valor del descuento aplicado
+  - `base_gravable: Decimal` - Base gravable después del descuento
+  - `valor_iva: Decimal` - Valor del IVA calculado
+  - `total_item: Decimal` - Total del item
+
+#### **📊 Esquemas Pydantic Complementarios**
+- ✅ **Esquemas de Cliente**: `ClienteCreate`, `ClienteUpdate`, `ClienteResponse`
+- ✅ **Esquemas de Factura**: `FacturaCreate`, `FacturaUpdate`, `FacturaResponse`
+- ✅ **Esquemas de Detalle**: `DetalleFacturaCreate`, `DetalleFacturaResponse`
+- ✅ **Funciones de Cálculo**: `calcular_totales_factura`, `generar_numero_factura`
+- ✅ **Validaciones**: Document validation, tax calculations, totals validation
+
+#### **🗄️ Migración de Base de Datos** (`alembic/versions/08b45c8844c3_add_billing_tables.py`)
+- ✅ **3 Tablas creadas** con estructura completa:
+  - `clientes` - Gestión de clientes con documentos únicos
+  - `facturas` - Facturas con numeración consecutiva y totales
+  - `detalles_factura` - Detalles con cálculos automáticos de impuestos
+- ✅ **Foreign keys** configuradas correctamente
+- ✅ **Índices** en campos críticos para rendimiento
+- ✅ **Restricciones** para integridad referencial
+
+### ✅ Paso 5.2: CRUD Completo de Clientes y Facturas
+
+**Implementación realizada:**
+
+#### **🔌 Interfaces de Repositorio**
+- ✅ **IClienteRepository** (`app/application/services/i_cliente_repository.py`):
+  - 15+ métodos especializados para gestión de clientes
+  - CRUD básico + búsquedas, estadísticas, clientes frecuentes
+  - Validación de documentos únicos y emails
+
+- ✅ **IFacturaRepository** (`app/application/services/i_factura_repository.py`):
+  - 20+ métodos especializados para gestión de facturas
+  - CRUD básico + reportes, estadísticas, cartera, análisis de ventas
+  - Numeración consecutiva automática y validaciones
+
+#### **🗄️ Implementaciones Concretas**
+- ✅ **SQLClienteRepository** (`app/infrastructure/repositories/cliente_repository.py`):
+  - Implementación PostgreSQL con validaciones de negocio
+  - Búsquedas avanzadas por documento, email, nombre
+  - Estadísticas de cliente y análisis de compras
+  - Soft delete preservando integridad referencial
+
+- ✅ **SQLFacturaRepository** (`app/infrastructure/repositories/factura_repository.py`):
+  - Implementación PostgreSQL con lógica de negocio compleja
+  - Validación de stock automática antes de facturar
+  - Actualización automática de stock en productos
+  - Generación de números consecutivos únicos
+  - Cálculos automáticos de totales, descuentos e impuestos
+  - Reportes de ventas, productos más vendidos, clientes top
+  - Manejo de cartera y facturas vencidas
+
+#### **🎯 Casos de Uso de Clientes** (`app/application/use_cases/cliente_use_cases.py`)
+- ✅ **10 Casos de Uso implementados**:
+  - `CreateClienteUseCase` - Crear cliente con validación de documento único
+  - `GetClienteUseCase` - Obtener cliente por ID
+  - `GetClienteByDocumentoUseCase` - Buscar por documento
+  - `ListClientesUseCase` - Listar con paginación y filtros
+  - `UpdateClienteUseCase` - Actualizar con validaciones
+  - `DeleteClienteUseCase` - Soft delete con verificación de facturas
+  - `SearchClientesUseCase` - Búsqueda rápida para autocompletado
+  - `GetClientesFrecuentesUseCase` - Clientes con más facturas
+  - `GetEstadisticasClienteUseCase` - Estadísticas de compras
+  - `ActivateClienteUseCase` - Reactivar cliente desactivado
+  - `GetClientesByTipoUseCase` - Filtrar por tipo de cliente
+
+#### **🎯 Casos de Uso de Facturas** (`app/application/use_cases/factura_use_cases.py`)
+- ✅ **14 Casos de Uso implementados**:
+  - `CreateFacturaUseCase` - Crear factura con validaciones completas
+  - `GetFacturaUseCase` - Obtener factura por ID
+  - `GetFacturaByNumeroUseCase` - Buscar por número de factura
+  - `ListFacturasUseCase` - Listar con filtros avanzados
+  - `UpdateFacturaUseCase` - Actualizar con restricciones de estado
+  - `AnularFacturaUseCase` - Anular con reversión de stock
+  - `MarcarFacturaPagadaUseCase` - Marcar como pagada
+  - `GetFacturasVencidasUseCase` - Facturas con pago vencido
+  - `GetFacturasPorClienteUseCase` - Facturas de un cliente
+  - `GetResumenVentasUseCase` - Resumen de ventas por período
+  - `GetProductosMasVendidosUseCase` - Análisis de productos
+  - `GetClientesTopUseCase` - Mejores clientes por ventas
+  - `GetValorCarteraUseCase` - Cartera pendiente de pago
+  - `GetEstadisticasFacturacionUseCase` - Dashboard completo
+
+#### **🌐 Endpoints REST de Clientes** (`app/api/v1/endpoints/clientes.py`)
+- ✅ **11 Endpoints implementados**:
+  - `POST /api/v1/clientes/` - Crear cliente
+  - `GET /api/v1/clientes/{cliente_id}` - Obtener cliente por ID
+  - `GET /api/v1/clientes/documento/{numero_documento}` - Por documento
+  - `GET /api/v1/clientes/` - Listar con paginación y filtros
+  - `PUT /api/v1/clientes/{cliente_id}` - Actualizar cliente
+  - `DELETE /api/v1/clientes/{cliente_id}` - Soft delete
+  - `POST /api/v1/clientes/{cliente_id}/activate` - Reactivar
+  - `GET /api/v1/clientes/search/quick` - Búsqueda rápida
+  - `GET /api/v1/clientes/frecuentes/top` - Clientes frecuentes
+  - `GET /api/v1/clientes/{cliente_id}/estadisticas` - Estadísticas
+  - `GET /api/v1/clientes/tipo/{tipo_cliente}` - Por tipo
+
+#### **🌐 Endpoints REST de Facturas** (`app/api/v1/endpoints/facturas.py`)
+- ✅ **13 Endpoints implementados**:
+  - `POST /api/v1/facturas/` - Crear factura
+  - `GET /api/v1/facturas/{factura_id}` - Obtener factura por ID
+  - `GET /api/v1/facturas/numero/{numero_factura}` - Por número
+  - `GET /api/v1/facturas/` - Listar con filtros avanzados
+  - `PUT /api/v1/facturas/{factura_id}` - Actualizar factura
+  - `DELETE /api/v1/facturas/{factura_id}` - Anular factura
+  - `POST /api/v1/facturas/{factura_id}/marcar-pagada` - Marcar pagada
+  - `GET /api/v1/facturas/vencidas/lista` - Facturas vencidas
+  - `GET /api/v1/facturas/cliente/{cliente_id}/lista` - Por cliente
+  - `GET /api/v1/facturas/reportes/resumen-ventas` - Resumen ventas
+  - `GET /api/v1/facturas/reportes/productos-mas-vendidos` - Top productos
+  - `GET /api/v1/facturas/reportes/clientes-top` - Mejores clientes
+  - `GET /api/v1/facturas/reportes/valor-cartera` - Cartera pendiente
+  - `GET /api/v1/facturas/reportes/estadisticas-completas` - Dashboard
+  - `GET /api/v1/facturas/configuracion/validar-integracion-contable` - Validación
+
+### ✅ Paso 5.3: Integración Contable Automática
+
+**Implementación realizada:**
+
+#### **🔗 Servicio de Integración Contable** (`app/application/services/integracion_contable_service.py`)
+- ✅ **IntegracionContableService** con lógica de doble partida:
+  - `generar_asiento_emision_factura()` - Asiento al emitir factura:
+    * DÉBITO: Cuentas por Cobrar (13050500)
+    * CRÉDITO: Ingresos por Ventas (41359500)  
+    * CRÉDITO: IVA por Pagar (24080500)
+  
+  - `generar_asiento_pago_factura()` - Asiento al recibir pago:
+    * DÉBITO: Caja/Bancos (según forma de pago)
+    * CRÉDITO: Cuentas por Cobrar (13050500)
+  
+  - `generar_asiento_anulacion_factura()` - Asiento de reversión:
+    * CRÉDITO: Cuentas por Cobrar (reversión)
+    * DÉBITO: Ingresos por Ventas (reversión)
+    * DÉBITO: IVA por Pagar (reversión)
+
+- ✅ **Configuración de Cuentas Contables**:
+  - Mapeo automático de formas de pago a cuentas
+  - Validación de configuración de cuentas requeridas
+  - Endpoint de validación de integración
+
+#### **⚖️ Principios Contables Implementados**
+- ✅ **Doble Partida**: Todo asiento equilibra débitos = créditos
+- ✅ **Plan de Cuentas Colombiano**: Códigos estándar implementados
+- ✅ **Formas de Pago**: Mapeo automático a cuentas bancarias/caja
+- ✅ **Numeración Consecutiva**: Comprobantes numerados automáticamente
+- ✅ **Auditoría**: Registro de usuario y fecha en todos los asientos
+
+#### **🔄 Integración con Casos de Uso**
+- ✅ **CreateFacturaUseCase**: Genera asiento al crear factura
+- ✅ **MarcarFacturaPagadaUseCase**: Genera asiento de pago
+- ✅ **AnularFacturaUseCase**: Genera asiento de anulación
+- ✅ **Manejo de Errores**: Los asientos fallan sin afectar operación principal
+
+### ✅ Paso 5.4: Reportes Completos de Ventas y Facturación
+
+**Implementación realizada:**
+
+#### **📊 Reportes de Ventas Implementados**
+- ✅ **Resumen de Ventas por Período**:
+  - Total de facturas, ventas, impuestos, promedio
+  - Distribución por estado de factura
+  - Filtros por cliente y rango de fechas
+
+- ✅ **Productos Más Vendidos**:
+  - Análisis por cantidad vendida y ingresos generados
+  - Frecuencia de ventas por producto
+  - Ranking configurable con límites
+
+- ✅ **Clientes Top**:
+  - Ranking por volumen de compras y facturas
+  - Análisis de comportamiento de clientes
+  - Identificación de clientes más rentables
+
+- ✅ **Gestión de Cartera**:
+  - Valor total de cartera pendiente
+  - Cartera vencida vs. no vencida
+  - Análisis por cliente específico
+
+- ✅ **Dashboard de Estadísticas Completas**:
+  - Consolidación de todos los reportes
+  - Métricas clave del negocio
+  - Datos para toma de decisiones gerenciales
+
+### ✅ Funcionalidades Principales Completadas
+
+#### **👥 Gestión de Clientes**
+- ✅ CRUD completo con validaciones de negocio
+- ✅ Documentos únicos con tipos colombianos (CC, NIT, etc.)
+- ✅ Búsqueda avanzada por múltiples campos
+- ✅ Clientes frecuentes y estadísticas de compra
+- ✅ Soft delete con protección de integridad
+- ✅ Activación/desactivación de clientes
+
+#### **🧾 Gestión de Facturas**
+- ✅ Numeración consecutiva automática (FV-000001)
+- ✅ Validación automática de stock antes de facturar
+- ✅ Cálculo automático de totales, descuentos e IVA
+- ✅ Estados de factura (EMITIDA, PAGADA, ANULADA)
+- ✅ Integración con inventario (actualización de stock)
+- ✅ Manejo de formas de pago múltiples
+
+#### **📈 Reportes y Analytics**
+- ✅ Dashboard gerencial completo
+- ✅ Análisis de tendencias de ventas
+- ✅ Ranking de productos y clientes
+- ✅ Control de cartera y morosidad
+- ✅ Métricas de desempeño del negocio
+
+#### **⚖️ Integración Contable**
+- ✅ Asientos automáticos en todas las operaciones
+- ✅ Cumplimiento de principios contables colombianos
+- ✅ Trazabilidad completa de operaciones
+- ✅ Validación de configuración contable
+
+### 🗄️ Migración de Base de Datos Actualizada
+
+**Tablas del Sistema:**
+- `users` - Usuarios y autenticación
+- `products` - Catálogo de productos  
+- `movimientos_inventario` - Movimientos con costo promedio
+- `cuentas_contables` - Plan de cuentas contables
+- `asientos_contables` - Asientos con doble partida
+- `detalles_asiento` - Movimientos contables
+- **✅ NUEVO**: `clientes` - Gestión de clientes
+- **✅ NUEVO**: `facturas` - Facturas con totales automáticos
+- **✅ NUEVO**: `detalles_factura` - Items facturados con impuestos
+
+### 🚀 Integración en FastAPI Actualizada
+
+**APIs Disponibles:**
+- `/api/v1/auth/` - Autenticación (3 endpoints)
+- `/api/v1/products/` - Productos (8 endpoints)  
+- `/api/v1/inventario/` - Inventario (8 endpoints)
+- `/api/v1/cuentas/` - Plan de Cuentas (8 endpoints)
+- `/api/v1/asientos/` - Asientos Contables (8 endpoints)
+- **✅ NUEVO**: `/api/v1/clientes/` - Clientes (11 endpoints)
+- **✅ NUEVO**: `/api/v1/facturas/` - Facturas (15 endpoints)
+
+**Total: 61 endpoints REST funcionando**
+
+### 📊 Reglas de Negocio Implementadas
+
+- ✅ **BR-01**: Stock no puede ser negativo (productos e inventario)
+- ✅ **BR-02**: SKU único inmutable después de creación
+- ✅ **BR-06**: Control de acceso por roles de usuario
+- ✅ **BR-11**: Costo promedio ponderado en inventario
+- ✅ **BR-12**: Principio de doble partida contable
+- ✅ **BR-13**: Códigos de cuenta únicos en plan contable
+- ✅ **BR-14**: Mínimo 2 detalles por asiento contable
+- ✅ **BR-15**: Montos siempre positivos en movimientos
+- ✅ **BR-16**: Documentos únicos por cliente
+- ✅ **BR-17**: Numeración consecutiva de facturas
+- ✅ **BR-18**: Validación de stock antes de facturar
+- ✅ **BR-19**: Cálculo automático de impuestos (IVA)
+- ✅ **BR-20**: Integración contable automática
+
+### 🔧 Correcciones de Configuración Realizadas
+
+**Problemas identificados y corregidos durante el despliegue:**
+- ✅ Corregido import `get_db_session` → `get_session`
+- ✅ Corregido nombres de repositorios contables
+- ✅ Corregido import de autenticación desde auth endpoints
+- ✅ Actualizado interfaces de repositorios contables
+- ✅ **Aplicación funcionando correctamente** en http://0.0.0.0:8000
 
 ---
 

@@ -12,6 +12,7 @@ from app.domain.models.user import User  # noqa: F401
 from app.domain.models.product import Product  # noqa: F401
 from app.domain.models.movimiento_inventario import MovimientoInventario  # noqa: F401
 from app.domain.models.contabilidad import CuentaContable, AsientoContable, DetalleAsiento  # noqa: F401
+from app.domain.models.facturacion import Cliente, Factura, DetalleFactura  # noqa: F401
 
 # Configuración de la base de datos desde variables de entorno
 # Usar postgresql+psycopg para especificar el dialecto de psycopg3
