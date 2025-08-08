@@ -19,7 +19,7 @@ import { LoginRequest } from '../../types';
 
 const LoginForm: React.FC = () => {
   const [formData, setFormData] = useState<LoginRequest>({
-    username: '',
+    email: '',
     password: '',
   });
   const [error, setError] = useState<string>('');
@@ -45,7 +45,7 @@ const LoginForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.username || !formData.password) {
+    if (!formData.email || !formData.password) {
       setError('Por favor ingrese email y contraseña');
       return;
     }
@@ -114,13 +114,13 @@ const LoginForm: React.FC = () => {
               margin="normal"
               required
               fullWidth
-              id="username"
+              id="email"
               label="Email"
-              name="username"
+              name="email"
               type="email"
               autoComplete="email"
               autoFocus
-              value={formData.username}
+              value={formData.email}
               onChange={handleChange}
               disabled={loading}
             />
@@ -142,7 +142,7 @@ const LoginForm: React.FC = () => {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2, py: 1.5 }}
-              disabled={loading || !formData.username || !formData.password}
+              disabled={loading || !formData.email || !formData.password}
             >
               {loading ? (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -160,19 +160,16 @@ const LoginForm: React.FC = () => {
               <strong>Usuarios de demostración:</strong>
             </Typography>
             <Typography variant="caption" display="block">
-              • admin.demo@empresa.com (Administrador)
+              • admin.demo@empresa.com / admin123
             </Typography>
             <Typography variant="caption" display="block">
-              • gerente.demo@empresa.com (Gerente de Ventas)
+              • gerente.demo@empresa.com / gerente123
             </Typography>
             <Typography variant="caption" display="block">
-              • contador.demo@empresa.com (Contador)
+              • contador.demo@empresa.com / contador123
             </Typography>
             <Typography variant="caption" display="block">
-              • vendedor.demo@empresa.com (Vendedor)
-            </Typography>
-            <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-              Contraseña para todos: <strong>password123</strong>
+              • vendedor.demo@empresa.com / vendedor123
             </Typography>
           </Box>
         </Paper>

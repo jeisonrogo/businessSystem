@@ -24,7 +24,7 @@ export enum UserRole {
 }
 
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
 }
 
