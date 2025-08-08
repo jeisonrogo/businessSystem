@@ -3,7 +3,7 @@
  */
 
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import { API_CONFIG, getApiUrl } from '../config/api';
+import { API_CONFIG } from '../config/api';
 
 // Crear instancia de axios con configuración base
 const apiClient: AxiosInstance = axios.create({

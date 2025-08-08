@@ -5,13 +5,13 @@
 import React from 'react';
 import {
   Box,
-  Grid,
   Paper,
   Typography,
   Card,
   CardContent,
   CircularProgress,
 } from '@mui/material';
+import Grid2 from '@mui/material/Unstable_Grid2';
 import {
   TrendingUp,
   Inventory,
@@ -30,9 +30,9 @@ const DashboardPage: React.FC = () => {
         Bienvenido al Sistema de Gestión Empresarial
       </Typography>
 
-      <Grid container spacing={3}>
+      <Grid2 container spacing={3}>
         {/* Tarjetas de estadísticas */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid2 xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -49,9 +49,9 @@ const DashboardPage: React.FC = () => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid2 xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -68,9 +68,9 @@ const DashboardPage: React.FC = () => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid2 xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -87,9 +87,9 @@ const DashboardPage: React.FC = () => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Grid2>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid2 xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -106,10 +106,10 @@ const DashboardPage: React.FC = () => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Grid2>
 
         {/* Panel principal */}
-        <Grid item xs={12} md={8}>
+        <Grid2 xs={12} md={8}>
           <Paper sx={{ p: 3, height: 400 }}>
             <Typography variant="h6" gutterBottom>
               Gráfico de Ventas
@@ -131,10 +131,10 @@ const DashboardPage: React.FC = () => {
               </Box>
             </Box>
           </Paper>
-        </Grid>
+        </Grid2>
 
         {/* Panel lateral */}
-        <Grid item xs={12} md={4}>
+        <Grid2 xs={12} md={4}>
           <Paper sx={{ p: 3, height: 400 }}>
             <Typography variant="h6" gutterBottom>
               Actividad Reciente
@@ -153,8 +153,8 @@ const DashboardPage: React.FC = () => {
               </Typography>
             </Box>
           </Paper>
-        </Grid>
-      </Grid>
+        </Grid2>
+      </Grid2>
     </Box>
   );
 };
