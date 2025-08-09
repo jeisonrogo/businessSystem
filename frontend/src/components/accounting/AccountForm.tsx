@@ -98,7 +98,7 @@ const AccountForm: React.FC<AccountFormProps> = ({
   const loadParentAccounts = async () => {
     setLoadingParents(true);
     try {
-      const response = await AccountingService.getAccounts({ limit: 1000 });
+      const response = await AccountingService.getAccounts({ limit: 500 });
       const accounts = response.cuentas || [];
       
       // Filtrar para excluir la cuenta actual (si estamos editando) y sus descendientes
