@@ -48,6 +48,12 @@ export const ENDPOINTS = {
   // Clientes
   CLIENTS: {
     BASE: '/clientes',
+    BY_DOCUMENT: (numeroDocumento: string) => `/clientes/documento/${numeroDocumento}`,
+    QUICK_SEARCH: '/clientes/search/quick',
+    FREQUENT: '/clientes/frecuentes/top',
+    BY_TYPE: (tipoCliente: string) => `/clientes/tipo/${tipoCliente}`,
+    STATS: (clientId: string) => `/clientes/${clientId}/estadisticas`,
+    ACTIVATE: (clientId: string) => `/clientes/${clientId}/activate`,
   },
   // Facturas
   INVOICES: {
