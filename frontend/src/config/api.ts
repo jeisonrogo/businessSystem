@@ -24,10 +24,13 @@ export const ENDPOINTS = {
   },
   // Inventario
   INVENTORY: {
-    MOVEMENTS: '/inventario/movimientos',
+    MOVEMENTS: '/inventario/movimientos/',
+    MOVEMENTS_BY_ID: (movementId: string) => `/inventario/movimientos/${movementId}`,
     KARDEX: (productId: string) => `/inventario/kardex/${productId}`,
-    SUMMARY: '/inventario/resumen',
-    STATS: '/inventario/estadisticas',
+    SUMMARY: '/inventario/resumen/',
+    STATS: '/inventario/estadisticas/',
+    VALIDATE_STOCK: '/inventario/validar-stock/',
+    RECALCULATE_COSTS: (productId: string) => `/inventario/recalcular-costos/${productId}`,
   },
   // Contabilidad
   ACCOUNTING: {

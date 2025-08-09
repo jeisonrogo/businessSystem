@@ -73,27 +73,7 @@ export interface ProductListResponse {
   has_prev: boolean;
 }
 
-// Movimientos de Inventario
-export interface InventoryMovement extends BaseEntity {
-  producto_id: string;
-  tipo_movimiento: MovementType;
-  cantidad: number;
-  precio_unitario: number;
-  costo_unitario?: number;
-  stock_anterior: number;
-  stock_posterior: number;
-  referencia?: string;
-  observaciones?: string;
-  created_by?: string;
-  producto?: Product;
-}
 
-export enum MovementType {
-  ENTRADA = 'ENTRADA',
-  SALIDA = 'SALIDA',
-  MERMA = 'MERMA',
-  AJUSTE = 'AJUSTE'
-}
 
 // Cliente
 export interface Client extends BaseEntity {
@@ -246,6 +226,109 @@ export interface AccountingEntryDetail extends BaseEntity {
   debito: number;
   credito: number;
   cuenta?: Account;
+}
+
+// ============================================================================
+// INVENTORY TYPES - Tipos para el módulo de inventario
+// ============================================================================
+
+export enum MovementType {
+  ENTRADA = 'entrada',
+  SALIDA = 'salida',
+  MERMA = 'merma',
+  AJUSTE = 'ajuste'
+}
+
+export interface InventoryMovement extends BaseEntity {
+  producto_id: string;
+  tipo_movimiento: MovementType;
+  cantidad: number;
+  precio_unitario?: number;
+  costo_unitario?: number;
+  stock_anterior: number;
+  stock_posterior: number;
+  referencia?: string;
+  observaciones?: string;
+  created_by?: string;
+  producto?: Product;
+}
+
+export interface InventoryMovementCreate {
+  producto_id: string;
+  tipo_movimiento: MovementType;
+  cantidad: number;
+  precio_unitario?: number;
+  costo_unitario?: number;
+  referencia?: string;
+  observaciones?: string;
+}
+
+export interface InventoryMovementListResponse {
+  movimientos: InventoryMovement[];
+  total: number;
+  page: number;
+  limit: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
+
+export interface KardexEntry {
+  fecha: string;
+  tipo_movimiento: MovementType;
+  cantidad: number;
+  precio_unitario?: number;
+  costo_unitario?: number;
+  stock_anterior: number;
+  stock_posterior: number;
+  referencia?: string;
+  observaciones?: string;
+}
+
+export interface KardexResponse {
+  producto_id: string;
+  movimientos: InventoryMovement[];
+  stock_actual: number;
+  costo_promedio_actual: string;
+  valor_inventario: string;
+  total_movimientos: number;
+}
+
+export interface InventorySummary {
+  total_productos: number;
+  valor_total_inventario: string;
+  productos_sin_stock: number;
+  productos_stock_bajo: number;
+  ultimo_movimiento: string | null;
+}
+
+export interface InventoryStats {
+  total_entradas_mes: number;
+  total_salidas_mes: number;
+  total_mermas_mes: number;
+  valor_entradas_mes: string;
+  valor_salidas_mes: string;
+  valor_mermas_mes: string;
+  productos_mas_movidos: Array<{
+    producto_id: string;
+    nombre: string;
+    total_movimientos: number;
+  }>;
+}
+
+export interface StockValidation {
+  producto_id: string;
+  cantidad_solicitada: number;
+  stock_disponible: boolean;
+  stock_actual: number;
+  mensaje: string;
+}
+
+export interface InventoryMovementFilter {
+  producto_id?: string;
+  tipo_movimiento?: MovementType;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  referencia?: string;
 }
 
 // Dashboard y Reportes
