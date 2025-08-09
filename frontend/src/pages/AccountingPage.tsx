@@ -95,7 +95,7 @@ const AccountingPage: React.FC = () => {
     try {
       // Cargar lista de cuentas y jerarquía en paralelo
       const [accountsResponse, hierarchyResponse] = await Promise.all([
-        AccountingService.getAccounts({ limit: 1000 }), // Cargar todas las cuentas
+        AccountingService.getAccounts({ limit: 500 }), // Cargar todas las cuentas
         AccountingService.getAccountHierarchy(),
       ]);
 
@@ -183,20 +183,24 @@ const AccountingPage: React.FC = () => {
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Tooltip title="Refrescar datos">
-            <IconButton onClick={handleRefresh} disabled={loading}>
-              <Refresh />
-            </IconButton>
+            <span>
+              <IconButton onClick={handleRefresh} disabled={loading}>
+                <Refresh />
+              </IconButton>
+            </span>
           </Tooltip>
           <Tooltip title="Cargar plan de cuentas estándar de Colombia">
-            <Button
-              variant="outlined"
-              startIcon={<CloudDownload />}
-              onClick={handleSeedAccounts}
-              disabled={loading}
-              size="small"
-            >
-              Plan Colombia
-            </Button>
+            <span>
+              <Button
+                variant="outlined"
+                startIcon={<CloudDownload />}
+                onClick={handleSeedAccounts}
+                disabled={loading}
+                size="small"
+              >
+                Plan Colombia
+              </Button>
+            </span>
           </Tooltip>
           <Button
             variant="contained"

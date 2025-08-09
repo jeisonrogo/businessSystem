@@ -11,16 +11,16 @@ export interface BaseEntity {
 // Usuario y Autenticación
 export interface User extends BaseEntity {
   email: string;
-  nombre_completo: string;
+  nombre: string;
   rol: UserRole;
   is_active: boolean;
 }
 
 export enum UserRole {
-  ADMINISTRADOR = 'ADMINISTRADOR',
-  GERENTE_VENTAS = 'GERENTE_VENTAS',
-  CONTADOR = 'CONTADOR',
-  VENDEDOR = 'VENDEDOR'
+  ADMINISTRADOR = 'administrador',
+  GERENTE_VENTAS = 'gerente_ventas',
+  CONTADOR = 'contador',
+  VENDEDOR = 'vendedor'
 }
 
 export interface LoginRequest {

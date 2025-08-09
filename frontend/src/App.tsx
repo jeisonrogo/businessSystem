@@ -78,7 +78,7 @@ function App() {
               <Route
                 path="clients"
                 element={
-                  <ProtectedRoute requiredRoles={['ADMINISTRADOR', 'GERENTE_VENTAS', 'VENDEDOR']}>
+                  <ProtectedRoute requiredRoles={['administrador', 'gerente_ventas', 'vendedor']}>
                     <ClientsPage />
                   </ProtectedRoute>
                 }
@@ -88,7 +88,7 @@ function App() {
               <Route
                 path="invoices"
                 element={
-                  <ProtectedRoute requiredRoles={['ADMINISTRADOR', 'GERENTE_VENTAS', 'VENDEDOR']}>
+                  <ProtectedRoute requiredRoles={['administrador', 'gerente_ventas', 'vendedor']}>
                     <InvoicesPage />
                   </ProtectedRoute>
                 }
@@ -98,7 +98,7 @@ function App() {
               <Route
                 path="accounting"
                 element={
-                  <ProtectedRoute requiredRoles={['ADMINISTRADOR', 'CONTADOR']}>
+                  <ProtectedRoute requiredRoles={['administrador', 'contador']}>
                     <AccountingPage />
                   </ProtectedRoute>
                 }

@@ -107,8 +107,43 @@ export class AccountingService {
    */
   static async getAccountHierarchy(): Promise<AccountHierarchy> {
     try {
-      const response = await apiRequest.get<AccountHierarchy>(ENDPOINTS.ACCOUNTING.HIERARCHY);
-      return response.data;
+      const response = await apiRequest.get<any>(ENDPOINTS.ACCOUNTING.HIERARCHY);
+      
+      // Transformar la estructura jerárquica compleja en un array plano
+      const flattenHierarchy = (hierarchyData: any[]): Account[] => {
+        const flatAccounts: Account[] = [];
+        
+        const processNode = (node: any) => {
+          if (node.cuenta) {
+            // Convertir la estructura del backend al formato esperado del frontend
+            const account: Account = {
+              id: node.cuenta.id,
+              codigo: node.cuenta.codigo,
+              nombre: node.cuenta.nombre,
+              tipo_cuenta: node.cuenta.tipo_cuenta,
+              cuenta_padre_id: node.cuenta.cuenta_padre_id || undefined,
+              is_active: node.cuenta.is_active,
+              created_at: node.cuenta.created_at,
+              tiene_subcuentas: node.tiene_hijos || false,
+            };
+            flatAccounts.push(account);
+            
+            // Procesar subcuentas recursivamente
+            if (node.subcuentas && Array.isArray(node.subcuentas)) {
+              node.subcuentas.forEach((subNode: any) => processNode(subNode));
+            }
+          }
+        };
+        
+        hierarchyData.forEach(node => processNode(node));
+        return flatAccounts;
+      };
+      
+      const flatAccounts = flattenHierarchy(response.data.plan_cuentas || []);
+      
+      return {
+        plan_cuentas: flatAccounts
+      };
     } catch (error: any) {
       console.error('Error al obtener plan jerárquico:', error);
       throw new Error(error.response?.data?.detail || 'Error al obtener el plan de cuentas jerárquico');

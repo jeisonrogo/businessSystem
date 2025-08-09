@@ -65,19 +65,19 @@ const navigationItems: NavigationItem[] = [
     text: 'Clientes',
     icon: <People />,
     path: '/clients',
-    roles: ['ADMINISTRADOR', 'GERENTE_VENTAS', 'VENDEDOR'],
+    roles: ['administrador', 'gerente_ventas', 'vendedor'],
   },
   {
     text: 'Facturas',
     icon: <Receipt />,
     path: '/invoices',
-    roles: ['ADMINISTRADOR', 'GERENTE_VENTAS', 'VENDEDOR'],
+    roles: ['administrador', 'gerente_ventas', 'vendedor'],
   },
   {
     text: 'Contabilidad',
     icon: <AccountBalance />,
     path: '/accounting',
-    roles: ['ADMINISTRADOR', 'CONTADOR'],
+    roles: ['administrador', 'contador'],
   },
 ];
 
@@ -172,7 +172,7 @@ const Layout: React.FC = () => {
           {/* Información del usuario */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant="body2">
-              {user?.nombre_completo} ({user?.rol})
+              {user?.nombre} ({user?.rol})
             </Typography>
             <IconButton
               size="large"
@@ -183,7 +183,7 @@ const Layout: React.FC = () => {
               color="inherit"
             >
               <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
-                {user?.nombre_completo?.charAt(0) || <AccountCircle />}
+                {user?.nombre?.charAt(0) || <AccountCircle />}
               </Avatar>
             </IconButton>
           </Box>
