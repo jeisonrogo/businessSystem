@@ -310,21 +310,24 @@ const AccountForm: React.FC<AccountFormProps> = ({
               value={selectedParent}
               onChange={(_, value) => handleFieldChange('cuenta_padre_id', value?.id)}
               loading={loadingParents}
-              renderOption={(props, option) => (
-                <Box component="li" {...props}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                    <Typography variant="body2" fontFamily="monospace" fontWeight="bold">
-                      {option.codigo}
-                    </Typography>
-                    <Typography variant="body2" sx={{ flex: 1 }}>
-                      {option.nombre}
-                    </Typography>
-                    {option.tiene_subcuentas && (
-                      <Chip size="small" label="Tiene subcuentas" variant="outlined" />
-                    )}
+              renderOption={(props, option) => {
+                const { key, ...otherProps } = props;
+                return (
+                  <Box component="li" key={key} {...otherProps}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                      <Typography variant="body2" fontFamily="monospace" fontWeight="bold">
+                        {option.codigo}
+                      </Typography>
+                      <Typography variant="body2" sx={{ flex: 1 }}>
+                        {option.nombre}
+                      </Typography>
+                      {option.tiene_subcuentas && (
+                        <Chip size="small" label="Tiene subcuentas" variant="outlined" />
+                      )}
+                    </Box>
                   </Box>
-                </Box>
-              )}
+                );
+              }}
               renderInput={(params) => (
                 <TextField
                   {...params}
