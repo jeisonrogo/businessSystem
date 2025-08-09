@@ -170,11 +170,53 @@ export interface Account extends BaseEntity {
   nombre: string;
   tipo_cuenta: AccountType;
   cuenta_padre_id?: string;
-  nivel: number;
   is_active: boolean;
-  saldo_debito: number;
-  saldo_credito: number;
-  saldo_final: number;
+  nombre_cuenta_padre?: string;
+  tiene_subcuentas?: boolean;
+}
+
+export interface AccountCreate {
+  codigo: string;
+  nombre: string;
+  tipo_cuenta: AccountType;
+  cuenta_padre_id?: string;
+}
+
+export interface AccountUpdate {
+  nombre?: string;
+  tipo_cuenta?: AccountType;
+  cuenta_padre_id?: string;
+  is_active?: boolean;
+}
+
+export interface AccountListResponse {
+  cuentas: Account[];
+  total: number;
+  page: number;
+  limit: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
+
+export interface AccountHierarchy {
+  plan_cuentas: Account[];
+}
+
+export interface MainAccountsResponse {
+  cuentas: Account[];
+  tipo_cuenta?: AccountType;
+}
+
+export interface SubAccountsResponse {
+  subcuentas: Account[];
+  cuenta_padre_id: string;
+  total_subcuentas: number;
+}
+
+export interface SeedAccountsResponse {
+  message: string;
+  cuentas_creadas: number;
+  cuentas_actualizadas: number;
 }
 
 export enum AccountType {
@@ -182,7 +224,7 @@ export enum AccountType {
   PASIVO = 'PASIVO',
   PATRIMONIO = 'PATRIMONIO',
   INGRESO = 'INGRESO',
-  GASTO = 'GASTO'
+  EGRESO = 'EGRESO'
 }
 
 export interface AccountingEntry extends BaseEntity {

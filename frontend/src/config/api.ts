@@ -31,10 +31,16 @@ export const ENDPOINTS = {
   },
   // Contabilidad
   ACCOUNTING: {
-    ACCOUNTS: '/cuentas',
-    ENTRIES: '/asientos',
-    BALANCE_SHEET: '/dashboard/balance-general',
-    INCOME_STATEMENT: '/dashboard/estado-resultados',
+    BASE: '/cuentas',
+    BY_CODE: (code: string) => `/cuentas/codigo/${code}`,
+    HIERARCHY: '/cuentas/plan-jerarquico',
+    MAIN_ACCOUNTS: '/cuentas/principales',
+    SUB_ACCOUNTS: (parentId: string) => `/cuentas/${parentId}/subcuentas`,
+    SEED_COLOMBIA: '/cuentas/seed-colombia',
+  },
+  // Asientos Contables
+  ENTRIES: {
+    BASE: '/asientos',
   },
   // Clientes
   CLIENTS: {
