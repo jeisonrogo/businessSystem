@@ -85,17 +85,17 @@ const ClientsPage: React.FC = () => {
 
       // Cargar datos en paralelo
       const [allClients, frequentClientsData] = await Promise.all([
-        ClientsService.getClients({ limit: 100, page: 1 }), // Para calcular estadísticas
-        ClientsService.getFrequentClients(5)
+        ClientsService.getClients({ limit: 100, page: 1 }).catch(() => ({ items: [], total: 0, page: 1, limit: 100, has_next: false, has_prev: false })), // Para calcular estadísticas
+        ClientsService.getFrequentClients(5).catch(() => [])
       ]);
 
       // Calcular estadísticas del lado del cliente
-      const clientsList = allClients.items;
+      const clientsList = allClients.items || [];
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
       const calculatedStats: ClientsStats = {
-        total_clientes: allClients.total,
+        total_clientes: allClients.total || 0,
         personas_naturales: clientsList.filter(c => c.tipo_cliente === ClientType.PERSONA_NATURAL).length,
         empresas: clientsList.filter(c => c.tipo_cliente === ClientType.EMPRESA).length,
         clientes_activos: clientsList.filter(c => c.is_active).length,

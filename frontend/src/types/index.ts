@@ -89,7 +89,7 @@ export interface Client extends BaseEntity {
 }
 
 export enum DocumentType {
-  CC = 'CC',
+  CC = 'CEDULA',
   NIT = 'NIT',
   CEDULA_EXTRANJERIA = 'CEDULA_EXTRANJERIA',
   PASAPORTE = 'PASAPORTE'

@@ -15,7 +15,8 @@ import {
   Chip,
   IconButton,
   Tooltip,
-  Alert
+  Alert,
+  Typography
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -94,8 +95,8 @@ const ClientsList: React.FC<ClientsListProps> = ({
 
       const response = await ClientsService.getClients(params);
       
-      setClients(response.items);
-      setTotalRows(response.total);
+      setClients(response.items || []);
+      setTotalRows(response.total || 0);
     } catch (error: any) {
       console.error('Error al cargar clientes:', error);
       setError(error.message);
@@ -241,7 +242,10 @@ const ClientsList: React.FC<ClientsListProps> = ({
       field: 'actions',
       type: 'actions',
       headerName: 'Acciones',
-      width: 120,
+      width: 140,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
       getActions: (params) => [
         <GridActionsCellItem
           key="view"
@@ -360,6 +364,24 @@ const ClientsList: React.FC<ClientsListProps> = ({
 
       {/* DataGrid */}
       <Box sx={{ height: 600, width: '100%' }}>
+        {clients.length === 0 && !loading && !error && (
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              height: '100%',
+              color: 'text.secondary',
+              gap: 2
+            }}
+          >
+            <Typography variant="h6">No hay clientes registrados</Typography>
+            <Typography variant="body2">
+              Usa el botón "+" para crear tu primer cliente
+            </Typography>
+          </Box>
+        )}
         <DataGrid
           rows={clients}
           columns={columns}
@@ -376,6 +398,12 @@ const ClientsList: React.FC<ClientsListProps> = ({
             },
             '& .MuiDataGrid-cell:focus': {
               outline: 'none',
+            },
+            '& .MuiDataGrid-actionsCell': {
+              gap: 1,
+            },
+            '& .MuiDataGrid-actionsCellButton': {
+              padding: '4px',
             },
           }}
           localeText={{

@@ -122,8 +122,18 @@ export class ClientsService {
         `${ENDPOINTS.CLIENTS.BASE}?${queryParams.toString()}` : 
         ENDPOINTS.CLIENTS.BASE;
       
-      const response = await apiRequest.get<PaginatedResponse<Client>>(url);
-      return response.data;
+      const response = await apiRequest.get<any>(url);
+      
+      // Transformar respuesta del backend al formato esperado
+      // El backend podría devolver 'clientes' en lugar de 'items'
+      return {
+        items: response.data.clientes || response.data.items || [],
+        total: response.data.total || 0,
+        page: response.data.page || 1,
+        limit: response.data.limit || 25,
+        has_next: response.data.has_next || false,
+        has_prev: response.data.has_prev || false,
+      };
     } catch (error: any) {
       console.error('Error al listar clientes:', error);
       throw new Error(error.response?.data?.detail || 'Error al cargar los clientes');
@@ -228,8 +238,17 @@ export class ClientsService {
         `${ENDPOINTS.CLIENTS.BASE}/tipo/${tipoCliente}?${queryParams.toString()}` : 
         `${ENDPOINTS.CLIENTS.BASE}/tipo/${tipoCliente}`;
       
-      const response = await apiRequest.get<PaginatedResponse<Client>>(url);
-      return response.data;
+      const response = await apiRequest.get<any>(url);
+      
+      // Transformar respuesta del backend al formato esperado
+      return {
+        items: response.data.clientes || response.data.items || [],
+        total: response.data.total || 0,
+        page: response.data.page || 1,
+        limit: response.data.limit || 25,
+        has_next: response.data.has_next || false,
+        has_prev: response.data.has_prev || false,
+      };
     } catch (error: any) {
       console.error('Error al filtrar clientes por tipo:', error);
       throw new Error(error.response?.data?.detail || 'Error al cargar clientes por tipo');
@@ -258,7 +277,7 @@ export class ClientsService {
   static getDocumentTypeLabels() {
     return {
       [DocumentType.CC]: 'Cédula de Ciudadanía',
-      [DocumentType.NIT]: 'NIT',
+      [DocumentType.NIT]: 'NIT', 
       [DocumentType.CEDULA_EXTRANJERIA]: 'Cédula de Extranjería',
       [DocumentType.PASAPORTE]: 'Pasaporte'
     };
@@ -282,7 +301,7 @@ export class ClientsService {
 
   static validateDocumentNumber(type: DocumentType, number: string): boolean {
     switch (type) {
-      case DocumentType.CC:
+      case DocumentType.CC: // Cédula de Ciudadanía
         return /^\d{6,10}$/.test(number);
       case DocumentType.NIT:
         return /^\d{9}-\d$/.test(number);
