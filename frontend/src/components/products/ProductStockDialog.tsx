@@ -38,12 +38,15 @@ const ProductStockDialog: React.FC<ProductStockDialogProps> = ({
 }) => {
   const [newStock, setNewStock] = useState<number>(0);
   const [validationError, setValidationError] = useState<string>('');
+  const [internalLoading, setInternalLoading] = useState<boolean>(false);
+  const [internalError, setInternalError] = useState<string>('');
 
   // Resetear el formulario cuando se abre el diálogo
   useEffect(() => {
     if (open && product) {
       setNewStock(product.stock);
       setValidationError('');
+      setInternalError('');
     }
   }, [open, product]);
 
@@ -70,16 +73,22 @@ const ProductStockDialog: React.FC<ProductStockDialogProps> = ({
 
     if (!product) return;
 
+    setInternalLoading(true);
+    setInternalError('');
+
     try {
       await onUpdateStock(newStock);
-    } catch (error) {
-      // El error se maneja en el componente padre
+    } catch (error: any) {
       console.error('Error al actualizar stock:', error);
+      setInternalError(error.message || 'Error al actualizar stock');
+    } finally {
+      setInternalLoading(false);
     }
   };
 
   const handleClose = () => {
     setValidationError('');
+    setInternalError('');
     onClose();
   };
 
@@ -107,9 +116,9 @@ const ProductStockDialog: React.FC<ProductStockDialogProps> = ({
       </DialogTitle>
 
       <DialogContent>
-        {error && (
+        {(error || internalError) && (
           <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
+            {error || internalError}
           </Alert>
         )}
 
@@ -136,7 +145,7 @@ const ProductStockDialog: React.FC<ProductStockDialogProps> = ({
           onChange={handleStockChange}
           error={!!validationError}
           helperText={validationError}
-          disabled={loading}
+          disabled={loading || internalLoading}
           inputProps={{ min: 0 }}
           InputProps={{
             endAdornment: <InputAdornment position="end">unidades</InputAdornment>,

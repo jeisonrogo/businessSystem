@@ -173,8 +173,13 @@ const ProductsPage: React.FC = () => {
       loadProducts();
     } catch (err: any) {
       console.error('Error al guardar producto:', err);
-      const errorMessage = err.response?.data?.detail || 'Error al guardar producto';
+      
+      // El error ya viene procesado por handleApiError en ProductService
+      const errorMessage = err.message || 'Error al guardar producto';
       setFormError(errorMessage);
+      
+      // También mostramos el error en un snackbar para mayor visibilidad
+      showSnackbar(errorMessage, 'error');
     } finally {
       setFormLoading(false);
     }
@@ -190,7 +195,13 @@ const ProductsPage: React.FC = () => {
       loadProducts();
     } catch (err: any) {
       console.error('Error al actualizar stock:', err);
-      throw new Error(err.response?.data?.detail || 'Error al actualizar stock');
+      
+      // El error ya viene procesado por handleApiError
+      const errorMessage = err.message || 'Error al actualizar stock';
+      showSnackbar(errorMessage, 'error');
+      
+      // Re-lanzamos el error para que el diálogo de stock lo pueda manejar
+      throw new Error(errorMessage);
     }
   };
 

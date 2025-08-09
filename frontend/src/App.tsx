@@ -15,6 +15,7 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import Layout from './components/layout/Layout';
 import LoginForm from './components/auth/LoginForm';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Pages
 import DashboardPage from './pages/DashboardPage';
@@ -45,9 +46,10 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AuthProvider>
-        <Router>
-          <Routes>
+      <ErrorBoundary>
+        <AuthProvider>
+          <Router>
+            <Routes>
             {/* Ruta de login */}
             <Route path="/login" element={<LoginForm />} />
             
@@ -109,6 +111,7 @@ function App() {
           </Routes>
         </Router>
       </AuthProvider>
+      </ErrorBoundary>
     </ThemeProvider>
   );
 }

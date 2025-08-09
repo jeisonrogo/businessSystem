@@ -142,9 +142,10 @@ const ProductForm: React.FC<ProductFormProps> = ({
         // En modo creación, enviamos todo
         await onSave(formData);
       }
-    } catch (error) {
-      // El error se maneja en el componente padre
-      console.error('Error al guardar producto:', error);
+    } catch (error: any) {
+      // Los errores ya se manejan en el componente padre
+      // Solo logueamos aquí para debugging
+      console.error('Error en ProductForm:', error);
     }
   };
 
