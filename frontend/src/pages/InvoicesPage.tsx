@@ -76,10 +76,10 @@ const InvoicesPage: React.FC = () => {
     loadDashboardData();
   }, []); // Dependencias vacías para cargar solo una vez
 
-  const loadDashboardData = async () => {
-    // Evitar múltiples llamadas en React.StrictMode (desarrollo)
-    if (hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
+  const loadDashboardData = async (forceRefresh: boolean = false) => {
+    // Evitar múltiples llamadas en React.StrictMode (desarrollo), excepto si es forzado
+    if (hasFetchedRef.current && !forceRefresh) return;
+    if (!forceRefresh) hasFetchedRef.current = true;
     
     try {
       setLoading(true);
@@ -143,8 +143,17 @@ const InvoicesPage: React.FC = () => {
 
   const handleInvoiceSaved = () => {
     handleCloseForm();
-    loadDashboardData(); // Recargar estadísticas
     setRefreshKey(prev => prev + 1); // Forzar refresh de listas
+    // Delay para permitir que el backend procese el cambio
+    setTimeout(() => {
+      loadDashboardData(true); // Recargar estadísticas forzadamente
+    }, 500);
+  };
+
+  const refreshDashboardData = () => {
+    setTimeout(() => {
+      loadDashboardData(true);
+    }, 500);
   };
 
   if (loading) {
@@ -366,8 +375,8 @@ const InvoicesPage: React.FC = () => {
         </Grid>
       )}
 
-      {/* Top Clientes */}
-      {stats?.clientes_top && stats.clientes_top.length > 0 && (
+      {/* Top Clientes - Solo mostrar si hay datos válidos */}
+      {stats?.clientes_top && stats.clientes_top.length > 0 && stats.clientes_top.some(client => client.nombre_completo && client.valor_total_compras > 0) && (
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <AssessmentIcon /> Mejores Clientes
@@ -413,7 +422,7 @@ const InvoicesPage: React.FC = () => {
           <InvoicesList 
             key={`invoices-list-${refreshKey}`}
             onEditInvoice={handleOpenForm}
-            onRefresh={loadDashboardData}
+            onRefresh={refreshDashboardData}
           />
         </TabPanel>
         
@@ -421,7 +430,7 @@ const InvoicesPage: React.FC = () => {
           <InvoicesList 
             key={`overdue-list-${refreshKey}`}
             onEditInvoice={handleOpenForm}
-            onRefresh={loadDashboardData}
+            onRefresh={refreshDashboardData}
             filterOverdue={true}
           />
         </TabPanel>
