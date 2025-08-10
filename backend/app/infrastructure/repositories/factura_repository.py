@@ -188,7 +188,11 @@ class SQLFacturaRepository(IFacturaRepository):
     async def update(self, factura_id: UUID, factura_data: FacturaUpdate) -> Optional[Factura]:
         """Actualizar una factura existente."""
         try:
-            factura = await self.get_by_id(factura_id)
+            # Obtener factura sin detalles para evitar conflictos de sesión
+            statement = select(Factura).where(Factura.id == factura_id)
+            result = self.session.exec(statement)
+            factura = result.first()
+            
             if not factura:
                 return None
             
@@ -196,26 +200,25 @@ class SQLFacturaRepository(IFacturaRepository):
             if factura.estado in [EstadoFactura.PAGADA, EstadoFactura.ANULADA]:
                 raise ValueError(f"No se puede modificar una factura en estado {factura.estado}")
             
-            # Actualizar campos básicos (excluyendo detalles)
-            update_data = factura_data.model_dump(exclude_unset=True, exclude={'detalles'})
-            update_data['updated_at'] = datetime.now(UTC)
-            
             # Si se proporcionan nuevos detalles, procesarlos
             if factura_data.detalles is not None:
-                # 1. Revertir stock de los detalles antiguos
-                for detalle_antiguo in factura.detalles:
+                # 1. Obtener detalles antiguos para revertir stock
+                statement_detalles = select(DetalleFactura).where(DetalleFactura.factura_id == factura_id)
+                detalles_antiguos = list(self.session.exec(statement_detalles))
+                
+                # 2. Revertir stock de los detalles antiguos
+                for detalle_antiguo in detalles_antiguos:
                     await self._revertir_stock_producto(detalle_antiguo.producto_id, detalle_antiguo.cantidad)
                 
-                # 2. Validar stock disponible para todos los nuevos productos
+                # 3. Validar stock disponible para todos los nuevos productos
                 await self._validar_stock_productos(factura_data.detalles)
                 
-                # 3. Eliminar detalles antiguos
+                # 4. Eliminar detalles antiguos
                 from sqlmodel import delete
                 statement_delete = delete(DetalleFactura).where(DetalleFactura.factura_id == factura_id)
                 self.session.exec(statement_delete)
                 
-                # 4. Crear los nuevos detalles
-                detalles_creados = []
+                # 5. Crear los nuevos detalles
                 for detalle_data in factura_data.detalles:
                     # Obtener información del producto
                     producto = await self._get_producto(detalle_data.producto_id)
@@ -236,23 +239,24 @@ class SQLFacturaRepository(IFacturaRepository):
                     
                     detalle = DetalleFactura(**detalle_dict)
                     self.session.add(detalle)
-                    detalles_creados.append(detalle)
                     
                     # Actualizar stock del producto
                     await self._actualizar_stock_producto(producto.id, detalle_data.cantidad)
                 
-                # 5. Recalcular totales de la factura
+                # 6. Recalcular totales de la factura
                 totales = calcular_totales_factura(factura_data.detalles)
-                update_data.update({
-                    'subtotal': totales['subtotal'],
-                    'total_descuento': totales['total_descuento'],
-                    'total_impuestos': totales['total_impuestos'],
-                    'total_factura': totales['total_factura']
-                })
+                factura.subtotal = totales['subtotal']
+                factura.total_descuento = totales['total_descuento']
+                factura.total_impuestos = totales['total_impuestos']
+                factura.total_factura = totales['total_factura']
             
-            # Aplicar actualizaciones a la factura
+            # Actualizar campos básicos
+            update_data = factura_data.model_dump(exclude_unset=True, exclude={'detalles'})
+            update_data['updated_at'] = datetime.now(UTC)
+            
             for field, value in update_data.items():
-                setattr(factura, field, value)
+                if hasattr(factura, field):
+                    setattr(factura, field, value)
             
             self.session.add(factura)
             self.session.commit()
