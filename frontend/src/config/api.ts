@@ -58,7 +58,20 @@ export const ENDPOINTS = {
   // Facturas
   INVOICES: {
     BASE: '/facturas',
-    STATS: '/facturas/estadisticas',
+    BY_NUMBER: (numeroFactura: string) => `/facturas/numero/${numeroFactura}`,
+    MARK_AS_PAID: (invoiceId: string) => `/facturas/${invoiceId}/marcar-pagada`,
+    OVERDUE: '/facturas/vencidas/lista',
+    BY_CLIENT: (clientId: string) => `/facturas/cliente/${clientId}/lista`,
+    REPORTS: {
+      SALES_SUMMARY: '/facturas/reportes/resumen-ventas',
+      TOP_PRODUCTS: '/facturas/reportes/productos-mas-vendidos',
+      TOP_CLIENTS: '/facturas/reportes/clientes-top',
+      PORTFOLIO_VALUE: '/facturas/reportes/valor-cartera',
+      COMPLETE_STATS: '/facturas/reportes/estadisticas-completas',
+    },
+    CONFIG: {
+      VALIDATE_ACCOUNTING: '/facturas/configuracion/validar-integracion-contable',
+    },
   },
   // Dashboard
   DASHBOARD: {

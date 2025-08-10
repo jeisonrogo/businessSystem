@@ -109,10 +109,11 @@ export interface Invoice extends BaseEntity {
   estado: InvoiceStatus;
   fecha_emision: string;
   fecha_vencimiento?: string;
+  fecha_pago?: string;
   subtotal: number;
-  total_descuento: number;
+  total_descuentos: number;
   total_impuestos: number;
-  total_factura: number;
+  total: number;
   observaciones?: string;
   cliente?: Client;
   detalles?: InvoiceDetail[];
