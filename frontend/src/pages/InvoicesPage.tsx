@@ -3,7 +3,7 @@
  * Incluye dashboard con estadísticas, cartera y navegación por tabs
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -68,6 +68,7 @@ const InvoicesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
     // Solo cargar datos una vez al montar el componente
@@ -75,7 +76,9 @@ const InvoicesPage: React.FC = () => {
   }, []); // Dependencias vacías para cargar solo una vez
 
   const loadDashboardData = async () => {
-    if (dataLoaded && !loading) return; // Evitar cargas duplicadas
+    // Evitar múltiples llamadas en React.StrictMode (desarrollo)
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     
     try {
       setLoading(true);

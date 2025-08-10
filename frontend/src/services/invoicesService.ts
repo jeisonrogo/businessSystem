@@ -149,7 +149,7 @@ export class InvoicesService {
    */
   static async getInvoiceByNumber(numeroFactura: string): Promise<Invoice> {
     try {
-      const response = await apiRequest.get<Invoice>(`${ENDPOINTS.INVOICES.BASE}/numero/${numeroFactura}`);
+      const response = await apiRequest.get<Invoice>(ENDPOINTS.INVOICES.BY_NUMBER(numeroFactura));
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 422 || error.response?.status === 404) {
@@ -240,7 +240,7 @@ export class InvoicesService {
    */
   static async markAsPaid(invoiceId: string, paymentData: PaymentData): Promise<Invoice> {
     try {
-      const response = await apiRequest.post<Invoice>(`${ENDPOINTS.INVOICES.BASE}/${invoiceId}/marcar-pagada`, paymentData);
+      const response = await apiRequest.post<Invoice>(ENDPOINTS.INVOICES.MARK_AS_PAID(invoiceId), paymentData);
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 422 || error.response?.status === 404) {
@@ -257,8 +257,8 @@ export class InvoicesService {
   static async getOverdueInvoices(fechaCorte?: string): Promise<Invoice[]> {
     try {
       const url = fechaCorte ? 
-        `${ENDPOINTS.INVOICES.BASE}/vencidas/lista?fecha_corte=${fechaCorte}` :
-        `${ENDPOINTS.INVOICES.BASE}/vencidas/lista`;
+        `${ENDPOINTS.INVOICES.OVERDUE}?fecha_corte=${fechaCorte}` :
+        ENDPOINTS.INVOICES.OVERDUE;
       
       const response = await apiRequest.get<Invoice[]>(url);
       return response.data;
@@ -283,8 +283,8 @@ export class InvoicesService {
       if (params.only_active !== undefined) queryParams.append('only_active', params.only_active.toString());
 
       const url = queryParams.toString() ? 
-        `${ENDPOINTS.INVOICES.BASE}/cliente/${clientId}/lista?${queryParams.toString()}` : 
-        `${ENDPOINTS.INVOICES.BASE}/cliente/${clientId}/lista`;
+        `${ENDPOINTS.INVOICES.BY_CLIENT(clientId)}?${queryParams.toString()}` : 
+        ENDPOINTS.INVOICES.BY_CLIENT(clientId);
       
       const response = await apiRequest.get<any>(url);
       
@@ -297,6 +297,9 @@ export class InvoicesService {
         has_prev: response.data.has_prev || false,
       };
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al obtener facturas del cliente:', error);
       throw new Error(error.response?.data?.detail || 'Error al cargar facturas del cliente');
     }
@@ -314,12 +317,15 @@ export class InvoicesService {
       if (params.agrupar_por) queryParams.append('agrupar_por', params.agrupar_por);
 
       const url = queryParams.toString() ? 
-        `${ENDPOINTS.INVOICES.BASE}/reportes/resumen-ventas?${queryParams.toString()}` : 
-        `${ENDPOINTS.INVOICES.BASE}/reportes/resumen-ventas`;
+        `${ENDPOINTS.INVOICES.REPORTS.SALES_SUMMARY}?${queryParams.toString()}` : 
+        ENDPOINTS.INVOICES.REPORTS.SALES_SUMMARY;
 
       const response = await apiRequest.get<SalesSummary>(url);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al obtener resumen de ventas:', error);
       throw new Error(error.response?.data?.detail || 'Error al generar reporte de ventas');
     }
@@ -337,12 +343,15 @@ export class InvoicesService {
       if (params.limit) queryParams.append('limit', params.limit.toString());
 
       const url = queryParams.toString() ? 
-        `${ENDPOINTS.INVOICES.BASE}/reportes/productos-mas-vendidos?${queryParams.toString()}` : 
-        `${ENDPOINTS.INVOICES.BASE}/reportes/productos-mas-vendidos`;
+        `${ENDPOINTS.INVOICES.REPORTS.TOP_PRODUCTS}?${queryParams.toString()}` : 
+        ENDPOINTS.INVOICES.REPORTS.TOP_PRODUCTS;
 
       const response = await apiRequest.get<TopProduct[]>(url);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al obtener productos más vendidos:', error);
       throw new Error(error.response?.data?.detail || 'Error al obtener ranking de productos');
     }
@@ -360,12 +369,15 @@ export class InvoicesService {
       if (params.limit) queryParams.append('limit', params.limit.toString());
 
       const url = queryParams.toString() ? 
-        `${ENDPOINTS.INVOICES.BASE}/reportes/clientes-top?${queryParams.toString()}` : 
-        `${ENDPOINTS.INVOICES.BASE}/reportes/clientes-top`;
+        `${ENDPOINTS.INVOICES.REPORTS.TOP_CLIENTS}?${queryParams.toString()}` : 
+        ENDPOINTS.INVOICES.REPORTS.TOP_CLIENTS;
 
       const response = await apiRequest.get<TopClient[]>(url);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al obtener mejores clientes:', error);
       throw new Error(error.response?.data?.detail || 'Error al obtener ranking de clientes');
     }
@@ -377,8 +389,8 @@ export class InvoicesService {
   static async getPortfolioValue(clienteId?: string): Promise<PortfolioValue> {
     try {
       const url = clienteId ? 
-        `${ENDPOINTS.INVOICES.BASE}/reportes/valor-cartera?cliente_id=${clienteId}` :
-        `${ENDPOINTS.INVOICES.BASE}/reportes/valor-cartera`;
+        `${ENDPOINTS.INVOICES.REPORTS.PORTFOLIO_VALUE}?cliente_id=${clienteId}` :
+        ENDPOINTS.INVOICES.REPORTS.PORTFOLIO_VALUE;
 
       const response = await apiRequest.get<PortfolioValue>(url);
       return response.data;
@@ -402,8 +414,8 @@ export class InvoicesService {
       if (params.fecha_fin) queryParams.append('fecha_fin', params.fecha_fin);
 
       const url = queryParams.toString() ? 
-        `${ENDPOINTS.INVOICES.BASE}/reportes/estadisticas-completas?${queryParams.toString()}` : 
-        `${ENDPOINTS.INVOICES.BASE}/reportes/estadisticas-completas`;
+        `${ENDPOINTS.INVOICES.REPORTS.COMPLETE_STATS}?${queryParams.toString()}` : 
+        ENDPOINTS.INVOICES.REPORTS.COMPLETE_STATS;
 
       const response = await apiRequest.get<InvoiceStatistics>(url);
       return response.data;
@@ -422,9 +434,12 @@ export class InvoicesService {
    */
   static async validateAccountingConfiguration(): Promise<{ valid: boolean; message: string }> {
     try {
-      const response = await apiRequest.get<{ valid: boolean; message: string }>(`${ENDPOINTS.INVOICES.BASE}/configuracion/validar-integracion-contable`);
+      const response = await apiRequest.get<{ valid: boolean; message: string }>(ENDPOINTS.INVOICES.CONFIG.VALIDATE_ACCOUNTING);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al validar configuración contable:', error);
       throw new Error(error.response?.data?.detail || 'Error al validar configuración');
     }
