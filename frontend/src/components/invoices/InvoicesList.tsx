@@ -348,12 +348,13 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
             <GridActionsCellItem
               key="edit"
               icon={
-                <Tooltip title="Editar">
+                <Tooltip title={params.row.id ? "Editar" : "Edición disponible cuando el backend esté implementado"}>
                   <EditIcon />
                 </Tooltip>
               }
               label="Editar"
               onClick={() => handleEditInvoice(params.row)}
+              disabled={!params.row.id || params.row.id === 'demo'}
             />,
             <GridActionsCellItem
               key="pay"

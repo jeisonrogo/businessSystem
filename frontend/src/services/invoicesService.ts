@@ -136,6 +136,9 @@ export class InvoicesService {
       const response = await apiRequest.get<Invoice>(`${ENDPOINTS.INVOICES.BASE}/${invoiceId}`);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al obtener factura:', error);
       throw new Error(error.response?.data?.detail || 'Error al obtener la factura');
     }
@@ -149,6 +152,9 @@ export class InvoicesService {
       const response = await apiRequest.get<Invoice>(`${ENDPOINTS.INVOICES.BASE}/numero/${numeroFactura}`);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al buscar factura por número:', error);
       throw new Error(error.response?.data?.detail || 'Factura no encontrada');
     }
@@ -221,6 +227,9 @@ export class InvoicesService {
       const response = await apiRequest.delete<{ message: string }>(`${ENDPOINTS.INVOICES.BASE}/${invoiceId}`);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al anular factura:', error);
       throw new Error(error.response?.data?.detail || 'Error al anular la factura');
     }
@@ -234,6 +243,9 @@ export class InvoicesService {
       const response = await apiRequest.post<Invoice>(`${ENDPOINTS.INVOICES.BASE}/${invoiceId}/marcar-pagada`, paymentData);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al marcar factura como pagada:', error);
       throw new Error(error.response?.data?.detail || 'Error al procesar el pago');
     }

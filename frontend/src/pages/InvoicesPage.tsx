@@ -67,12 +67,16 @@ const InvoicesPage: React.FC = () => {
   const [overdueInvoices, setOverdueInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
+    // Solo cargar datos una vez al montar el componente
     loadDashboardData();
-  }, []);
+  }, []); // Dependencias vacías para cargar solo una vez
 
   const loadDashboardData = async () => {
+    if (dataLoaded && !loading) return; // Evitar cargas duplicadas
+    
     try {
       setLoading(true);
       setError(null);
@@ -124,6 +128,7 @@ const InvoicesPage: React.FC = () => {
       setStats(statsData);
       setPortfolioValue(portfolioData);
       setOverdueInvoices(overdueData);
+      setDataLoaded(true);
     } catch (error: any) {
       console.error('Error al cargar datos del dashboard:', error);
       setError('Error al cargar el dashboard. Algunos datos pueden no estar disponibles.');
@@ -185,8 +190,15 @@ const InvoicesPage: React.FC = () => {
 
       {/* Message if backend not ready */}
       {!stats?.total_facturas_emitidas && !loading && !error && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          📊 El módulo de facturas está listo para usar. Los datos del dashboard se mostrarán cuando haya facturas registradas y el backend esté completamente implementado.
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
+            ⚠️ Módulo de Facturas - Estado de Desarrollo
+          </Typography>
+          <Typography variant="body2">
+            El frontend está completamente implementado y listo para usar. Sin embargo, los endpoints del backend de facturas 
+            aún están pendientes de implementación. Una vez que el backend esté disponible, todas las funcionalidades 
+            (crear, editar, listar, reportes) funcionarán automáticamente.
+          </Typography>
         </Alert>
       )}
 
