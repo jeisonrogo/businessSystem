@@ -48,6 +48,8 @@ from app.domain.models.facturacion import (
     FacturaCreate,
     FacturaUpdate,
     FacturaResponse,
+    FacturaListResponse,
+    FacturaListItem,
     EstadoFactura,
     TipoFactura
 )
@@ -136,7 +138,7 @@ async def obtener_factura(
     try:
         use_case = GetFacturaUseCase(factura_repo)
         factura = await use_case.execute(factura_id)
-        return factura
+        return FacturaResponse.from_factura(factura)
     
     except FacturaNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -154,7 +156,7 @@ async def obtener_factura_por_numero(
     try:
         use_case = GetFacturaByNumeroUseCase(factura_repo)
         factura = await use_case.execute(numero_factura)
-        return factura
+        return FacturaResponse.from_factura(factura)
     
     except FacturaNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -162,7 +164,7 @@ async def obtener_factura_por_numero(
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 
-@router.get("/", response_model=dict)
+@router.get("/", response_model=FacturaListResponse)
 async def listar_facturas(
     page: int = Query(1, ge=1, description="Número de página"),
     limit: int = Query(50, ge=1, le=100, description="Registros por página"),
@@ -199,7 +201,21 @@ async def listar_facturas(
             fecha_hasta=fecha_hasta,
             search=search
         )
-        return result
+        
+        # Transformar facturas a FacturaListItem
+        facturas_transformadas = [
+            FacturaListItem.from_factura(factura)
+            for factura in result["facturas"]
+        ]
+        
+        return FacturaListResponse(
+            facturas=facturas_transformadas,
+            total=result["total"],
+            page=result["page"],
+            limit=result["limit"],
+            has_next=result["has_next"],
+            has_prev=result["has_prev"]
+        )
     
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error interno del servidor")

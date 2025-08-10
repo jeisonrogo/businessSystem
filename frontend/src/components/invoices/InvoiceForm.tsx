@@ -112,7 +112,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
             cantidad: d.cantidad,
             precio_unitario: d.precio_unitario,
             descuento_porcentaje: d.descuento_porcentaje,
-            impuesto_porcentaje: d.porcentaje_iva || 19
+            porcentaje_iva: d.porcentaje_iva || 19
           })) || []
         });
         // Create a client object from the invoice data
@@ -234,7 +234,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
           cantidad: 1,
           precio_unitario: 0,
           descuento_porcentaje: 0,
-          impuesto_porcentaje: 19 // IVA por defecto en Colombia
+          porcentaje_iva: 19 // IVA por defecto en Colombia
         }
       ]
     }));
@@ -476,7 +476,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
                       detail.cantidad,
                       detail.precio_unitario,
                       detail.descuento_porcentaje,
-                      detail.impuesto_porcentaje || 0
+                      detail.porcentaje_iva || 0
                     );
 
                     return (
@@ -537,8 +537,8 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
                           <TextField
                             size="small"
                             type="number"
-                            value={detail.impuesto_porcentaje}
-                            onChange={(e) => handleDetailChange(index, 'impuesto_porcentaje', Number(e.target.value))}
+                            value={detail.porcentaje_iva}
+                            onChange={(e) => handleDetailChange(index, 'porcentaje_iva', Number(e.target.value))}
                             inputProps={{ min: 0, max: 100, step: 0.01 }}
                             disabled={loading}
                             fullWidth

@@ -33,7 +33,7 @@ export interface InvoiceDetailCreate {
   cantidad: number;
   precio_unitario: number;
   descuento_porcentaje: number;
-  impuesto_porcentaje: number;
+  porcentaje_iva: number;
 }
 
 export interface InvoiceUpdate {
@@ -514,7 +514,7 @@ export class InvoicesService {
         detalle.cantidad,
         detalle.precio_unitario,
         detalle.descuento_porcentaje,
-        detalle.impuesto_porcentaje || 0
+        detalle.porcentaje_iva || 0
       );
 
       subtotal += lineTotal.subtotal;
@@ -552,7 +552,7 @@ export class InvoicesService {
       if (detalle.descuento_porcentaje < 0 || detalle.descuento_porcentaje > 100) {
         errors.push(`Detalle ${index + 1}: El descuento debe estar entre 0% y 100%`);
       }
-      if ((detalle.impuesto_porcentaje || 0) < 0 || (detalle.impuesto_porcentaje || 0) > 100) {
+      if ((detalle.porcentaje_iva || 0) < 0 || (detalle.porcentaje_iva || 0) > 100) {
         errors.push(`Detalle ${index + 1}: El impuesto debe estar entre 0% y 100%`);
       }
     });

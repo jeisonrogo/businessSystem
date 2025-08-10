@@ -373,6 +373,7 @@ class FacturaUpdate(BaseModel):
     observaciones: Optional[str] = Field(None, max_length=1000)
     terminos_condiciones: Optional[str] = Field(None, max_length=1000)
     metodo_pago: Optional[str] = Field(None, max_length=50)
+    detalles: Optional[List["DetalleFacturaCreate"]] = Field(None, description="Detalles actualizados de la factura")
 
 
 class FacturaResponse(BaseModel):
@@ -399,15 +400,143 @@ class FacturaResponse(BaseModel):
     # Información del cliente
     cliente_nombre: str = ""
     cliente_documento: str = ""
+    cliente_email: Optional[str] = ""
+    cliente_telefono: Optional[str] = ""
+    cliente_direccion: Optional[str] = ""
     
     # Detalles
     detalles: List[DetalleFacturaResponse] = []
     cantidad_items: int = 0
+    
+    @classmethod
+    def from_factura(cls, factura: "Factura") -> "FacturaResponse":
+        """Crear FacturaResponse desde objeto Factura con relaciones cargadas."""
+        # Información del cliente
+        cliente_nombre = ""
+        cliente_documento = ""
+        cliente_email = ""
+        cliente_telefono = ""
+        cliente_direccion = ""
+        if factura.cliente:
+            cliente_nombre = factura.cliente.nombre_completo
+            cliente_documento = factura.cliente.numero_documento
+            cliente_email = factura.cliente.email
+            cliente_telefono = factura.cliente.telefono
+            cliente_direccion = factura.cliente.direccion
+        
+        # Transformar detalles
+        detalles_transformed = []
+        if factura.detalles:
+            for detalle in factura.detalles:
+                detalles_transformed.append(DetalleFacturaResponse(
+                    id=detalle.id,
+                    producto_id=detalle.producto_id,
+                    descripcion_producto=detalle.descripcion_producto,
+                    codigo_producto=detalle.codigo_producto,
+                    cantidad=detalle.cantidad,
+                    precio_unitario=detalle.precio_unitario,
+                    descuento_porcentaje=detalle.descuento_porcentaje,
+                    descuento_valor=detalle.descuento_valor,
+                    porcentaje_iva=detalle.porcentaje_iva,
+                    subtotal_item=detalle.subtotal_item,
+                    valor_descuento=detalle.valor_descuento,
+                    base_gravable=detalle.base_gravable,
+                    valor_iva=detalle.valor_iva,
+                    total_item=detalle.total_item
+                ))
+        
+        return cls(
+            id=factura.id,
+            numero_factura=factura.numero_factura,
+            prefijo=factura.prefijo,
+            cliente_id=factura.cliente_id,
+            fecha_emision=factura.fecha_emision,
+            fecha_vencimiento=factura.fecha_vencimiento,
+            tipo_factura=factura.tipo_factura,
+            estado=factura.estado,
+            subtotal=factura.subtotal,
+            total_descuento=factura.total_descuento,
+            total_impuestos=factura.total_impuestos,
+            total_factura=factura.total_factura,
+            observaciones=factura.observaciones,
+            terminos_condiciones=factura.terminos_condiciones,
+            metodo_pago=factura.metodo_pago,
+            created_by=factura.created_by,
+            created_at=factura.created_at,
+            asiento_contable_id=factura.asiento_contable_id,
+            cliente_nombre=cliente_nombre,
+            cliente_documento=cliente_documento,
+            cliente_email=cliente_email,
+            cliente_telefono=cliente_telefono,
+            cliente_direccion=cliente_direccion,
+            detalles=detalles_transformed,
+            cantidad_items=len(detalles_transformed)
+        )
+
+
+class FacturaListItem(BaseModel):
+    """Esquema para item de factura en lista."""
+    id: UUID
+    numero_factura: str
+    prefijo: Optional[str]
+    cliente_id: UUID
+    fecha_emision: datetime
+    fecha_vencimiento: Optional[datetime]
+    tipo_factura: TipoFactura
+    estado: EstadoFactura
+    subtotal: Decimal
+    total_descuento: Decimal
+    total_impuestos: Decimal
+    total_factura: Decimal
+    created_at: datetime
+    
+    # Información del cliente (calculado)
+    cliente_nombre: str = ""
+    cliente_documento: str = ""
+    cliente_email: Optional[str] = ""
+    
+    # Resumen de detalles
+    cantidad_items: int = 0
+    
+    @classmethod
+    def from_factura(cls, factura: "Factura") -> "FacturaListItem":
+        """Crear FacturaListItem desde objeto Factura con relaciones cargadas."""
+        # Información del cliente
+        cliente_nombre = ""
+        cliente_documento = ""
+        cliente_email = ""
+        if factura.cliente:
+            cliente_nombre = factura.cliente.nombre_completo
+            cliente_documento = factura.cliente.numero_documento
+            cliente_email = factura.cliente.email
+        
+        # Cantidad de items
+        cantidad_items = len(factura.detalles) if factura.detalles else 0
+        
+        return cls(
+            id=factura.id,
+            numero_factura=factura.numero_factura,
+            prefijo=factura.prefijo,
+            cliente_id=factura.cliente_id,
+            fecha_emision=factura.fecha_emision,
+            fecha_vencimiento=factura.fecha_vencimiento,
+            tipo_factura=factura.tipo_factura,
+            estado=factura.estado,
+            subtotal=factura.subtotal,
+            total_descuento=factura.total_descuento,
+            total_impuestos=factura.total_impuestos,
+            total_factura=factura.total_factura,
+            created_at=factura.created_at,
+            cliente_nombre=cliente_nombre,
+            cliente_documento=cliente_documento,
+            cliente_email=cliente_email,
+            cantidad_items=cantidad_items
+        )
 
 
 class FacturaListResponse(BaseModel):
     """Esquema para lista paginada de facturas."""
-    facturas: List[FacturaResponse]
+    facturas: List[FacturaListItem]
     total: int
     page: int
     limit: int
