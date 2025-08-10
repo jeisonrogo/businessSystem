@@ -398,8 +398,8 @@ export class InvoicesService {
       
       return {
         total_facturas_emitidas: resumenVentas.total_facturas || 0,
-        total_facturas_pagadas: resumenVentas.facturas_por_estado?.PAGADA || 0,
-        total_facturas_anuladas: resumenVentas.facturas_por_estado?.ANULADA || 0,
+        total_facturas_pagadas: resumenVentas.facturas_por_estado?.PAGADA || resumenVentas.facturas_por_estado?.['PAGADA'] || 0,
+        total_facturas_anuladas: resumenVentas.facturas_por_estado?.ANULADA || resumenVentas.facturas_por_estado?.['ANULADA'] || 0,
         valor_total_ventas: resumenVentas.total_ventas || 0,
         valor_pendiente_cobro: backendData.cartera_total?.valor_total || 0,
         promedio_dias_pago: 0, // El backend no calcula esto aún

@@ -68,6 +68,7 @@ const InvoicesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const hasFetchedRef = useRef(false);
 
   useEffect(() => {
@@ -143,6 +144,7 @@ const InvoicesPage: React.FC = () => {
   const handleInvoiceSaved = () => {
     handleCloseForm();
     loadDashboardData(); // Recargar estadísticas
+    setRefreshKey(prev => prev + 1); // Forzar refresh de listas
   };
 
   if (loading) {
@@ -371,10 +373,10 @@ const InvoicesPage: React.FC = () => {
             <AssessmentIcon /> Mejores Clientes
           </Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {stats.clientes_top.slice(0, 5).map((client) => (
+            {stats.clientes_top.filter(client => client.nombre_completo && client.valor_total_compras > 0).slice(0, 5).map((client) => (
               <Chip
-                key={client.cliente_id}
-                label={`${client.nombre_completo} (${InvoicesService.formatCurrency(client.valor_total_compras)})`}
+                key={client.cliente_id || Math.random()}
+                label={`${client.nombre_completo || 'Cliente sin nombre'} (${InvoicesService.formatCurrency(client.valor_total_compras || 0)})`}
                 variant="outlined"
                 sx={{ 
                   fontSize: '0.875rem',
@@ -409,6 +411,7 @@ const InvoicesPage: React.FC = () => {
         {/* Tab Panels */}
         <TabPanel value={tabValue} index={0}>
           <InvoicesList 
+            key={`invoices-list-${refreshKey}`}
             onEditInvoice={handleOpenForm}
             onRefresh={loadDashboardData}
           />
@@ -416,6 +419,7 @@ const InvoicesPage: React.FC = () => {
         
         <TabPanel value={tabValue} index={1}>
           <InvoicesList 
+            key={`overdue-list-${refreshKey}`}
             onEditInvoice={handleOpenForm}
             onRefresh={loadDashboardData}
             filterOverdue={true}

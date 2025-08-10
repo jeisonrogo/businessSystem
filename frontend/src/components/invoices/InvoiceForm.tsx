@@ -261,6 +261,10 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
       handleDetailChange(index, 'producto_id', product.id);
       handleDetailChange(index, 'descripcion_producto', product.nombre);
       handleDetailChange(index, 'precio_unitario', product.precio_publico);
+    } else {
+      handleDetailChange(index, 'producto_id', '');
+      handleDetailChange(index, 'descripcion_producto', '');
+      handleDetailChange(index, 'precio_unitario', 0);
     }
   };
 
@@ -489,8 +493,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                 {...params}
                                 variant="outlined"
                                 placeholder="Buscar producto..."
-                                value={detail.descripcion_producto}
-                                onChange={(e) => handleDetailChange(index, 'descripcion_producto', e.target.value)}
                               />
                             )}
                             disabled={loading}
