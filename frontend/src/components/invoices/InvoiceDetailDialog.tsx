@@ -305,7 +305,7 @@ const InvoiceDetailDialog: React.FC<InvoiceDetailDialogProps> = ({
                       detalle.cantidad,
                       detalle.precio_unitario,
                       detalle.descuento_porcentaje,
-                      detalle.impuesto_porcentaje
+                      detalle.impuesto_porcentaje || detalle.porcentaje_iva || 0
                     );
 
                     return (
@@ -339,7 +339,7 @@ const InvoiceDetailDialog: React.FC<InvoiceDetailDialogProps> = ({
                           {InvoicesService.formatCurrency(lineTotal.subtotal)}
                         </TableCell>
                         <TableCell align="right">
-                          {detalle.impuesto_porcentaje}%
+                          {detalle.impuesto_porcentaje || detalle.porcentaje_iva || 0}%
                           <br />
                           <Typography variant="caption" color="text.secondary">
                             +{InvoicesService.formatCurrency(lineTotal.impuesto)}
@@ -378,7 +378,7 @@ const InvoiceDetailDialog: React.FC<InvoiceDetailDialogProps> = ({
                     </Grid>
                     <Grid item xs={4} sx={{ textAlign: 'right' }}>
                       <Typography variant="body2" color="success.main">
-                        -{InvoicesService.formatCurrency(invoice.total_descuentos)}
+                        -{InvoicesService.formatCurrency(invoice.total_descuentos || invoice.total_descuento || 0)}
                       </Typography>
                     </Grid>
 
@@ -400,7 +400,7 @@ const InvoiceDetailDialog: React.FC<InvoiceDetailDialogProps> = ({
                     </Grid>
                     <Grid item xs={4} sx={{ textAlign: 'right' }}>
                       <Typography variant="h6" fontWeight="bold">
-                        {InvoicesService.formatCurrency(invoice.total)}
+                        {InvoicesService.formatCurrency(invoice.total || invoice.total_factura || 0)}
                       </Typography>
                     </Grid>
                   </Grid>

@@ -86,11 +86,7 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
           setInvoices(overdueInvoices);
           setTotalRows(overdueInvoices.length);
         } catch (error: any) {
-          if (error.message === 'ENDPOINT_NOT_IMPLEMENTED') {
-            console.warn('🔧 Endpoint de facturas vencidas pendiente de implementación');
-          } else {
-            console.error('Error al cargar facturas vencidas:', error.message);
-          }
+          console.error('Error al cargar facturas vencidas:', error.message);
           setInvoices([]);
           setTotalRows(0);
         }
@@ -119,11 +115,7 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
           setInvoices(response.items || []);
           setTotalRows(response.total || 0);
         } catch (error: any) {
-          if (error.message === 'ENDPOINT_NOT_IMPLEMENTED') {
-            console.warn('🔧 Endpoint de facturas pendiente de implementación');
-          } else {
-            console.error('Error al cargar facturas:', error.message);
-          }
+          console.error('Error al cargar facturas:', error.message);
           setInvoices([]);
           setTotalRows(0);
         }
@@ -235,9 +227,9 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
       minWidth: 200,
       renderCell: (params) => (
         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontWeight: 500 }}>{params.value?.nombre_completo || 'N/A'}</span>
+          <span style={{ fontWeight: 500 }}>{params.row.cliente_nombre || 'N/A'}</span>
           <span style={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-            {params.value?.numero_documento || ''}
+            {params.row.cliente_documento || ''}
           </span>
         </Box>
       ),
@@ -269,7 +261,7 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
       ),
     },
     {
-      field: 'total',
+      field: 'total_factura',
       headerName: 'Total',
       width: 130,
       type: 'number',
@@ -280,9 +272,9 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
           <span style={{ fontWeight: 500 }}>
             {InvoicesService.formatCurrency(params.value)}
           </span>
-          {params.row.total_descuentos > 0 && (
+          {params.row.total_descuento > 0 && (
             <span style={{ fontSize: '0.75rem', color: 'success.main' }}>
-              Desc: {InvoicesService.formatCurrency(params.row.total_descuentos)}
+              Desc: {InvoicesService.formatCurrency(params.row.total_descuento)}
             </span>
           )}
         </Box>
@@ -348,13 +340,13 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
             <GridActionsCellItem
               key="edit"
               icon={
-                <Tooltip title={params.row.id ? "Editar" : "Edición disponible cuando el backend esté implementado"}>
+                <Tooltip title="Editar factura">
                   <EditIcon />
                 </Tooltip>
               }
               label="Editar"
               onClick={() => handleEditInvoice(params.row)}
-              disabled={!params.row.id || params.row.id === 'demo'}
+              disabled={false}
             />,
             <GridActionsCellItem
               key="pay"
@@ -530,7 +522,7 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
             <Typography variant="body2" textAlign="center">
               {filterOverdue 
                 ? 'Todas las facturas están al día' 
-                : 'El módulo de facturas está listo. Usa el botón "+" para crear tu primera factura cuando el backend esté disponible.'
+                : 'Comienza creando tu primera factura usando el botón "+" en la esquina inferior derecha.'
               }
             </Typography>
           </Box>

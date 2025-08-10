@@ -103,7 +103,7 @@ export enum ClientType {
 // Factura
 export interface Invoice extends BaseEntity {
   numero_factura: string;
-  prefijo: string;
+  prefijo?: string;
   cliente_id: string;
   tipo_factura: InvoiceType;
   estado: InvoiceStatus;
@@ -111,27 +111,54 @@ export interface Invoice extends BaseEntity {
   fecha_vencimiento?: string;
   fecha_pago?: string;
   subtotal: number;
-  total_descuentos: number;
+  total_descuento: number;
   total_impuestos: number;
-  total: number;
+  total_factura: number;
   observaciones?: string;
-  cliente?: Client;
+  terminos_condiciones?: string;
+  metodo_pago?: string;
+  created_by?: string;
+  asiento_contable_id?: string;
+  
+  // Información del cliente (campos planos del backend)
+  cliente_nombre?: string;
+  cliente_documento?: string;
+  cliente_email?: string;
+  cliente_telefono?: string;
+  cliente_direccion?: string;
+  
+  // Detalles y resumen
   detalles?: InvoiceDetail[];
+  cantidad_items?: number;
+  
+  // Mantener compatibilidad hacia atrás
+  cliente?: Client;
+  total_descuentos?: number; // alias para total_descuento
+  total?: number; // alias para total_factura
 }
 
 export interface InvoiceDetail extends BaseEntity {
   factura_id: string;
   producto_id: string;
   descripcion_producto: string;
+  codigo_producto?: string;
   cantidad: number;
   precio_unitario: number;
   descuento_porcentaje: number;
   descuento_valor: number;
-  impuesto_porcentaje: number;
-  impuesto_valor: number;
-  subtotal_linea: number;
-  total_linea: number;
+  porcentaje_iva: number;
+  subtotal_item: number;
+  valor_descuento: number;
+  base_gravable: number;
+  valor_iva: number;
+  total_item: number;
   producto?: Product;
+  
+  // Mantener compatibilidad hacia atrás
+  impuesto_porcentaje?: number; // alias para porcentaje_iva
+  impuesto_valor?: number; // alias para valor_iva
+  subtotal_linea?: number; // alias para subtotal_item
+  total_linea?: number; // alias para total_item
 }
 
 export enum InvoiceType {

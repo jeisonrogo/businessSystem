@@ -119,9 +119,6 @@ export class InvoicesService {
       const response = await apiRequest.post<Invoice>(ENDPOINTS.INVOICES.BASE, invoiceData);
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al crear factura:', error);
       const errorMessage = error.response?.data?.detail || 'Error al crear la factura';
       throw new Error(Array.isArray(errorMessage) ? errorMessage[0]?.msg || 'Error de validación' : errorMessage);
@@ -136,9 +133,6 @@ export class InvoicesService {
       const response = await apiRequest.get<Invoice>(`${ENDPOINTS.INVOICES.BASE}/${invoiceId}`);
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al obtener factura:', error);
       throw new Error(error.response?.data?.detail || 'Error al obtener la factura');
     }
@@ -152,9 +146,6 @@ export class InvoicesService {
       const response = await apiRequest.get<Invoice>(ENDPOINTS.INVOICES.BY_NUMBER(numeroFactura));
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al buscar factura por número:', error);
       throw new Error(error.response?.data?.detail || 'Factura no encontrada');
     }
@@ -175,8 +166,8 @@ export class InvoicesService {
       if (params.estado) queryParams.append('estado', params.estado);
       if (params.tipo_factura) queryParams.append('tipo_factura', params.tipo_factura);
       if (params.numero_factura) queryParams.append('numero_factura', params.numero_factura);
-      if (params.fecha_inicio) queryParams.append('fecha_inicio', params.fecha_inicio);
-      if (params.fecha_fin) queryParams.append('fecha_fin', params.fecha_fin);
+      if (params.fecha_inicio) queryParams.append('fecha_desde', params.fecha_inicio);
+      if (params.fecha_fin) queryParams.append('fecha_hasta', params.fecha_fin);
 
       const url = queryParams.toString() ? 
         `${ENDPOINTS.INVOICES.BASE}?${queryParams.toString()}` : 
@@ -194,9 +185,6 @@ export class InvoicesService {
         has_prev: response.data.has_prev || false,
       };
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al listar facturas:', error);
       throw new Error(error.response?.data?.detail || 'Error al cargar las facturas');
     }
@@ -210,9 +198,6 @@ export class InvoicesService {
       const response = await apiRequest.put<Invoice>(`${ENDPOINTS.INVOICES.BASE}/${invoiceId}`, invoiceData);
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al actualizar factura:', error);
       const errorMessage = error.response?.data?.detail || 'Error al actualizar la factura';
       throw new Error(Array.isArray(errorMessage) ? errorMessage[0]?.msg || 'Error de validación' : errorMessage);
@@ -227,9 +212,6 @@ export class InvoicesService {
       const response = await apiRequest.delete<{ message: string }>(`${ENDPOINTS.INVOICES.BASE}/${invoiceId}`);
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al anular factura:', error);
       throw new Error(error.response?.data?.detail || 'Error al anular la factura');
     }
@@ -243,9 +225,6 @@ export class InvoicesService {
       const response = await apiRequest.post<Invoice>(ENDPOINTS.INVOICES.MARK_AS_PAID(invoiceId), paymentData);
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al marcar factura como pagada:', error);
       throw new Error(error.response?.data?.detail || 'Error al procesar el pago');
     }
@@ -263,9 +242,6 @@ export class InvoicesService {
       const response = await apiRequest.get<Invoice[]>(url);
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al obtener facturas vencidas:', error);
       throw new Error(error.response?.data?.detail || 'Error al cargar facturas vencidas');
     }
@@ -297,9 +273,6 @@ export class InvoicesService {
         has_prev: response.data.has_prev || false,
       };
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al obtener facturas del cliente:', error);
       throw new Error(error.response?.data?.detail || 'Error al cargar facturas del cliente');
     }
@@ -312,8 +285,8 @@ export class InvoicesService {
     try {
       const queryParams = new URLSearchParams();
       
-      if (params.fecha_inicio) queryParams.append('fecha_inicio', params.fecha_inicio);
-      if (params.fecha_fin) queryParams.append('fecha_fin', params.fecha_fin);
+      if (params.fecha_inicio) queryParams.append('fecha_desde', params.fecha_inicio);
+      if (params.fecha_fin) queryParams.append('fecha_hasta', params.fecha_fin);
       if (params.agrupar_por) queryParams.append('agrupar_por', params.agrupar_por);
 
       const url = queryParams.toString() ? 
@@ -323,9 +296,6 @@ export class InvoicesService {
       const response = await apiRequest.get<SalesSummary>(url);
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al obtener resumen de ventas:', error);
       throw new Error(error.response?.data?.detail || 'Error al generar reporte de ventas');
     }
@@ -338,8 +308,8 @@ export class InvoicesService {
     try {
       const queryParams = new URLSearchParams();
       
-      if (params.fecha_inicio) queryParams.append('fecha_inicio', params.fecha_inicio);
-      if (params.fecha_fin) queryParams.append('fecha_fin', params.fecha_fin);
+      if (params.fecha_inicio) queryParams.append('fecha_desde', params.fecha_inicio);
+      if (params.fecha_fin) queryParams.append('fecha_hasta', params.fecha_fin);
       if (params.limit) queryParams.append('limit', params.limit.toString());
 
       const url = queryParams.toString() ? 
@@ -349,9 +319,6 @@ export class InvoicesService {
       const response = await apiRequest.get<TopProduct[]>(url);
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al obtener productos más vendidos:', error);
       throw new Error(error.response?.data?.detail || 'Error al obtener ranking de productos');
     }
@@ -364,8 +331,8 @@ export class InvoicesService {
     try {
       const queryParams = new URLSearchParams();
       
-      if (params.fecha_inicio) queryParams.append('fecha_inicio', params.fecha_inicio);
-      if (params.fecha_fin) queryParams.append('fecha_fin', params.fecha_fin);
+      if (params.fecha_inicio) queryParams.append('fecha_desde', params.fecha_inicio);
+      if (params.fecha_fin) queryParams.append('fecha_hasta', params.fecha_fin);
       if (params.limit) queryParams.append('limit', params.limit.toString());
 
       const url = queryParams.toString() ? 
@@ -375,9 +342,6 @@ export class InvoicesService {
       const response = await apiRequest.get<TopClient[]>(url);
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al obtener mejores clientes:', error);
       throw new Error(error.response?.data?.detail || 'Error al obtener ranking de clientes');
     }
@@ -392,12 +356,18 @@ export class InvoicesService {
         `${ENDPOINTS.INVOICES.REPORTS.PORTFOLIO_VALUE}?cliente_id=${clienteId}` :
         ENDPOINTS.INVOICES.REPORTS.PORTFOLIO_VALUE;
 
-      const response = await apiRequest.get<PortfolioValue>(url);
-      return response.data;
+      const response = await apiRequest.get<any>(url);
+      
+      // Transformar la respuesta del backend al formato esperado
+      const backendData = response.data;
+      
+      return {
+        total_cartera: backendData.valor_total || 0,
+        cartera_vigente: backendData.valor_total || 0, // El backend no diferencia aún
+        cartera_vencida: 0, // Necesitaríamos un endpoint separado
+        numero_facturas_pendientes: backendData.cantidad_facturas || 0
+      };
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al obtener valor de cartera:', error);
       throw new Error(error.response?.data?.detail || 'Error al calcular cartera');
     }
@@ -410,20 +380,34 @@ export class InvoicesService {
     try {
       const queryParams = new URLSearchParams();
       
-      if (params.fecha_inicio) queryParams.append('fecha_inicio', params.fecha_inicio);
-      if (params.fecha_fin) queryParams.append('fecha_fin', params.fecha_fin);
+      // Si no se proporcionan fechas, usar rango del año actual
+      const currentYear = new Date().getFullYear();
+      const fechaDesde = params.fecha_inicio || `${currentYear}-01-01`;
+      const fechaHasta = params.fecha_fin || `${currentYear}-12-31`;
+      
+      queryParams.append('fecha_desde', fechaDesde);
+      queryParams.append('fecha_hasta', fechaHasta);
 
-      const url = queryParams.toString() ? 
-        `${ENDPOINTS.INVOICES.REPORTS.COMPLETE_STATS}?${queryParams.toString()}` : 
-        ENDPOINTS.INVOICES.REPORTS.COMPLETE_STATS;
+      const url = `${ENDPOINTS.INVOICES.REPORTS.COMPLETE_STATS}?${queryParams.toString()}`;
 
-      const response = await apiRequest.get<InvoiceStatistics>(url);
-      return response.data;
+      const response = await apiRequest.get<any>(url);
+      
+      // Transformar la respuesta del backend al formato esperado por el frontend
+      const backendData = response.data;
+      const resumenVentas = backendData.resumen_ventas || {};
+      
+      return {
+        total_facturas_emitidas: resumenVentas.total_facturas || 0,
+        total_facturas_pagadas: resumenVentas.facturas_por_estado?.PAGADA || 0,
+        total_facturas_anuladas: resumenVentas.facturas_por_estado?.ANULADA || 0,
+        valor_total_ventas: resumenVentas.total_ventas || 0,
+        valor_pendiente_cobro: backendData.cartera_total?.valor_total || 0,
+        promedio_dias_pago: 0, // El backend no calcula esto aún
+        productos_mas_vendidos: backendData.productos_mas_vendidos || [],
+        clientes_top: backendData.clientes_top || []
+      };
     } catch (error: any) {
       // Si el endpoint no está implementado (422), lanzar error específico
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al obtener estadísticas completas:', error);
       throw new Error(error.response?.data?.detail || 'Error al cargar estadísticas');
     }
@@ -437,9 +421,6 @@ export class InvoicesService {
       const response = await apiRequest.get<{ valid: boolean; message: string }>(ENDPOINTS.INVOICES.CONFIG.VALIDATE_ACCOUNTING);
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 422 || error.response?.status === 404) {
-        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
-      }
       console.error('Error al validar configuración contable:', error);
       throw new Error(error.response?.data?.detail || 'Error al validar configuración');
     }
@@ -524,7 +505,7 @@ export class InvoicesService {
         detalle.cantidad,
         detalle.precio_unitario,
         detalle.descuento_porcentaje,
-        detalle.impuesto_porcentaje
+        detalle.impuesto_porcentaje || 0
       );
 
       subtotal += lineTotal.subtotal;
@@ -562,7 +543,7 @@ export class InvoicesService {
       if (detalle.descuento_porcentaje < 0 || detalle.descuento_porcentaje > 100) {
         errors.push(`Detalle ${index + 1}: El descuento debe estar entre 0% y 100%`);
       }
-      if (detalle.impuesto_porcentaje < 0 || detalle.impuesto_porcentaje > 100) {
+      if ((detalle.impuesto_porcentaje || 0) < 0 || (detalle.impuesto_porcentaje || 0) > 100) {
         errors.push(`Detalle ${index + 1}: El impuesto debe estar entre 0% y 100%`);
       }
     });

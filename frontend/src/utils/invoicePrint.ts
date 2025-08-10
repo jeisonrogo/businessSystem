@@ -471,7 +471,7 @@ export class InvoicePrintUtils {
         detalle.cantidad,
         detalle.precio_unitario,
         detalle.descuento_porcentaje,
-        detalle.impuesto_porcentaje
+        detalle.impuesto_porcentaje || detalle.porcentaje_iva || 0
       );
 
       return `
@@ -488,7 +488,7 @@ export class InvoicePrintUtils {
           </td>
           <td class="text-right">${InvoicesService.formatCurrency(lineTotal.subtotal - lineTotal.descuento)}</td>
           <td class="text-center">
-            ${detalle.impuesto_porcentaje}%
+            ${detalle.impuesto_porcentaje || detalle.porcentaje_iva || 0}%
             ${lineTotal.impuesto > 0 ? `<br><small>+${InvoicesService.formatCurrency(lineTotal.impuesto)}</small>` : ''}
           </td>
           <td class="text-right"><strong>${InvoicesService.formatCurrency(lineTotal.total)}</strong></td>
@@ -527,11 +527,11 @@ export class InvoicePrintUtils {
             <td class="total-label">Subtotal:</td>
             <td class="total-value">${InvoicesService.formatCurrency(invoice.subtotal)}</td>
           </tr>
-          ${invoice.total_descuentos > 0 ? `
+          ${(invoice.total_descuentos || invoice.total_descuento || 0) > 0 ? `
             <tr>
               <td class="total-label" style="color: #27ae60;">Descuentos:</td>
               <td class="total-value" style="color: #27ae60;">
-                -${InvoicesService.formatCurrency(invoice.total_descuentos)}
+                -${InvoicesService.formatCurrency(invoice.total_descuentos || invoice.total_descuento || 0)}
               </td>
             </tr>
           ` : ''}
@@ -543,7 +543,7 @@ export class InvoicePrintUtils {
           ` : ''}
           <tr class="grand-total">
             <td class="total-label">TOTAL A PAGAR:</td>
-            <td class="total-value">${InvoicesService.formatCurrency(invoice.total)}</td>
+            <td class="total-value">${InvoicesService.formatCurrency(invoice.total || invoice.total_factura || 0)}</td>
           </tr>
         </table>
       </div>

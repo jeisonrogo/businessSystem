@@ -87,13 +87,7 @@ const InvoicesPage: React.FC = () => {
       // Cargar datos en paralelo con manejo de errores individual
       const [statsData, portfolioData, overdueData] = await Promise.all([
         InvoicesService.getCompleteStatistics().catch((error) => {
-          if (error.message === 'ENDPOINT_NOT_IMPLEMENTED') {
-            // Solo mostrar warning una vez para endpoints no implementados
-            console.warn('🔧 Endpoint de estadísticas pendiente de implementación en el backend');
-          } else {
-            console.error('Error al cargar estadísticas:', error.message);
-          }
-          // Datos por defecto mientras se implementa el backend
+          console.error('Error al cargar estadísticas:', error.message);
           return {
             total_facturas_emitidas: 0,
             total_facturas_pagadas: 0,
@@ -106,11 +100,7 @@ const InvoicesPage: React.FC = () => {
           };
         }),
         InvoicesService.getPortfolioValue().catch((error) => {
-          if (error.message === 'ENDPOINT_NOT_IMPLEMENTED') {
-            console.warn('🔧 Endpoint de cartera pendiente de implementación en el backend');
-          } else {
-            console.error('Error al cargar cartera:', error.message);
-          }
+          console.error('Error al cargar cartera:', error.message);
           return {
             total_cartera: 0,
             cartera_vigente: 0,
@@ -119,11 +109,7 @@ const InvoicesPage: React.FC = () => {
           };
         }), 
         InvoicesService.getOverdueInvoices().catch((error) => {
-          if (error.message === 'ENDPOINT_NOT_IMPLEMENTED') {
-            console.warn('🔧 Endpoint de facturas vencidas pendiente de implementación en el backend');
-          } else {
-            console.error('Error al cargar facturas vencidas:', error.message);
-          }
+          console.error('Error al cargar facturas vencidas:', error.message);
           return [];
         })
       ]);
@@ -191,19 +177,6 @@ const InvoicesPage: React.FC = () => {
         </Alert>
       )}
 
-      {/* Message if backend not ready */}
-      {!stats?.total_facturas_emitidas && !loading && !error && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
-            ⚠️ Módulo de Facturas - Estado de Desarrollo
-          </Typography>
-          <Typography variant="body2">
-            El frontend está completamente implementado y listo para usar. Sin embargo, los endpoints del backend de facturas 
-            aún están pendientes de implementación. Una vez que el backend esté disponible, todas las funcionalidades 
-            (crear, editar, listar, reportes) funcionarán automáticamente.
-          </Typography>
-        </Alert>
-      )}
 
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
