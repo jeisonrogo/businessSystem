@@ -141,15 +141,32 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
     setSearchTerm(event.target.value);
   };
 
-  const handleEditInvoice = (invoice: Invoice) => {
+  const handleEditInvoice = async (invoice: Invoice) => {
     if (onEditInvoice) {
-      onEditInvoice(invoice);
+      try {
+        // Obtener la factura completa con detalles
+        const fullInvoice = await InvoicesService.getInvoiceById(invoice.id);
+        onEditInvoice(fullInvoice);
+      } catch (error) {
+        console.error('Error al cargar factura completa:', error);
+        // Si falla, usar la factura básica
+        onEditInvoice(invoice);
+      }
     }
   };
 
-  const handleViewInvoice = (invoice: Invoice) => {
-    setSelectedInvoice(invoice);
-    setDetailDialogOpen(true);
+  const handleViewInvoice = async (invoice: Invoice) => {
+    try {
+      // Obtener la factura completa con detalles
+      const fullInvoice = await InvoicesService.getInvoiceById(invoice.id);
+      setSelectedInvoice(fullInvoice);
+      setDetailDialogOpen(true);
+    } catch (error) {
+      console.error('Error al cargar factura completa:', error);
+      // Si falla, usar la factura básica
+      setSelectedInvoice(invoice);
+      setDetailDialogOpen(true);
+    }
   };
 
   const handleMarkAsPaid = async (invoice: Invoice) => {

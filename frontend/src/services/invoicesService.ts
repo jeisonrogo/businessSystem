@@ -396,10 +396,19 @@ export class InvoicesService {
       const backendData = response.data;
       const resumenVentas = backendData.resumen_ventas || {};
       
+      // Función helper para obtener el valor del estado
+      const getEstadoCount = (estado: string): number => {
+        const estadosMap = resumenVentas.facturas_por_estado || {};
+        // Probar múltiples formatos de claves
+        return estadosMap[estado] || 
+               estadosMap[`EstadoFactura.${estado}`] || 
+               estadosMap[`${estado}`] || 0;
+      };
+
       return {
         total_facturas_emitidas: resumenVentas.total_facturas || 0,
-        total_facturas_pagadas: resumenVentas.facturas_por_estado?.PAGADA || resumenVentas.facturas_por_estado?.['PAGADA'] || 0,
-        total_facturas_anuladas: resumenVentas.facturas_por_estado?.ANULADA || resumenVentas.facturas_por_estado?.['ANULADA'] || 0,
+        total_facturas_pagadas: getEstadoCount('PAGADA'),
+        total_facturas_anuladas: getEstadoCount('ANULADA'),
         valor_total_ventas: resumenVentas.total_ventas || 0,
         valor_pendiente_cobro: backendData.cartera_total?.valor_total || 0,
         promedio_dias_pago: 0, // El backend no calcula esto aún
