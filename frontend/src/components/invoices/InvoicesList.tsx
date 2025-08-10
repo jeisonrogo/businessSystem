@@ -85,8 +85,12 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
           const overdueInvoices = await InvoicesService.getOverdueInvoices();
           setInvoices(overdueInvoices);
           setTotalRows(overdueInvoices.length);
-        } catch (error) {
-          console.warn('Endpoint de facturas vencidas no disponible, mostrando datos vacíos');
+        } catch (error: any) {
+          if (error.message === 'ENDPOINT_NOT_IMPLEMENTED') {
+            console.warn('🔧 Endpoint de facturas vencidas pendiente de implementación');
+          } else {
+            console.error('Error al cargar facturas vencidas:', error.message);
+          }
           setInvoices([]);
           setTotalRows(0);
         }
@@ -114,8 +118,12 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
           const response = await InvoicesService.getInvoices(params);
           setInvoices(response.items || []);
           setTotalRows(response.total || 0);
-        } catch (error) {
-          console.warn('Endpoint de facturas no disponible, mostrando datos vacíos');
+        } catch (error: any) {
+          if (error.message === 'ENDPOINT_NOT_IMPLEMENTED') {
+            console.warn('🔧 Endpoint de facturas pendiente de implementación');
+          } else {
+            console.error('Error al cargar facturas:', error.message);
+          }
           setInvoices([]);
           setTotalRows(0);
         }

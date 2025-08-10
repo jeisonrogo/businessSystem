@@ -80,7 +80,12 @@ const InvoicesPage: React.FC = () => {
       // Cargar datos en paralelo con manejo de errores individual
       const [statsData, portfolioData, overdueData] = await Promise.all([
         InvoicesService.getCompleteStatistics().catch((error) => {
-          console.warn('Endpoint de estadísticas no disponible:', error.message);
+          if (error.message === 'ENDPOINT_NOT_IMPLEMENTED') {
+            // Solo mostrar warning una vez para endpoints no implementados
+            console.warn('🔧 Endpoint de estadísticas pendiente de implementación en el backend');
+          } else {
+            console.error('Error al cargar estadísticas:', error.message);
+          }
           // Datos por defecto mientras se implementa el backend
           return {
             total_facturas_emitidas: 0,
@@ -94,7 +99,11 @@ const InvoicesPage: React.FC = () => {
           };
         }),
         InvoicesService.getPortfolioValue().catch((error) => {
-          console.warn('Endpoint de cartera no disponible:', error.message);
+          if (error.message === 'ENDPOINT_NOT_IMPLEMENTED') {
+            console.warn('🔧 Endpoint de cartera pendiente de implementación en el backend');
+          } else {
+            console.error('Error al cargar cartera:', error.message);
+          }
           return {
             total_cartera: 0,
             cartera_vigente: 0,
@@ -103,7 +112,11 @@ const InvoicesPage: React.FC = () => {
           };
         }), 
         InvoicesService.getOverdueInvoices().catch((error) => {
-          console.warn('Endpoint de facturas vencidas no disponible:', error.message);
+          if (error.message === 'ENDPOINT_NOT_IMPLEMENTED') {
+            console.warn('🔧 Endpoint de facturas vencidas pendiente de implementación en el backend');
+          } else {
+            console.error('Error al cargar facturas vencidas:', error.message);
+          }
           return [];
         })
       ]);

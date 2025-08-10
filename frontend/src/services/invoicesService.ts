@@ -119,6 +119,9 @@ export class InvoicesService {
       const response = await apiRequest.post<Invoice>(ENDPOINTS.INVOICES.BASE, invoiceData);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al crear factura:', error);
       const errorMessage = error.response?.data?.detail || 'Error al crear la factura';
       throw new Error(Array.isArray(errorMessage) ? errorMessage[0]?.msg || 'Error de validación' : errorMessage);
@@ -185,6 +188,9 @@ export class InvoicesService {
         has_prev: response.data.has_prev || false,
       };
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al listar facturas:', error);
       throw new Error(error.response?.data?.detail || 'Error al cargar las facturas');
     }
@@ -198,6 +204,9 @@ export class InvoicesService {
       const response = await apiRequest.put<Invoice>(`${ENDPOINTS.INVOICES.BASE}/${invoiceId}`, invoiceData);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al actualizar factura:', error);
       const errorMessage = error.response?.data?.detail || 'Error al actualizar la factura';
       throw new Error(Array.isArray(errorMessage) ? errorMessage[0]?.msg || 'Error de validación' : errorMessage);
@@ -242,6 +251,9 @@ export class InvoicesService {
       const response = await apiRequest.get<Invoice[]>(url);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al obtener facturas vencidas:', error);
       throw new Error(error.response?.data?.detail || 'Error al cargar facturas vencidas');
     }
@@ -359,6 +371,9 @@ export class InvoicesService {
       const response = await apiRequest.get<PortfolioValue>(url);
       return response.data;
     } catch (error: any) {
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al obtener valor de cartera:', error);
       throw new Error(error.response?.data?.detail || 'Error al calcular cartera');
     }
@@ -381,6 +396,10 @@ export class InvoicesService {
       const response = await apiRequest.get<InvoiceStatistics>(url);
       return response.data;
     } catch (error: any) {
+      // Si el endpoint no está implementado (422), lanzar error específico
+      if (error.response?.status === 422 || error.response?.status === 404) {
+        throw new Error('ENDPOINT_NOT_IMPLEMENTED');
+      }
       console.error('Error al obtener estadísticas completas:', error);
       throw new Error(error.response?.data?.detail || 'Error al cargar estadísticas');
     }

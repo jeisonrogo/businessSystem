@@ -97,40 +97,43 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
 
   // Efecto para cargar datos del invoice en modo edición
   useEffect(() => {
-    if (invoice) {
-      setFormData({
-        cliente_id: invoice.cliente?.id || '',
-        tipo_factura: invoice.tipo_factura,
-        fecha_emision: invoice.fecha_emision.split('T')[0],
-        fecha_vencimiento: invoice.fecha_vencimiento ? invoice.fecha_vencimiento.split('T')[0] : '',
-        observaciones: invoice.observaciones || '',
-        detalles: invoice.detalles?.map(d => ({
-          producto_id: d.producto?.id || '',
-          descripcion_producto: d.descripcion_producto,
-          cantidad: d.cantidad,
-          precio_unitario: d.precio_unitario,
-          descuento_porcentaje: d.descuento_porcentaje,
-          impuesto_porcentaje: d.impuesto_porcentaje
-        })) || []
-      });
-      setSelectedClient(invoice.cliente || null);
-    } else {
-      // Reset form for new invoice
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 30); // 30 días por defecto
-      
-      setFormData({
-        cliente_id: '',
-        tipo_factura: InvoiceType.VENTA,
-        fecha_emision: new Date().toISOString().split('T')[0],
-        fecha_vencimiento: tomorrow.toISOString().split('T')[0],
-        observaciones: '',
-        detalles: []
-      });
-      setSelectedClient(null);
+    if (open) {
+      if (invoice) {
+        console.log('Cargando factura para edición:', invoice);
+        setFormData({
+          cliente_id: invoice.cliente?.id || '',
+          tipo_factura: invoice.tipo_factura,
+          fecha_emision: invoice.fecha_emision.split('T')[0],
+          fecha_vencimiento: invoice.fecha_vencimiento ? invoice.fecha_vencimiento.split('T')[0] : '',
+          observaciones: invoice.observaciones || '',
+          detalles: invoice.detalles?.map(d => ({
+            producto_id: d.producto?.id || '',
+            descripcion_producto: d.descripcion_producto,
+            cantidad: d.cantidad,
+            precio_unitario: d.precio_unitario,
+            descuento_porcentaje: d.descuento_porcentaje,
+            impuesto_porcentaje: d.impuesto_porcentaje
+          })) || []
+        });
+        setSelectedClient(invoice.cliente || null);
+      } else {
+        // Reset form for new invoice
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 30); // 30 días por defecto
+        
+        setFormData({
+          cliente_id: '',
+          tipo_factura: InvoiceType.VENTA,
+          fecha_emision: new Date().toISOString().split('T')[0],
+          fecha_vencimiento: tomorrow.toISOString().split('T')[0],
+          observaciones: '',
+          detalles: []
+        });
+        setSelectedClient(null);
+      }
+      setErrors({});
+      setError(null);
     }
-    setErrors({});
-    setError(null);
   }, [invoice, open]);
 
   // Cargar clientes y productos
@@ -285,7 +288,13 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
       onSave();
     } catch (error: any) {
       console.error('Error al guardar factura:', error);
-      setError(error.message);
+      
+      // Manejo especial para endpoints no implementados
+      if (error.message === 'ENDPOINT_NOT_IMPLEMENTED') {
+        setError('⚠️ Los endpoints de facturas aún no están implementados en el backend. Esta funcionalidad estará disponible pronto.');
+      } else {
+        setError(error.message);
+      }
     } finally {
       setLoading(false);
     }
