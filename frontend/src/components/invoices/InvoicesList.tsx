@@ -81,9 +81,15 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
 
       if (filterOverdue) {
         // Cargar facturas vencidas
-        const overdueInvoices = await InvoicesService.getOverdueInvoices();
-        setInvoices(overdueInvoices);
-        setTotalRows(overdueInvoices.length);
+        try {
+          const overdueInvoices = await InvoicesService.getOverdueInvoices();
+          setInvoices(overdueInvoices);
+          setTotalRows(overdueInvoices.length);
+        } catch (error) {
+          console.warn('Endpoint de facturas vencidas no disponible, mostrando datos vacíos');
+          setInvoices([]);
+          setTotalRows(0);
+        }
       } else {
         // Cargar facturas con filtros normales
         const params: InvoiceListParams = {
@@ -104,10 +110,15 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
           params.tipo_factura = tipoFacturaFilter;
         }
 
-        const response = await InvoicesService.getInvoices(params);
-        
-        setInvoices(response.items || []);
-        setTotalRows(response.total || 0);
+        try {
+          const response = await InvoicesService.getInvoices(params);
+          setInvoices(response.items || []);
+          setTotalRows(response.total || 0);
+        } catch (error) {
+          console.warn('Endpoint de facturas no disponible, mostrando datos vacíos');
+          setInvoices([]);
+          setTotalRows(0);
+        }
       }
     } catch (error: any) {
       console.error('Error al cargar facturas:', error);
@@ -500,16 +511,17 @@ const InvoicesList: React.FC<InvoicesListProps> = ({
               justifyContent: 'center', 
               height: '100%',
               color: 'text.secondary',
-              gap: 2
+              gap: 2,
+              p: 4
             }}
           >
             <Typography variant="h6">
               {filterOverdue ? 'No hay facturas vencidas' : 'No hay facturas registradas'}
             </Typography>
-            <Typography variant="body2">
+            <Typography variant="body2" textAlign="center">
               {filterOverdue 
                 ? 'Todas las facturas están al día' 
-                : 'Usa el botón "+" para crear tu primera factura'
+                : 'El módulo de facturas está listo. Usa el botón "+" para crear tu primera factura cuando el backend esté disponible.'
               }
             </Typography>
           </Box>

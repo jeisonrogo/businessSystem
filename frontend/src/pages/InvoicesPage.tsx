@@ -79,9 +79,33 @@ const InvoicesPage: React.FC = () => {
 
       // Cargar datos en paralelo con manejo de errores individual
       const [statsData, portfolioData, overdueData] = await Promise.all([
-        InvoicesService.getCompleteStatistics().catch(() => null),
-        InvoicesService.getPortfolioValue().catch(() => null), 
-        InvoicesService.getOverdueInvoices().catch(() => [])
+        InvoicesService.getCompleteStatistics().catch((error) => {
+          console.warn('Endpoint de estadísticas no disponible:', error.message);
+          // Datos por defecto mientras se implementa el backend
+          return {
+            total_facturas_emitidas: 0,
+            total_facturas_pagadas: 0,
+            total_facturas_anuladas: 0,
+            valor_total_ventas: 0,
+            valor_pendiente_cobro: 0,
+            promedio_dias_pago: 0,
+            productos_mas_vendidos: [],
+            clientes_top: []
+          };
+        }),
+        InvoicesService.getPortfolioValue().catch((error) => {
+          console.warn('Endpoint de cartera no disponible:', error.message);
+          return {
+            total_cartera: 0,
+            cartera_vigente: 0,
+            cartera_vencida: 0,
+            numero_facturas_pendientes: 0
+          };
+        }), 
+        InvoicesService.getOverdueInvoices().catch((error) => {
+          console.warn('Endpoint de facturas vencidas no disponible:', error.message);
+          return [];
+        })
       ]);
 
       setStats(statsData);
@@ -89,7 +113,7 @@ const InvoicesPage: React.FC = () => {
       setOverdueInvoices(overdueData);
     } catch (error: any) {
       console.error('Error al cargar datos del dashboard:', error);
-      setError(error.message);
+      setError('Error al cargar el dashboard. Algunos datos pueden no estar disponibles.');
     } finally {
       setLoading(false);
     }
@@ -143,6 +167,13 @@ const InvoicesPage: React.FC = () => {
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
           {error}
+        </Alert>
+      )}
+
+      {/* Message if backend not ready */}
+      {!stats?.total_facturas_emitidas && !loading && !error && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          📊 El módulo de facturas está listo para usar. Los datos del dashboard se mostrarán cuando haya facturas registradas y el backend esté completamente implementado.
         </Alert>
       )}
 
