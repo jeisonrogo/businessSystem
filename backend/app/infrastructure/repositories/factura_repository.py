@@ -188,7 +188,7 @@ class SQLFacturaRepository(IFacturaRepository):
     async def update(self, factura_id: UUID, factura_data: FacturaUpdate) -> Optional[Factura]:
         """Actualizar una factura existente."""
         try:
-            # Obtener factura sin detalles para evitar conflictos de sesión
+            # Verificar que la factura existe y se puede actualizar
             statement = select(Factura).where(Factura.id == factura_id)
             result = self.session.exec(statement)
             factura = result.first()
@@ -200,48 +200,82 @@ class SQLFacturaRepository(IFacturaRepository):
             if factura.estado in [EstadoFactura.PAGADA, EstadoFactura.ANULADA]:
                 raise ValueError(f"No se puede modificar una factura en estado {factura.estado}")
             
-            # Si se proporcionan nuevos detalles, procesarlos
+            # Si se proporcionan nuevos detalles, procesarlos completamente
             if factura_data.detalles is not None:
-                # 1. Obtener detalles antiguos para revertir stock
-                statement_detalles = select(DetalleFactura).where(DetalleFactura.factura_id == factura_id)
-                detalles_antiguos = list(self.session.exec(statement_detalles))
+                # 1. Obtener datos de detalles antiguos SOLO para revertir stock
+                statement_old = select(DetalleFactura.producto_id, DetalleFactura.cantidad).where(DetalleFactura.factura_id == factura_id)
+                detalles_old_data = list(self.session.exec(statement_old))
                 
-                # 2. Revertir stock de los detalles antiguos
-                for detalle_antiguo in detalles_antiguos:
-                    await self._revertir_stock_producto(detalle_antiguo.producto_id, detalle_antiguo.cantidad)
+                # 2. Revertir stock usando solo los datos (no los objetos ORM)
+                for producto_id, cantidad in detalles_old_data:
+                    await self._revertir_stock_producto(producto_id, cantidad)
                 
                 # 3. Validar stock disponible para todos los nuevos productos
                 await self._validar_stock_productos(factura_data.detalles)
                 
-                # 4. Eliminar detalles antiguos
+                # 4. Eliminar detalles antiguos usando SQL directo
                 from sqlmodel import delete
                 statement_delete = delete(DetalleFactura).where(DetalleFactura.factura_id == factura_id)
                 self.session.exec(statement_delete)
                 
+                # Flush para asegurar que el DELETE se ejecute antes de insertar
+                try:
+                    self.session.flush()
+                    # Expulsar la factura de la sesión para evitar lazy loading de detalles eliminados
+                    self.session.expunge(factura)
+                    
+                    # Obtener la factura nuevamente sin detalles
+                    statement_fresh = select(Factura).where(Factura.id == factura_id)
+                    result_fresh = self.session.exec(statement_fresh)
+                    factura = result_fresh.first()
+                    
+                    if not factura:
+                        raise ValueError("Error: No se pudo recuperar la factura después de eliminar detalles")
+                        
+                except Exception as flush_error:
+                    self.session.rollback()
+                    raise ValueError(f"Error al eliminar detalles antiguos: {str(flush_error)}")
+                
                 # 5. Crear los nuevos detalles
+                nuevos_detalles = []
                 for detalle_data in factura_data.detalles:
-                    # Obtener información del producto
-                    producto = await self._get_producto(detalle_data.producto_id)
-                    if not producto:
-                        raise ValueError(f"Producto {detalle_data.producto_id} no encontrado")
-                    
-                    # Calcular totales del detalle
-                    totales_detalle = self._calcular_totales_detalle(detalle_data)
-                    
-                    # Crear el detalle
-                    detalle_dict = detalle_data.model_dump()
-                    detalle_dict.update({
-                        'factura_id': factura.id,
-                        'descripcion_producto': producto.nombre,
-                        'codigo_producto': producto.sku,
-                        **totales_detalle
-                    })
-                    
-                    detalle = DetalleFactura(**detalle_dict)
-                    self.session.add(detalle)
-                    
-                    # Actualizar stock del producto
-                    await self._actualizar_stock_producto(producto.id, detalle_data.cantidad)
+                    try:
+                        # Obtener información del producto
+                        producto = await self._get_producto(detalle_data.producto_id)
+                        if not producto:
+                            raise ValueError(f"Producto {detalle_data.producto_id} no encontrado")
+                        
+                        # Calcular totales del detalle
+                        totales_detalle = self._calcular_totales_detalle(detalle_data)
+                        
+                        # Crear el detalle directamente
+                        detalle = DetalleFactura(
+                            factura_id=factura.id,
+                            producto_id=detalle_data.producto_id,
+                            descripcion_producto=producto.nombre,
+                            codigo_producto=producto.sku,
+                            cantidad=detalle_data.cantidad,
+                            precio_unitario=detalle_data.precio_unitario,
+                            descuento_porcentaje=detalle_data.descuento_porcentaje,
+                            porcentaje_iva=detalle_data.porcentaje_iva,
+                            subtotal_item=totales_detalle['subtotal_item'],
+                            descuento_valor=totales_detalle['descuento_valor'],
+                            valor_descuento=totales_detalle['valor_descuento'],
+                            base_gravable=totales_detalle['base_gravable'],
+                            valor_iva=totales_detalle['valor_iva'],
+                            total_item=totales_detalle['total_item']
+                        )
+                        
+                        self.session.add(detalle)
+                        nuevos_detalles.append(detalle)
+                        
+                        # Actualizar stock del producto
+                        await self._actualizar_stock_producto(producto.id, detalle_data.cantidad)
+                        
+                    except Exception as detalle_error:
+                        # Si falla la creación de cualquier detalle, hacer rollback completo
+                        self.session.rollback()
+                        raise ValueError(f"Error al crear detalle para producto {detalle_data.producto_id}: {str(detalle_error)}")
                 
                 # 6. Recalcular totales de la factura
                 totales = calcular_totales_factura(factura_data.detalles)
@@ -250,19 +284,47 @@ class SQLFacturaRepository(IFacturaRepository):
                 factura.total_impuestos = totales['total_impuestos']
                 factura.total_factura = totales['total_factura']
             
-            # Actualizar campos básicos
-            update_data = factura_data.model_dump(exclude_unset=True, exclude={'detalles'})
-            update_data['updated_at'] = datetime.now(UTC)
+            # 7. Actualizar campos básicos de la factura
+            if factura_data.fecha_vencimiento is not None:
+                factura.fecha_vencimiento = factura_data.fecha_vencimiento
+            if factura_data.observaciones is not None:
+                factura.observaciones = factura_data.observaciones
+            if factura_data.terminos_condiciones is not None:
+                factura.terminos_condiciones = factura_data.terminos_condiciones
+            if factura_data.metodo_pago is not None:
+                factura.metodo_pago = factura_data.metodo_pago
+                
+            factura.updated_at = datetime.now(UTC)
             
-            for field, value in update_data.items():
-                if hasattr(factura, field):
-                    setattr(factura, field, value)
-            
+            # Agregar la factura actualizada a la sesión
             self.session.add(factura)
+            
+            # Hacer flush final para detectar errores antes del commit
+            try:
+                self.session.flush()
+            except Exception as final_flush_error:
+                self.session.rollback()
+                raise ValueError(f"Error al finalizar actualización de factura: {str(final_flush_error)}")
+            
+            # Commit final si todo está correcto
             self.session.commit()
             
-            # Retornar la factura completa actualizada
-            return await self.get_by_id(factura.id)
+            # Crear una nueva consulta fresca para evitar objetos stale
+            fresh_statement = (
+                select(Factura)
+                .options(
+                    selectinload(Factura.detalles),
+                    selectinload(Factura.cliente)
+                )
+                .where(Factura.id == factura.id)
+            )
+            fresh_result = self.session.exec(fresh_statement)
+            factura_actualizada = fresh_result.first()
+            
+            if not factura_actualizada:
+                raise ValueError("Error: No se pudo recuperar la factura actualizada")
+            
+            return factura_actualizada
         
         except Exception as e:
             self.session.rollback()
