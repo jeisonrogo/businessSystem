@@ -405,3 +405,159 @@ export interface DateRangeParams {
   fecha_inicio?: string;
   fecha_fin?: string;
 }
+
+// Dashboard Gerencial - Tipos avanzados
+export interface DashboardCompleto {
+  metricas_rapidas: MetricasRapidas;
+  kpis_principales: KPIDashboard[];
+  ventas_por_periodo: VentasPorPeriodo[];
+  productos_top_ventas: ProductoTopVentas[];
+  clientes_top_ventas: ClienteTopVentas[];
+  resumen_inventario: MovimientoInventarioResumen;
+  balance_contable: BalanceContableResumen;
+  alertas: AlertaDashboard[];
+  comparacion_periodo_anterior?: ComparacionPeriodo;
+}
+
+export interface MetricasRapidas {
+  total_productos: number;
+  total_clientes: number;
+  facturas_mes: number;
+  valor_inventario: number;
+  ventas_hoy: number;
+  facturas_vencidas: number;
+  productos_sin_stock: number;
+  clientes_nuevos_mes: number;
+}
+
+export interface KPIDashboard {
+  nombre: string;
+  valor_actual: number;
+  valor_anterior?: number;
+  porcentaje_cambio?: number;
+  tendencia: 'positiva' | 'negativa' | 'estable';
+  tipo: 'monetario' | 'cantidad' | 'porcentaje';
+  descripcion?: string;
+  meta_objetivo?: number;
+  criticidad?: 'baja' | 'media' | 'alta';
+}
+
+export interface VentasPorPeriodo {
+  fecha: string;
+  total_ventas: number;
+  cantidad_facturas: number;
+  promedio_venta: number;
+  comparacion_periodo_anterior?: number;
+}
+
+export interface ProductoTopVentas {
+  producto_id: string;
+  nombre_producto: string;
+  sku: string;
+  cantidad_vendida: number;
+  ingresos_generados: number;
+  margen_ganancia: number;
+  porcentaje_total_ventas: number;
+}
+
+export interface ClienteTopVentas {
+  cliente_id: string;
+  nombre_cliente: string;
+  numero_documento: string;
+  total_compras: number;
+  cantidad_facturas: number;
+  promedio_compra: number;
+  porcentaje_total_ventas: number;
+}
+
+export interface MovimientoInventarioResumen {
+  valor_total_inventario: number;
+  productos_con_stock: number;
+  productos_sin_stock: number;
+  movimientos_mes: number;
+  valor_entradas: number;
+  valor_salidas: number;
+  rotacion_inventario: number;
+  productos_lento_movimiento: number;
+}
+
+export interface BalanceContableResumen {
+  total_activos: number;
+  total_pasivos: number;
+  patrimonio: number;
+  ingresos_periodo: number;
+  egresos_periodo: number;
+  utilidad_periodo: number;
+  margen_utilidad: number;
+  roi: number;
+}
+
+export interface AlertaDashboard {
+  id: string;
+  tipo: 'stock_bajo' | 'facturas_vencidas' | 'productos_sin_movimiento' | 'clientes_inactivos' | 'sistema';
+  titulo: string;
+  mensaje: string;
+  cantidad: number;
+  criticidad: 'baja' | 'media' | 'alta';
+  accion_recomendada?: string;
+  fecha_creacion: string;
+  url_accion?: string;
+}
+
+export interface ComparacionPeriodo {
+  ventas_cambio: number;
+  facturas_cambio: number;
+  clientes_nuevos_cambio: number;
+  margen_utilidad_cambio: number;
+}
+
+export interface FiltrosDashboard {
+  periodo?: 'hoy' | 'semana' | 'mes' | 'trimestre' | 'año' | 'personalizado';
+  fecha_inicio?: string;
+  fecha_fin?: string;
+  limite_tops?: number;
+  incluir_comparacion_periodos?: boolean;
+  filtros_adicionales?: {
+    [key: string]: any;
+  };
+}
+
+export enum PeriodoReporte {
+  HOY = 'hoy',
+  SEMANA = 'semana',
+  MES = 'mes',
+  TRIMESTRE = 'trimestre',
+  AÑO = 'año',
+  PERSONALIZADO = 'personalizado'
+}
+
+// Tipos para gráficos y visualizaciones
+export interface ChartDataPoint {
+  label: string;
+  value: number;
+  color?: string;
+  metadata?: any;
+}
+
+export interface ChartSeries {
+  name: string;
+  data: ChartDataPoint[];
+  type?: 'line' | 'bar' | 'area' | 'pie';
+  color?: string;
+}
+
+export interface ChartConfig {
+  title?: string;
+  subtitle?: string;
+  xAxis?: {
+    title: string;
+    type: 'category' | 'datetime' | 'numeric';
+  };
+  yAxis?: {
+    title: string;
+    type: 'numeric';
+    format?: 'currency' | 'percentage' | 'number';
+  };
+  legend?: boolean;
+  responsive?: boolean;
+}
