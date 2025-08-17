@@ -25,6 +25,7 @@ import ClientsPage from './pages/ClientsPage';
 import InvoicesPage from './pages/InvoicesPage';
 import AccountingPage from './pages/AccountingPage';
 import UsersPage from './pages/UsersPage';
+import SettingsPage from './pages/SettingsPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import NotFoundPage from './pages/NotFoundPage';
 
@@ -114,6 +115,9 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              
+              {/* Configuración - accesible para todos los usuarios autenticados */}
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
 
             {/* Rutas de error */}

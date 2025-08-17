@@ -202,7 +202,7 @@ const Layout: React.FC = () => {
             open={Boolean(anchorEl)}
             onClose={handleMenuClose}
           >
-            <MenuItem onClick={handleMenuClose}>
+            <MenuItem onClick={() => { handleMenuClose(); handleNavigation('/settings'); }}>
               <ListItemIcon>
                 <Settings fontSize="small" />
               </ListItemIcon>

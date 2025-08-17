@@ -86,4 +86,26 @@ export class AuthService {
     const user = this.getCurrentUserFromStorage();
     return user ? roles.includes(user.rol) : false;
   }
+
+  /**
+   * Actualizar perfil del usuario actual
+   */
+  static async updateProfile(profileData: { nombre: string; email: string }): Promise<User> {
+    const response = await apiRequest.put<User>(ENDPOINTS.AUTH.ME, profileData);
+    
+    // Actualizar usuario en localStorage
+    localStorage.setItem('user', JSON.stringify(response.data));
+    
+    return response.data;
+  }
+
+  /**
+   * Cambiar contraseña del usuario actual
+   */
+  static async changePassword(passwordData: { current_password: string; new_password: string }): Promise<void> {
+    await apiRequest.put(ENDPOINTS.AUTH.CHANGE_PASSWORD, passwordData);
+  }
 }
+
+// Exportar instancia para facilitar el uso
+export const authService = AuthService;
