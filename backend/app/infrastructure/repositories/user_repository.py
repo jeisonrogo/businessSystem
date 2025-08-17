@@ -247,4 +247,57 @@ class SQLUserRepository(IUserRepository):
         """
         statement = select(User).where(User.is_active == True)
         result = self.session.exec(statement)
-        return len(list(result.all())) 
+        return len(list(result.all()))
+    
+    async def list_with_filters(
+        self,
+        page: int = 1,
+        limit: int = 50,
+        search: Optional[str] = None,
+        role: Optional[str] = None,
+        is_active: Optional[bool] = None
+    ) -> List[User]:
+        """
+        Lista usuarios aplicando filtros y paginación.
+        
+        Args:
+            page: Número de página
+            limit: Registros por página  
+            search: Texto para buscar en nombre y email
+            role: Filtrar por rol específico
+            is_active: Filtrar por estado activo
+            
+        Returns:
+            List[User]: Lista de usuarios filtrados
+        """
+        try:
+            # Construir la consulta base
+            statement = select(User)
+            
+            # Aplicar filtros
+            if search:
+                search_filter = (
+                    User.nombre.ilike(f"%{search}%") |
+                    User.email.ilike(f"%{search}%")
+                )
+                statement = statement.where(search_filter)
+            
+            if role:
+                statement = statement.where(User.rol == role)
+            
+            if is_active is not None:
+                statement = statement.where(User.is_active == is_active)
+            
+            # Aplicar paginación
+            offset = (page - 1) * limit
+            statement = statement.offset(offset).limit(limit)
+            
+            # Ordenar por fecha de creación (más recientes primero)
+            statement = statement.order_by(User.created_at.desc())
+            
+            # Ejecutar consulta
+            result = self.session.exec(statement)
+            return list(result.all())
+            
+        except Exception as e:
+            raise Exception(f"Error al listar usuarios con filtros: {str(e)}") 

@@ -33,6 +33,7 @@ import {
   Settings,
   Logout,
   AccountCircle,
+  SupervisorAccount,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 
@@ -78,6 +79,12 @@ const navigationItems: NavigationItem[] = [
     icon: <AccountBalance />,
     path: '/accounting',
     roles: ['administrador', 'contador'],
+  },
+  {
+    text: 'Usuarios',
+    icon: <SupervisorAccount />,
+    path: '/users',
+    roles: ['administrador'],
   },
 ];
 

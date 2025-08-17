@@ -24,6 +24,7 @@ import InventoryPage from './pages/InventoryPage';
 import ClientsPage from './pages/ClientsPage';
 import InvoicesPage from './pages/InvoicesPage';
 import AccountingPage from './pages/AccountingPage';
+import UsersPage from './pages/UsersPage';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import NotFoundPage from './pages/NotFoundPage';
 
@@ -100,6 +101,16 @@ function App() {
                 element={
                   <ProtectedRoute requiredRoles={['administrador', 'contador']}>
                     <AccountingPage />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Usuarios - accesible solo para Administradores */}
+              <Route
+                path="users"
+                element={
+                  <ProtectedRoute requiredRoles={['administrador']}>
+                    <UsersPage />
                   </ProtectedRoute>
                 }
               />

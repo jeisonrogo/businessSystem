@@ -134,4 +134,28 @@ class IUserRepository(ABC):
         Returns:
             int: Número total de usuarios activos
         """
+        pass
+    
+    @abstractmethod
+    async def list_with_filters(
+        self,
+        page: int = 1,
+        limit: int = 50,
+        search: Optional[str] = None,
+        role: Optional[str] = None,
+        is_active: Optional[bool] = None
+    ) -> List[User]:
+        """
+        Lista usuarios aplicando filtros y paginación.
+        
+        Args:
+            page: Número de página
+            limit: Registros por página
+            search: Texto para buscar en nombre y email
+            role: Filtrar por rol específico
+            is_active: Filtrar por estado activo
+            
+        Returns:
+            List[User]: Lista de usuarios filtrados
+        """
         pass 
