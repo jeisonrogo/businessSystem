@@ -3,7 +3,7 @@
  * Proporciona funciones para operaciones CRUD de usuarios por administradores
  */
 
-import { api } from './api';
+import apiClient from './api';
 
 // Interfaces para tipos de usuario
 export interface User {
@@ -76,7 +76,7 @@ class UsersService {
       if (params.role) queryParams.append('role', params.role);
       if (params.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
 
-      const response = await api.get(`/users?${queryParams.toString()}`);
+      const response = await apiClient.get(`/users?${queryParams.toString()}`);
       return response.data;
     } catch (error: any) {
       console.error('Error al obtener usuarios:', error);
@@ -89,7 +89,7 @@ class UsersService {
    */
   async getUserById(userId: string): Promise<User> {
     try {
-      const response = await api.get(`/users/${userId}`);
+      const response = await apiClient.get(`/users/${userId}`);
       return response.data;
     } catch (error: any) {
       console.error('Error al obtener usuario:', error);
@@ -102,7 +102,7 @@ class UsersService {
    */
   async createUser(userData: CreateUserRequest): Promise<User> {
     try {
-      const response = await api.post('/users/', userData);
+      const response = await apiClient.post('/users/', userData);
       return response.data;
     } catch (error: any) {
       console.error('Error al crear usuario:', error);
@@ -115,7 +115,7 @@ class UsersService {
    */
   async updateUser(userId: string, userData: UpdateUserRequest): Promise<User> {
     try {
-      const response = await api.put(`/users/${userId}`, userData);
+      const response = await apiClient.put(`/users/${userId}`, userData);
       return response.data;
     } catch (error: any) {
       console.error('Error al actualizar usuario:', error);
@@ -128,7 +128,7 @@ class UsersService {
    */
   async deleteUser(userId: string): Promise<void> {
     try {
-      await api.delete(`/users/${userId}`);
+      await apiClient.delete(`/users/${userId}`);
     } catch (error: any) {
       console.error('Error al desactivar usuario:', error);
       throw new Error(error.response?.data?.detail || 'Error al desactivar el usuario');
@@ -140,7 +140,7 @@ class UsersService {
    */
   async activateUser(userId: string): Promise<void> {
     try {
-      await api.post(`/users/${userId}/activate`);
+      await apiClient.post(`/users/${userId}/activate`);
     } catch (error: any) {
       console.error('Error al activar usuario:', error);
       throw new Error(error.response?.data?.detail || 'Error al activar el usuario');
@@ -152,7 +152,7 @@ class UsersService {
    */
   async changeUserPassword(userId: string, passwordData: ChangePasswordRequest): Promise<void> {
     try {
-      await api.post(`/users/${userId}/change-password`, passwordData);
+      await apiClient.post(`/users/${userId}/change-password`, passwordData);
     } catch (error: any) {
       console.error('Error al cambiar contraseña:', error);
       throw new Error(error.response?.data?.detail || 'Error al cambiar la contraseña');
@@ -164,7 +164,7 @@ class UsersService {
    */
   async getUserStats(): Promise<UserStats> {
     try {
-      const response = await api.get('/users/stats/summary');
+      const response = await apiClient.get('/users/stats/summary');
       return response.data;
     } catch (error: any) {
       console.error('Error al obtener estadísticas:', error);
@@ -177,7 +177,7 @@ class UsersService {
    */
   async getAvailableRoles(): Promise<string[]> {
     try {
-      const response = await api.get('/users/roles/available');
+      const response = await apiClient.get('/users/roles/available');
       return response.data;
     } catch (error: any) {
       console.error('Error al obtener roles:', error);
