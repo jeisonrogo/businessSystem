@@ -300,4 +300,80 @@ class SQLUserRepository(IUserRepository):
             return list(result.all())
             
         except Exception as e:
-            raise Exception(f"Error al listar usuarios con filtros: {str(e)}") 
+            raise Exception(f"Error al listar usuarios con filtros: {str(e)}")
+    
+    async def update_profile(self, user_id: UUID, nombre: str, email: str) -> User:
+        """
+        Actualiza el perfil de un usuario (nombre y email).
+        
+        Args:
+            user_id (UUID): ID del usuario a actualizar
+            nombre (str): Nuevo nombre del usuario
+            email (str): Nuevo email del usuario
+            
+        Returns:
+            User: Usuario actualizado
+            
+        Raises:
+            ValueError: Si el nuevo email ya existe (para otro usuario)
+            Exception: Si ocurre un error durante la actualización
+        """
+        try:
+            # Buscar usuario por ID
+            user = self.session.get(User, user_id)
+            if not user:
+                raise ValueError(f"Usuario con ID {user_id} no encontrado")
+            
+            # Verificar si el email ya existe (solo si se está cambiando)
+            if email != user.email:
+                existing_user = self.session.exec(
+                    select(User).where(User.email == email)
+                ).first()
+                if existing_user:
+                    raise ValueError(f"Ya existe un usuario con el email: {email}")
+            
+            # Actualizar campos
+            user.nombre = nombre
+            user.email = email
+            
+            # Guardar cambios
+            self.session.add(user)
+            self.session.commit()
+            self.session.refresh(user)
+            
+            return user
+            
+        except IntegrityError:
+            self.session.rollback()
+            raise ValueError(f"Ya existe un usuario con el email: {email}")
+        except Exception as e:
+            self.session.rollback()
+            raise Exception(f"Error al actualizar perfil: {str(e)}")
+    
+    async def change_password(self, user_id: UUID, new_password: str) -> None:
+        """
+        Cambia la contraseña de un usuario.
+        
+        Args:
+            user_id (UUID): ID del usuario
+            new_password (str): Nueva contraseña en texto plano
+            
+        Raises:
+            Exception: Si ocurre un error durante la actualización
+        """
+        try:
+            # Buscar usuario por ID
+            user = self.session.get(User, user_id)
+            if not user:
+                raise ValueError(f"Usuario con ID {user_id} no encontrado")
+            
+            # Hashear nueva contraseña
+            user.hashed_password = self._hash_password(new_password)
+            
+            # Guardar cambios
+            self.session.add(user)
+            self.session.commit()
+            
+        except Exception as e:
+            self.session.rollback()
+            raise Exception(f"Error al cambiar contraseña: {str(e)}") 

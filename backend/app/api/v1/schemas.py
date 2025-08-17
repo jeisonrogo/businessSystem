@@ -69,6 +69,22 @@ class RegisterResponse(BaseModel):
     message: str = Field(..., description="Mensaje de confirmación")
 
 
+class ProfileUpdateRequest(BaseModel):
+    """
+    Esquema para la solicitud de actualización de perfil.
+    """
+    nombre: str = Field(..., min_length=2, max_length=100, description="Nombre completo del usuario")
+    email: EmailStr = Field(..., description="Email del usuario")
+
+
+class ChangePasswordRequest(BaseModel):
+    """
+    Esquema para la solicitud de cambio de contraseña.
+    """
+    current_password: str = Field(..., min_length=8, description="Contraseña actual")
+    new_password: str = Field(..., min_length=8, description="Nueva contraseña")
+
+
 # Esquemas de error
 class ErrorResponse(BaseModel):
     """

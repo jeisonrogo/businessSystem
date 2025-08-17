@@ -158,4 +158,37 @@ class IUserRepository(ABC):
         Returns:
             List[User]: Lista de usuarios filtrados
         """
+        pass
+    
+    @abstractmethod
+    async def update_profile(self, user_id: UUID, nombre: str, email: str) -> User:
+        """
+        Actualiza el perfil de un usuario (nombre y email).
+        
+        Args:
+            user_id (UUID): ID del usuario a actualizar
+            nombre (str): Nuevo nombre del usuario
+            email (str): Nuevo email del usuario
+            
+        Returns:
+            User: Usuario actualizado
+            
+        Raises:
+            ValueError: Si el nuevo email ya existe (para otro usuario)
+            Exception: Si ocurre un error durante la actualización
+        """
+        pass
+    
+    @abstractmethod
+    async def change_password(self, user_id: UUID, new_password: str) -> None:
+        """
+        Cambia la contraseña de un usuario.
+        
+        Args:
+            user_id (UUID): ID del usuario
+            new_password (str): Nueva contraseña en texto plano
+            
+        Raises:
+            Exception: Si ocurre un error durante la actualización
+        """
         pass 

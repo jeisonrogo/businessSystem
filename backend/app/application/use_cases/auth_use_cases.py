@@ -205,4 +205,123 @@ class GetCurrentUserUseCase:
             "rol": user.rol,
             "is_active": user.is_active,
             "created_at": user.created_at.isoformat()
-        } 
+        }
+
+
+class UpdateProfileUseCase:
+    """
+    Caso de uso para actualizar el perfil del usuario actual.
+    """
+    
+    def __init__(self, user_repository: IUserRepository):
+        """
+        Inicializa el caso de uso con el repositorio de usuarios.
+        
+        Args:
+            user_repository (IUserRepository): Repositorio para acceso a datos de usuarios
+        """
+        self.user_repository = user_repository
+        self.auth_utils = AuthenticationUtils()
+    
+    async def execute(self, token: str, profile_data: Dict[str, str]) -> Dict[str, Any]:
+        """
+        Actualiza el perfil del usuario actual.
+        
+        Args:
+            token (str): Token JWT del usuario
+            profile_data (Dict[str, str]): Datos del perfil a actualizar (nombre, email)
+            
+        Returns:
+            Dict[str, Any]: Información del usuario actualizado
+            
+        Raises:
+            AuthenticationError: Si el token es inválido o el usuario no existe
+            RegistrationError: Si hay errores en la validación
+        """
+        # Obtener usuario del token
+        token_data = self.auth_utils.get_user_from_token(token)
+        
+        if not token_data:
+            raise AuthenticationError("Token inválido")
+        
+        from uuid import UUID
+        user_id = UUID(token_data["user_id"])
+        user = await self.user_repository.get_by_id(user_id)
+        
+        if not user:
+            raise AuthenticationError("Usuario no encontrado")
+        
+        if not user.is_active:
+            raise AuthenticationError("Usuario inactivo")
+        
+        # Verificar si el email ya existe (solo si se está cambiando)
+        if profile_data.get("email") and profile_data["email"] != user.email:
+            if await self.user_repository.exists_by_email(profile_data["email"]):
+                raise RegistrationError(f"Ya existe un usuario con el email: {profile_data['email']}")
+        
+        # Actualizar usuario
+        updated_user = await self.user_repository.update_profile(
+            user_id, 
+            profile_data.get("nombre", user.nombre),
+            profile_data.get("email", user.email)
+        )
+        
+        return {
+            "id": str(updated_user.id),
+            "email": updated_user.email,
+            "nombre": updated_user.nombre,
+            "rol": updated_user.rol,
+            "is_active": updated_user.is_active,
+            "created_at": updated_user.created_at.isoformat()
+        }
+
+
+class ChangePasswordUseCase:
+    """
+    Caso de uso para cambiar la contraseña del usuario actual.
+    """
+    
+    def __init__(self, user_repository: IUserRepository):
+        """
+        Inicializa el caso de uso con el repositorio de usuarios.
+        
+        Args:
+            user_repository (IUserRepository): Repositorio para acceso a datos de usuarios
+        """
+        self.user_repository = user_repository
+        self.auth_utils = AuthenticationUtils()
+    
+    async def execute(self, token: str, current_password: str, new_password: str) -> None:
+        """
+        Cambia la contraseña del usuario actual.
+        
+        Args:
+            token (str): Token JWT del usuario
+            current_password (str): Contraseña actual
+            new_password (str): Nueva contraseña
+            
+        Raises:
+            AuthenticationError: Si el token es inválido, el usuario no existe o la contraseña actual es incorrecta
+        """
+        # Obtener usuario del token
+        token_data = self.auth_utils.get_user_from_token(token)
+        
+        if not token_data:
+            raise AuthenticationError("Token inválido")
+        
+        from uuid import UUID
+        user_id = UUID(token_data["user_id"])
+        user = await self.user_repository.get_by_id(user_id)
+        
+        if not user:
+            raise AuthenticationError("Usuario no encontrado")
+        
+        if not user.is_active:
+            raise AuthenticationError("Usuario inactivo")
+        
+        # Verificar contraseña actual
+        if not self.auth_utils.verify_password(current_password, user.hashed_password):
+            raise AuthenticationError("Contraseña actual incorrecta")
+        
+        # Actualizar contraseña
+        await self.user_repository.change_password(user_id, new_password) 
