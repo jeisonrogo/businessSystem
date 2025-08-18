@@ -67,9 +67,12 @@ REACT_APP_API_URL=http://localhost:8000
 docker-compose ps
 ```
 
-### 4. Poblar Datos de Prueba
+### 4. Inicializar Base de Datos
 ```bash
-# Poblar base de datos con datos demo
+# Inicializar base de datos con datos completos (recomendado)
+docker-compose exec backend python scripts/init_database.py
+
+# Alternativamente, poblar solo datos básicos de demo
 docker-compose exec backend python populate_demo_data.py
 ```
 

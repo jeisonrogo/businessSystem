@@ -103,7 +103,10 @@ docker-compose exec backend bash
 # Ejecutar migraciones
 docker-compose exec backend alembic upgrade head
 
-# Poblar datos demo
+# Inicializar base de datos completa
+docker-compose exec backend python scripts/init_database.py
+
+# Alternativamente, poblar solo datos demo básicos
 docker-compose exec backend python populate_demo_data.py
 ```
 
@@ -159,14 +162,15 @@ Para producción, asegúrate de:
 
 ## 👥 Usuarios por Defecto
 
-Después de poblar datos demo:
+Después de inicializar la base de datos:
 
 | Email | Contraseña | Rol |
 |-------|------------|-----|
-| admin@example.com | admin123 | Administrador |
-| gerente@example.com | gerente123 | Gerente de Ventas |
-| contador@example.com | contador123 | Contador |
-| vendedor@example.com | vendedor123 | Vendedor |
+| admin@empresa.com | admin123 | Administrador |
+| gerente@empresa.com | gerente123 | Gerente de Ventas |
+| contador@empresa.com | contador123 | Contador |
+| vendedor@empresa.com | vendedor123 | Vendedor |
+| demo@empresa.com | demo123 | Demo (Administrador) |
 
 ## 🔐 Roles y Permisos
 

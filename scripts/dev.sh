@@ -53,12 +53,20 @@ sleep 15
 echo "📊 Ejecutando migraciones de base de datos..."
 docker-compose exec backend alembic upgrade head
 
-# Opcional: Poblar datos de demostración
-read -p "¿Deseas poblar la base de datos con datos de demostración? (y/N): " -n 1 -r
+# Inicializar base de datos con datos completos
+read -p "¿Deseas inicializar la base de datos con datos completos? (usuarios, contabilidad, productos) (Y/n): " -n 1 -r
 echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "📁 Poblando datos de demostración..."
-    docker-compose exec backend python populate_demo_data.py
+if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+    echo "📁 Inicializando base de datos con datos completos..."
+    docker-compose exec backend python scripts/init_database.py
+else
+    # Opcional: Solo poblar datos básicos de demostración
+    read -p "¿Deseas poblar solo datos básicos de demostración? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "📁 Poblando datos básicos de demostración..."
+        docker-compose exec backend python populate_demo_data.py
+    fi
 fi
 
 # Iniciar frontend
