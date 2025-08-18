@@ -1,18 +1,100 @@
-name: invetario
+name: business-system
 
 services:
-
+  # Base de Datos PostgreSQL
   database:
     image: postgres:17.2-alpine3.20
-    container_name: databaseInventario
+    container_name: business-system-db
     environment:
       POSTGRES_DB: inventario
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
     ports:
-      - 5432:5432
+      - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    networks:
+      - business-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d inventario"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Backend API (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: business-system-api
+    environment:
+      - DATABASE_URL=postgresql+psycopg://admin:admin@database:5432/inventario
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    networks:
+      - business-network
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Frontend React (Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: business-system-web
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    ports:
+      - "3000:80"
+    networks:
+      - business-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy (Producción)
+  nginx:
+    image: nginx:alpine
+    container_name: business-system-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./ssl:/etc/nginx/ssl
+    networks:
+      - business-network
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    profiles:
+      - production
+
+networks:
+  business-network:
+    driver: bridge
 
 volumes:
   postgres-data:
+    driver: local

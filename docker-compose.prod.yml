@@ -1,0 +1,37 @@
+# Configuración para producción
+# Usar con: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+services:
+  database:
+    # En producción, usar un volumen nombrado o almacenamiento externo
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # Opcional: usar imagen específica para producción
+    # image: postgres:17.2-alpine3.20
+
+  backend:
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - LOG_LEVEL=INFO
+      - DEBUG=false
+    # Remover el volumen de desarrollo para producción
+    volumes: []
+    # Usar comando optimizado para producción
+    command: ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+
+  frontend:
+    environment:
+      - REACT_APP_API_URL=${REACT_APP_API_URL}
+    # Solo imagen de producción (no volúmenes de desarrollo)
+    volumes: []
+
+  # Habilitar nginx proxy para producción
+  nginx:
+    profiles:
+      - production
+    environment:
+      - SSL_CERT_PATH=${SSL_CERT_PATH}
+      - SSL_KEY_PATH=${SSL_KEY_PATH}
