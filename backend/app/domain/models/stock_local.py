@@ -7,7 +7,7 @@ en cada local específico de una tienda.
 
 from datetime import datetime, UTC
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
