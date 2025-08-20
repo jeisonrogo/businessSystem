@@ -8,9 +8,9 @@ y operaciones específicas del negocio.
 from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session
 
-from app.infrastructure.database.session import get_async_session
+from app.infrastructure.database.session import get_session
 from app.infrastructure.repositories.tienda_repository import TiendaRepository
 from app.infrastructure.middleware.tenant_middleware import (
     get_tenant_context,
@@ -39,9 +39,9 @@ router = APIRouter(
     summary="Crear nueva tienda",
     description="Crea una nueva tienda en el sistema multi-tenant. Requiere permisos de administrador."
 )
-async def crear_tienda(
+def crear_tienda(
     tienda_data: TiendaCreate,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("admin"))
 ):
     """
@@ -56,7 +56,7 @@ async def crear_tienda(
     """
     try:
         tienda_repo = TiendaRepository(session)
-        tienda = await tienda_repo.create(tienda_data)
+        tienda = tienda_repo.create(tienda_data)
         return tienda
     except ValueError as e:
         raise HTTPException(
@@ -76,11 +76,11 @@ async def crear_tienda(
     summary="Listar tiendas",
     description="Obtiene la lista de todas las tiendas del sistema con paginación opcional."
 )
-async def listar_tiendas(
+def listar_tiendas(
     skip: int = Query(0, ge=0, description="Número de registros a omitir"),
     limit: int = Query(100, ge=1, le=500, description="Número máximo de registros a retornar"),
     include_inactive: bool = Query(False, description="Incluir tiendas inactivas"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("admin"))
 ):
     """
@@ -90,7 +90,7 @@ async def listar_tiendas(
     """
     try:
         tienda_repo = TiendaRepository(session)
-        tiendas = await tienda_repo.get_all(
+        tiendas = tienda_repo.get_all(
             skip=skip,
             limit=limit,
             include_inactive=include_inactive
@@ -109,8 +109,8 @@ async def listar_tiendas(
     summary="Listar tiendas activas",
     description="Obtiene solo las tiendas activas del sistema."
 )
-async def listar_tiendas_activas(
-    session: AsyncSession = Depends(get_async_session),
+def listar_tiendas_activas(
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -120,7 +120,7 @@ async def listar_tiendas_activas(
     """
     try:
         tienda_repo = TiendaRepository(session)
-        tiendas = await tienda_repo.get_tiendas_activas()
+        tiendas = tienda_repo.get_tiendas_activas()
         return tiendas
     except Exception as e:
         raise HTTPException(
@@ -135,9 +135,9 @@ async def listar_tiendas_activas(
     summary="Obtener tienda por ID",
     description="Obtiene los datos de una tienda específica por su ID."
 )
-async def obtener_tienda(
+def obtener_tienda(
     tienda_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -148,7 +148,7 @@ async def obtener_tienda(
     """
     try:
         tienda_repo = TiendaRepository(session)
-        tienda = await tienda_repo.get_by_id(tienda_id)
+        tienda = tienda_repo.get_by_id(tienda_id)
         
         if not tienda:
             raise HTTPException(
@@ -180,9 +180,9 @@ async def obtener_tienda(
     summary="Obtener tienda por código",
     description="Obtiene los datos de una tienda por su código único."
 )
-async def obtener_tienda_por_codigo(
+def obtener_tienda_por_codigo(
     codigo: str,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -190,7 +190,7 @@ async def obtener_tienda_por_codigo(
     """
     try:
         tienda_repo = TiendaRepository(session)
-        tienda = await tienda_repo.get_by_codigo(codigo)
+        tienda = tienda_repo.get_by_codigo(codigo)
         
         if not tienda:
             raise HTTPException(
@@ -222,10 +222,10 @@ async def obtener_tienda_por_codigo(
     summary="Actualizar tienda",
     description="Actualiza los datos de una tienda existente."
 )
-async def actualizar_tienda(
+def actualizar_tienda(
     tienda_id: UUID,
     tienda_data: TiendaUpdate,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("admin"))
 ):
     """
@@ -235,7 +235,7 @@ async def actualizar_tienda(
     """
     try:
         tienda_repo = TiendaRepository(session)
-        tienda = await tienda_repo.update(tienda_id, tienda_data)
+        tienda = tienda_repo.update(tienda_id, tienda_data)
         
         if not tienda:
             raise HTTPException(
@@ -264,9 +264,9 @@ async def actualizar_tienda(
     summary="Eliminar tienda",
     description="Desactiva una tienda del sistema (eliminación suave)."
 )
-async def eliminar_tienda(
+def eliminar_tienda(
     tienda_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("admin"))
 ):
     """
@@ -277,7 +277,7 @@ async def eliminar_tienda(
     """
     try:
         tienda_repo = TiendaRepository(session)
-        eliminado = await tienda_repo.delete(tienda_id)
+        eliminado = tienda_repo.delete(tienda_id)
         
         if not eliminado:
             raise HTTPException(
@@ -301,9 +301,9 @@ async def eliminar_tienda(
     summary="Estadísticas de tienda",
     description="Obtiene estadísticas básicas de una tienda (locales, productos, usuarios)."
 )
-async def obtener_estadisticas_tienda(
+def obtener_estadisticas_tienda(
     tienda_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -323,7 +323,7 @@ async def obtener_estadisticas_tienda(
         tienda_repo = TiendaRepository(session)
         
         # Verificar que la tienda existe
-        tienda = await tienda_repo.get_by_id(tienda_id)
+        tienda = tienda_repo.get_by_id(tienda_id)
         if not tienda:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -331,7 +331,7 @@ async def obtener_estadisticas_tienda(
             )
         
         # Obtener estadísticas
-        estadisticas = await tienda_repo.get_estadisticas_tienda(tienda_id)
+        estadisticas = tienda_repo.get_estadisticas_tienda(tienda_id)
         
         return TiendaEstadisticas(
             tienda_id=tienda_id,
@@ -352,9 +352,9 @@ async def obtener_estadisticas_tienda(
     summary="Generar número de factura",
     description="Genera el siguiente número consecutivo de factura para la tienda."
 )
-async def generar_numero_factura(
+def generar_numero_factura(
     tienda_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("venta"))
 ):
     """
@@ -371,7 +371,7 @@ async def generar_numero_factura(
             )
         
         tienda_repo = TiendaRepository(session)
-        numero_factura = await tienda_repo.incrementar_consecutivo_factura(tienda_id)
+        numero_factura = tienda_repo.incrementar_consecutivo_factura(tienda_id)
         
         if not numero_factura:
             raise HTTPException(
@@ -398,9 +398,9 @@ async def generar_numero_factura(
     summary="Obtener tienda con locales",
     description="Obtiene una tienda junto con todos sus locales asociados."
 )
-async def obtener_tienda_con_locales(
+def obtener_tienda_con_locales(
     tienda_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -416,7 +416,7 @@ async def obtener_tienda_con_locales(
                 )
         
         tienda_repo = TiendaRepository(session)
-        tienda = await tienda_repo.get_with_locales(tienda_id)
+        tienda = tienda_repo.get_with_locales(tienda_id)
         
         if not tienda:
             raise HTTPException(
@@ -440,10 +440,10 @@ async def obtener_tienda_con_locales(
     summary="Verificar disponibilidad de código",
     description="Verifica si un código de tienda está disponible."
 )
-async def verificar_codigo_disponible(
+def verificar_codigo_disponible(
     codigo: str,
     tienda_id: Optional[UUID] = Query(None, description="ID de tienda a excluir (para updates)"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("admin"))
 ):
     """
@@ -453,7 +453,7 @@ async def verificar_codigo_disponible(
     """
     try:
         tienda_repo = TiendaRepository(session)
-        disponible = await tienda_repo.verificar_codigo_disponible(codigo, tienda_id)
+        disponible = tienda_repo.verificar_codigo_disponible(codigo, tienda_id)
         
         return {
             "codigo": codigo,

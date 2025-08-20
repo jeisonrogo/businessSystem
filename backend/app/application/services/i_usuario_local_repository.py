@@ -26,7 +26,7 @@ class IUsuarioLocalRepository(ABC):
     """
 
     @abstractmethod
-    async def create(self, usuario_local_data: UsuarioLocalCreate) -> UsuarioLocal:
+    def create(self, usuario_local_data: UsuarioLocalCreate) -> UsuarioLocal:
         """
         Crea una nueva asignación de permisos usuario-local.
 
@@ -43,7 +43,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_id(self, usuario_local_id: UUID) -> Optional[UsuarioLocal]:
+    def get_by_id(self, usuario_local_id: UUID) -> Optional[UsuarioLocal]:
         """
         Obtiene una asignación de permisos por su ID.
 
@@ -56,7 +56,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_usuario_and_local(
+    def get_by_usuario_and_local(
         self, 
         user_id: UUID, 
         local_id: UUID
@@ -74,7 +74,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_usuario(
+    def get_by_usuario(
         self, 
         user_id: UUID, 
         incluir_inactivos: bool = False
@@ -92,7 +92,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_local(
+    def get_by_local(
         self, 
         local_id: UUID, 
         incluir_inactivos: bool = False
@@ -110,7 +110,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_tienda(
+    def get_by_tienda(
         self, 
         tienda_id: UUID, 
         incluir_inactivos: bool = False
@@ -128,7 +128,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def update(
+    def update(
         self, 
         usuario_local_id: UUID, 
         usuario_local_data: UsuarioLocalUpdate
@@ -146,7 +146,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete(self, usuario_local_id: UUID) -> bool:
+    def delete(self, usuario_local_id: UUID) -> bool:
         """
         Elimina (desactiva) una asignación de permisos.
 
@@ -159,7 +159,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def asignar_perfil_permiso(
+    def asignar_perfil_permiso(
         self,
         user_id: UUID,
         local_id: UUID,
@@ -184,7 +184,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def usuario_tiene_permiso(
+    def usuario_tiene_permiso(
         self,
         user_id: UUID,
         local_id: UUID,
@@ -204,7 +204,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_usuarios_con_permiso(
+    def get_usuarios_con_permiso(
         self,
         local_id: UUID,
         permiso: str
@@ -222,7 +222,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_responsables_local(self, local_id: UUID) -> List[UsuarioLocal]:
+    def get_responsables_local(self, local_id: UUID) -> List[UsuarioLocal]:
         """
         Obtiene los usuarios responsables de un local.
 
@@ -235,7 +235,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_locales_donde_usuario_es_responsable(self, user_id: UUID) -> List[UUID]:
+    def get_locales_donde_usuario_es_responsable(self, user_id: UUID) -> List[UUID]:
         """
         Obtiene los locales donde un usuario es responsable.
 
@@ -248,7 +248,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def copiar_permisos_entre_locales(
+    def copiar_permisos_entre_locales(
         self,
         user_id: UUID,
         local_origen_id: UUID,
@@ -273,7 +273,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_usuarios_vendedores_local(self, local_id: UUID) -> List[UsuarioLocal]:
+    def get_usuarios_vendedores_local(self, local_id: UUID) -> List[UsuarioLocal]:
         """
         Obtiene usuarios que pueden vender en un local.
 
@@ -286,7 +286,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_estadisticas_permisos_tienda(self, tienda_id: UUID) -> Dict[str, Any]:
+    def get_estadisticas_permisos_tienda(self, tienda_id: UUID) -> Dict[str, Any]:
         """
         Obtiene estadísticas de permisos en una tienda.
 
@@ -304,7 +304,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def validar_limites_usuario(
+    def validar_limites_usuario(
         self,
         user_id: UUID,
         local_id: UUID,
@@ -326,7 +326,7 @@ class IUsuarioLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def buscar_usuarios_local(
+    def buscar_usuarios_local(
         self,
         local_id: UUID,
         texto_busqueda: str

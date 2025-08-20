@@ -8,9 +8,9 @@ ajustes, consultas, estadísticas y operaciones de stock con costo promedio.
 from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session
 
-from app.infrastructure.database.session import get_async_session
+from app.infrastructure.database.session import get_session
 from app.infrastructure.repositories.stock_local_repository import StockLocalRepository
 from app.infrastructure.middleware.tenant_middleware import (
     get_tenant_context,
@@ -40,9 +40,9 @@ router = APIRouter(
     summary="Crear stock inicial en local",
     description="Crea un registro de stock inicial para un producto en un local específico."
 )
-async def crear_stock_local(
+def crear_stock_local(
     stock_data: StockLocalCreate,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("gestion_usuarios"))
 ):
     """
@@ -64,7 +64,7 @@ async def crear_stock_local(
             )
         
         stock_repo = StockLocalRepository(session)
-        stock = await stock_repo.create(stock_data)
+        stock = stock_repo.create(stock_data)
         return stock
     except ValueError as e:
         raise HTTPException(
@@ -86,12 +86,12 @@ async def crear_stock_local(
     summary="Listar stock de un local",
     description="Obtiene todo el inventario de un local específico con paginación."
 )
-async def listar_stock_por_local(
+def listar_stock_por_local(
     local_id: UUID,
     skip: int = Query(0, ge=0, description="Número de registros a omitir"),
     limit: int = Query(100, ge=1, le=500, description="Número máximo de registros"),
     incluir_sin_stock: bool = Query(True, description="Incluir productos sin stock"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("consulta_stock"))
 ):
     """
@@ -108,7 +108,7 @@ async def listar_stock_por_local(
             )
         
         stock_repo = StockLocalRepository(session)
-        stock_items = await stock_repo.get_by_local(
+        stock_items = stock_repo.get_by_local(
             local_id,
             skip=skip,
             limit=limit,
@@ -130,9 +130,9 @@ async def listar_stock_por_local(
     summary="Stock de producto en todos los locales",
     description="Obtiene el stock de un producto específico en todos los locales de la tienda."
 )
-async def obtener_stock_producto_global(
+def obtener_stock_producto_global(
     producto_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("consulta_stock"))
 ):
     """
@@ -142,7 +142,7 @@ async def obtener_stock_producto_global(
     """
     try:
         stock_repo = StockLocalRepository(session)
-        all_stock = await stock_repo.get_by_producto(producto_id)
+        all_stock = stock_repo.get_by_producto(producto_id)
         
         # Filtrar solo locales donde el usuario tiene permisos
         stock_permitido = [
@@ -164,10 +164,10 @@ async def obtener_stock_producto_global(
     summary="Stock de toda la tienda",
     description="Obtiene todo el stock de la tienda (todos los locales) con paginación."
 )
-async def listar_stock_tienda(
+def listar_stock_tienda(
     skip: int = Query(0, ge=0, description="Número de registros a omitir"),
     limit: int = Query(100, ge=1, le=500, description="Número máximo de registros"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -177,7 +177,7 @@ async def listar_stock_tienda(
     """
     try:
         stock_repo = StockLocalRepository(session)
-        stock_items = await stock_repo.get_by_tienda(
+        stock_items = stock_repo.get_by_tienda(
             tenant_context.tienda_id,
             skip=skip,
             limit=limit
@@ -196,9 +196,9 @@ async def listar_stock_tienda(
     summary="Obtener stock por ID",
     description="Obtiene un registro específico de stock por su ID."
 )
-async def obtener_stock_por_id(
+def obtener_stock_por_id(
     stock_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("consulta_stock"))
 ):
     """
@@ -206,7 +206,7 @@ async def obtener_stock_por_id(
     """
     try:
         stock_repo = StockLocalRepository(session)
-        stock = await stock_repo.get_by_id(stock_id)
+        stock = stock_repo.get_by_id(stock_id)
         
         if not stock:
             raise HTTPException(
@@ -237,10 +237,10 @@ async def obtener_stock_por_id(
     summary="Stock específico producto-local",
     description="Obtiene el stock de un producto específico en un local específico."
 )
-async def obtener_stock_producto_local(
+def obtener_stock_producto_local(
     producto_id: UUID,
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("consulta_stock"))
 ):
     """
@@ -255,7 +255,7 @@ async def obtener_stock_producto_local(
             )
         
         stock_repo = StockLocalRepository(session)
-        stock = await stock_repo.get_by_producto_and_local(producto_id, local_id)
+        stock = stock_repo.get_by_producto_and_local(producto_id, local_id)
         
         if not stock:
             raise HTTPException(
@@ -279,10 +279,10 @@ async def obtener_stock_producto_local(
     summary="Actualizar configuración de stock",
     description="Actualiza la configuración de stock (mínimos, máximos) sin afectar cantidad."
 )
-async def actualizar_configuracion_stock(
+def actualizar_configuracion_stock(
     stock_id: UUID,
     stock_data: StockLocalUpdate,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("gestion_usuarios"))
 ):
     """
@@ -294,7 +294,7 @@ async def actualizar_configuracion_stock(
         stock_repo = StockLocalRepository(session)
         
         # Verificar que existe y validar permisos
-        stock_existente = await stock_repo.get_by_id(stock_id)
+        stock_existente = stock_repo.get_by_id(stock_id)
         if not stock_existente:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -307,7 +307,7 @@ async def actualizar_configuracion_stock(
                 detail="No tiene permisos para actualizar este stock"
             )
         
-        stock = await stock_repo.update_configuracion(stock_id, stock_data)
+        stock = stock_repo.update_configuracion(stock_id, stock_data)
         return stock
     except HTTPException:
         raise
@@ -324,11 +324,11 @@ async def actualizar_configuracion_stock(
     summary="Ajustar stock manualmente",
     description="Realiza un ajuste manual de stock con nueva cantidad y/o costo."
 )
-async def ajustar_stock(
+def ajustar_stock(
     producto_id: UUID,
     local_id: UUID,
     ajuste_data: StockLocalAjuste,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_local_context)
 ):
     """
@@ -353,7 +353,7 @@ async def ajustar_stock(
             )
         
         stock_repo = StockLocalRepository(session)
-        stock = await stock_repo.actualizar_stock(
+        stock = stock_repo.actualizar_stock(
             producto_id,
             local_id,
             ajuste_data.nueva_cantidad,
@@ -383,12 +383,12 @@ async def ajustar_stock(
     summary="Incrementar stock",
     description="Incrementa el stock con cálculo de costo promedio ponderado."
 )
-async def incrementar_stock(
+def incrementar_stock(
     producto_id: UUID,
     local_id: UUID,
     cantidad: int = Query(..., gt=0, description="Cantidad a incrementar"),
     costo_unitario: Optional[float] = Query(None, ge=0, description="Costo unitario del incremento"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_local_context)
 ):
     """
@@ -411,7 +411,7 @@ async def incrementar_stock(
             )
         
         stock_repo = StockLocalRepository(session)
-        stock = await stock_repo.incrementar_stock(
+        stock = stock_repo.incrementar_stock(
             producto_id,
             local_id,
             cantidad,
@@ -446,11 +446,11 @@ async def incrementar_stock(
     summary="Decrementar stock",
     description="Decrementa el stock manteniendo el costo promedio."
 )
-async def decrementar_stock(
+def decrementar_stock(
     producto_id: UUID,
     local_id: UUID,
     cantidad: int = Query(..., gt=0, description="Cantidad a decrementar"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_local_context)
 ):
     """
@@ -473,7 +473,7 @@ async def decrementar_stock(
             )
         
         stock_repo = StockLocalRepository(session)
-        stock = await stock_repo.decrementar_stock(
+        stock = stock_repo.decrementar_stock(
             producto_id,
             local_id,
             cantidad,
@@ -507,9 +507,9 @@ async def decrementar_stock(
     summary="Eliminar registro de stock",
     description="Elimina un registro de stock (solo si cantidad = 0)."
 )
-async def eliminar_stock(
+def eliminar_stock(
     stock_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("gestion_usuarios"))
 ):
     """
@@ -521,7 +521,7 @@ async def eliminar_stock(
         stock_repo = StockLocalRepository(session)
         
         # Verificar que existe y validar permisos
-        stock_existente = await stock_repo.get_by_id(stock_id)
+        stock_existente = stock_repo.get_by_id(stock_id)
         if not stock_existente:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -534,7 +534,7 @@ async def eliminar_stock(
                 detail="No tiene permisos para eliminar este stock"
             )
         
-        eliminado = await stock_repo.delete(stock_id)
+        eliminado = stock_repo.delete(stock_id)
         
         if not eliminado:
             raise HTTPException(
@@ -565,9 +565,9 @@ async def eliminar_stock(
     summary="Productos bajo stock mínimo",
     description="Obtiene productos con stock por debajo del mínimo en un local."
 )
-async def obtener_productos_bajo_minimo(
+def obtener_productos_bajo_minimo(
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("consulta_stock"))
 ):
     """
@@ -581,7 +581,7 @@ async def obtener_productos_bajo_minimo(
             )
         
         stock_repo = StockLocalRepository(session)
-        productos_bajo_minimo = await stock_repo.get_productos_bajo_minimo(local_id)
+        productos_bajo_minimo = stock_repo.get_productos_bajo_minimo(local_id)
         return productos_bajo_minimo
     except HTTPException:
         raise
@@ -598,9 +598,9 @@ async def obtener_productos_bajo_minimo(
     summary="Productos agotados",
     description="Obtiene productos agotados (cantidad = 0) en un local."
 )
-async def obtener_productos_agotados(
+def obtener_productos_agotados(
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("consulta_stock"))
 ):
     """
@@ -614,7 +614,7 @@ async def obtener_productos_agotados(
             )
         
         stock_repo = StockLocalRepository(session)
-        productos_agotados = await stock_repo.get_productos_agotados(local_id)
+        productos_agotados = stock_repo.get_productos_agotados(local_id)
         return productos_agotados
     except HTTPException:
         raise
@@ -631,9 +631,9 @@ async def obtener_productos_agotados(
     summary="Resumen de inventario por local",
     description="Obtiene un resumen completo del inventario de un local."
 )
-async def obtener_resumen_inventario_local(
+def obtener_resumen_inventario_local(
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -649,7 +649,7 @@ async def obtener_resumen_inventario_local(
             )
         
         stock_repo = StockLocalRepository(session)
-        resumen = await stock_repo.get_resumen_por_local(local_id)
+        resumen = stock_repo.get_resumen_por_local(local_id)
         
         return StockLocalResumen(
             local_id=local_id,
@@ -670,9 +670,9 @@ async def obtener_resumen_inventario_local(
     summary="Stock global de producto",
     description="Obtiene el stock global de un producto en todos los locales."
 )
-async def obtener_stock_global_producto(
+def obtener_stock_global_producto(
     producto_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -680,7 +680,7 @@ async def obtener_stock_global_producto(
     """
     try:
         stock_repo = StockLocalRepository(session)
-        stock_global = await stock_repo.get_stock_global_producto(producto_id)
+        stock_global = stock_repo.get_stock_global_producto(producto_id)
         
         # Filtrar solo locales donde el usuario tiene permisos
         stock_por_local_filtrado = [
@@ -714,10 +714,10 @@ async def obtener_stock_global_producto(
     summary="Buscar productos con stock",
     description="Busca productos con stock por nombre o SKU en la tienda."
 )
-async def buscar_productos_con_stock(
+def buscar_productos_con_stock(
     texto: str = Query(..., min_length=2, description="Texto a buscar"),
     local_id: Optional[UUID] = Query(None, description="Local específico (opcional)"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("consulta_stock"))
 ):
     """
@@ -734,7 +734,7 @@ async def buscar_productos_con_stock(
             )
         
         stock_repo = StockLocalRepository(session)
-        productos = await stock_repo.buscar_productos_con_stock(
+        productos = stock_repo.buscar_productos_con_stock(
             tenant_context.tienda_id,
             texto,
             local_id
@@ -763,11 +763,11 @@ async def buscar_productos_con_stock(
     summary="Validar stock disponible",
     description="Valida si hay stock suficiente para una operación."
 )
-async def validar_stock_disponible(
+def validar_stock_disponible(
     producto_id: UUID,
     local_id: UUID,
     cantidad: int = Query(..., gt=0, description="Cantidad requerida"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("consulta_stock"))
 ):
     """
@@ -783,14 +783,14 @@ async def validar_stock_disponible(
             )
         
         stock_repo = StockLocalRepository(session)
-        stock_suficiente = await stock_repo.validar_stock_disponible(
+        stock_suficiente = stock_repo.validar_stock_disponible(
             producto_id,
             local_id,
             cantidad
         )
         
         # Obtener stock actual para información adicional
-        stock_actual = await stock_repo.get_by_producto_and_local(producto_id, local_id)
+        stock_actual = stock_repo.get_by_producto_and_local(producto_id, local_id)
         cantidad_actual = stock_actual.cantidad if stock_actual else 0
         
         return {

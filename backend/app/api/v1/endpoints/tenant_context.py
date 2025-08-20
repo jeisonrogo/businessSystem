@@ -8,9 +8,9 @@ cambiar entre locales, y consultar información de tenant disponible.
 from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session
 
-from app.infrastructure.database.session import get_async_session
+from app.infrastructure.database.session import get_session
 from app.infrastructure.repositories.local_repository import LocalRepository
 from app.infrastructure.middleware.tenant_middleware import get_tenant_context
 from app.application.services.tenant_context_service import TenantContextService
@@ -33,7 +33,7 @@ router = APIRouter(
     summary="Contexto actual del usuario",
     description="Obtiene el contexto de tenant actual del usuario autenticado."
 )
-async def obtener_contexto_actual(
+def obtener_contexto_actual(
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -77,8 +77,8 @@ async def obtener_contexto_actual(
     summary="Locales disponibles para el usuario",
     description="Obtiene los locales donde el usuario tiene permisos para cambiar contexto."
 )
-async def obtener_locales_disponibles(
-    session: AsyncSession = Depends(get_async_session),
+def obtener_locales_disponibles(
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -90,7 +90,7 @@ async def obtener_locales_disponibles(
         local_repo = LocalRepository(session)
         
         # Obtener todos los locales activos de la tienda
-        locales_tienda = await local_repo.get_locales_activos_by_tienda(tenant_context.tienda_id)
+        locales_tienda = local_repo.get_locales_activos_by_tienda(tenant_context.tienda_id)
         
         # Filtrar solo locales donde el usuario tiene permisos
         locales_disponibles = []
@@ -112,9 +112,9 @@ async def obtener_locales_disponibles(
     summary="Cambiar contexto de local",
     description="Cambia el contexto activo a un local específico o a solo tienda."
 )
-async def cambiar_contexto_local(
+def cambiar_contexto_local(
     cambio_request: CambiarContextoRequest,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -136,7 +136,7 @@ async def cambiar_contexto_local(
             
             # Obtener información del local para el contexto
             local_repo = LocalRepository(session)
-            local = await local_repo.get_by_id(cambio_request.local_id)
+            local = local_repo.get_by_id(cambio_request.local_id)
             
             if not local or not local.is_active:
                 raise HTTPException(
@@ -195,7 +195,7 @@ async def cambiar_contexto_local(
     summary="Permisos detallados del usuario",
     description="Obtiene información detallada de todos los permisos del usuario por local."
 )
-async def obtener_permisos_detallados(
+def obtener_permisos_detallados(
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -231,7 +231,7 @@ async def obtener_permisos_detallados(
     summary="Validar permiso específico",
     description="Valida si el usuario tiene un permiso específico en el contexto actual."
 )
-async def validar_permiso_especifico(
+def validar_permiso_especifico(
     permiso: str,
     local_id: Optional[UUID] = None,
     tenant_context: TenantContext = Depends(get_tenant_context)
@@ -269,8 +269,8 @@ async def validar_permiso_especifico(
     summary="Información completa del tenant",
     description="Obtiene información completa del tenant incluyendo configuración y estadísticas básicas."
 )
-async def obtener_informacion_completa_tenant(
-    session: AsyncSession = Depends(get_async_session),
+def obtener_informacion_completa_tenant(
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -283,7 +283,7 @@ async def obtener_informacion_completa_tenant(
         
         # Obtener locales donde el usuario tiene permisos
         locales_usuario = []
-        locales_tienda = await local_repo.get_locales_activos_by_tienda(tenant_context.tienda_id)
+        locales_tienda = local_repo.get_locales_activos_by_tienda(tenant_context.tienda_id)
         
         for local in locales_tienda:
             if tenant_context.puede_ver_stock_local(local.id):

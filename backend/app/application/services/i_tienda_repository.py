@@ -21,7 +21,7 @@ class ITiendaRepository(ABC):
     """
 
     @abstractmethod
-    async def create(self, tienda_data: TiendaCreate) -> Tienda:
+    def create(self, tienda_data: TiendaCreate) -> Tienda:
         """
         Crea una nueva tienda en el sistema.
 
@@ -38,7 +38,7 @@ class ITiendaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_id(self, tienda_id: UUID) -> Optional[Tienda]:
+    def get_by_id(self, tienda_id: UUID) -> Optional[Tienda]:
         """
         Obtiene una tienda por su ID.
 
@@ -51,7 +51,7 @@ class ITiendaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_codigo(self, codigo: str) -> Optional[Tienda]:
+    def get_by_codigo(self, codigo: str) -> Optional[Tienda]:
         """
         Obtiene una tienda por su código único.
 
@@ -64,7 +64,7 @@ class ITiendaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_dominio(self, dominio: str) -> Optional[Tienda]:
+    def get_by_dominio(self, dominio: str) -> Optional[Tienda]:
         """
         Obtiene una tienda por su dominio (para multi-tenancy por subdomain).
 
@@ -77,7 +77,7 @@ class ITiendaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_all(
+    def get_all(
         self, 
         skip: int = 0, 
         limit: int = 100,
@@ -97,7 +97,7 @@ class ITiendaRepository(ABC):
         pass
 
     @abstractmethod
-    async def update(self, tienda_id: UUID, tienda_data: TiendaUpdate) -> Optional[Tienda]:
+    def update(self, tienda_id: UUID, tienda_data: TiendaUpdate) -> Optional[Tienda]:
         """
         Actualiza una tienda existente.
 
@@ -114,7 +114,7 @@ class ITiendaRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete(self, tienda_id: UUID) -> bool:
+    def delete(self, tienda_id: UUID) -> bool:
         """
         Elimina (desactiva) una tienda.
 
@@ -127,7 +127,7 @@ class ITiendaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_tiendas_activas(self) -> List[Tienda]:
+    def get_tiendas_activas(self) -> List[Tienda]:
         """
         Obtiene todas las tiendas activas.
 
@@ -137,7 +137,7 @@ class ITiendaRepository(ABC):
         pass
 
     @abstractmethod
-    async def incrementar_consecutivo_factura(self, tienda_id: UUID) -> Optional[str]:
+    def incrementar_consecutivo_factura(self, tienda_id: UUID) -> Optional[str]:
         """
         Incrementa el consecutivo de facturación y retorna el número generado.
 
@@ -153,7 +153,7 @@ class ITiendaRepository(ABC):
         pass
 
     @abstractmethod
-    async def verificar_codigo_disponible(self, codigo: str, tienda_id: Optional[UUID] = None) -> bool:
+    def verificar_codigo_disponible(self, codigo: str, tienda_id: Optional[UUID] = None) -> bool:
         """
         Verifica si un código de tienda está disponible.
 
@@ -167,7 +167,7 @@ class ITiendaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_with_locales(self, tienda_id: UUID) -> Optional[Tienda]:
+    def get_with_locales(self, tienda_id: UUID) -> Optional[Tienda]:
         """
         Obtiene una tienda con sus locales asociados.
 
@@ -180,7 +180,7 @@ class ITiendaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_estadisticas_tienda(self, tienda_id: UUID) -> dict:
+    def get_estadisticas_tienda(self, tienda_id: UUID) -> dict:
         """
         Obtiene estadísticas básicas de una tienda.
 

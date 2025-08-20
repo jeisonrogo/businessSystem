@@ -9,9 +9,9 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session
 
-from app.infrastructure.database.session import get_async_session
+from app.infrastructure.database.session import get_session
 from app.infrastructure.repositories.transferencia_repository import TransferenciaRepository
 from app.infrastructure.repositories.stock_local_repository import StockLocalRepository
 from app.infrastructure.middleware.tenant_middleware import (
@@ -45,9 +45,9 @@ router = APIRouter(
     summary="Crear solicitud de transferencia",
     description="Crea una nueva solicitud de transferencia entre locales de la misma tienda."
 )
-async def crear_transferencia(
+def crear_transferencia(
     transferencia_data: TransferenciaCreate,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("transferencia"))
 ):
     """
@@ -74,7 +74,7 @@ async def crear_transferencia(
         stock_repo = StockLocalRepository(session)
         transferencia_repo = TransferenciaRepository(session, stock_repo)
         
-        transferencia = await transferencia_repo.create(transferencia_data)
+        transferencia = transferencia_repo.create(transferencia_data)
         return transferencia
     except ValueError as e:
         raise HTTPException(
@@ -96,13 +96,13 @@ async def crear_transferencia(
     summary="Listar transferencias de la tienda",
     description="Obtiene todas las transferencias de la tienda con filtros opcionales."
 )
-async def listar_transferencias(
+def listar_transferencias(
     estado: Optional[EstadoTransferenciaEnum] = Query(None, description="Filtro por estado"),
     fecha_desde: Optional[datetime] = Query(None, description="Fecha inicio del rango"),
     fecha_hasta: Optional[datetime] = Query(None, description="Fecha fin del rango"),
     skip: int = Query(0, ge=0, description="Número de registros a omitir"),
     limit: int = Query(100, ge=1, le=500, description="Número máximo de registros"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -117,7 +117,7 @@ async def listar_transferencias(
         # Convertir enum a domain enum si es necesario
         estado_domain = EstadoTransferencia(estado.value) if estado else None
         
-        transferencias = await transferencia_repo.get_by_tienda(
+        transferencias = transferencia_repo.get_by_tienda(
             tenant_context.tienda_id,
             estado=estado_domain,
             fecha_desde=fecha_desde,
@@ -139,8 +139,8 @@ async def listar_transferencias(
     summary="Transferencias pendientes",
     description="Obtiene todas las transferencias pendientes de la tienda."
 )
-async def listar_transferencias_pendientes(
-    session: AsyncSession = Depends(get_async_session),
+def listar_transferencias_pendientes(
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("transferencia"))
 ):
     """
@@ -150,7 +150,7 @@ async def listar_transferencias_pendientes(
         stock_repo = StockLocalRepository(session)
         transferencia_repo = TransferenciaRepository(session, stock_repo)
         
-        transferencias = await transferencia_repo.get_transferencias_pendientes(
+        transferencias = transferencia_repo.get_transferencias_pendientes(
             tenant_context.tienda_id
         )
         return transferencias
@@ -167,8 +167,8 @@ async def listar_transferencias_pendientes(
     summary="Transferencias en tránsito",
     description="Obtiene todas las transferencias enviadas pero no recibidas."
 )
-async def listar_transferencias_en_transito(
-    session: AsyncSession = Depends(get_async_session),
+def listar_transferencias_en_transito(
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("transferencia"))
 ):
     """
@@ -178,7 +178,7 @@ async def listar_transferencias_en_transito(
         stock_repo = StockLocalRepository(session)
         transferencia_repo = TransferenciaRepository(session, stock_repo)
         
-        transferencias = await transferencia_repo.get_transferencias_en_transito(
+        transferencias = transferencia_repo.get_transferencias_en_transito(
             tenant_context.tienda_id
         )
         return transferencias
@@ -195,9 +195,9 @@ async def listar_transferencias_en_transito(
     summary="Obtener transferencia por ID",
     description="Obtiene una transferencia específica por su ID."
 )
-async def obtener_transferencia(
+def obtener_transferencia(
     transferencia_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("transferencia"))
 ):
     """
@@ -207,7 +207,7 @@ async def obtener_transferencia(
         stock_repo = StockLocalRepository(session)
         transferencia_repo = TransferenciaRepository(session, stock_repo)
         
-        transferencia = await transferencia_repo.get_by_id(transferencia_id)
+        transferencia = transferencia_repo.get_by_id(transferencia_id)
         
         if not transferencia:
             raise HTTPException(
@@ -240,9 +240,9 @@ async def obtener_transferencia(
     summary="Obtener transferencia por número",
     description="Obtiene una transferencia por su número único."
 )
-async def obtener_transferencia_por_numero(
+def obtener_transferencia_por_numero(
     numero_transferencia: str,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("transferencia"))
 ):
     """
@@ -252,7 +252,7 @@ async def obtener_transferencia_por_numero(
         stock_repo = StockLocalRepository(session)
         transferencia_repo = TransferenciaRepository(session, stock_repo)
         
-        transferencia = await transferencia_repo.get_by_numero(numero_transferencia)
+        transferencia = transferencia_repo.get_by_numero(numero_transferencia)
         
         if not transferencia:
             raise HTTPException(
@@ -284,12 +284,12 @@ async def obtener_transferencia_por_numero(
     summary="Transferencias desde un local",
     description="Obtiene transferencias que salen de un local específico."
 )
-async def listar_transferencias_origen(
+def listar_transferencias_origen(
     local_id: UUID,
     estado: Optional[EstadoTransferenciaEnum] = Query(None, description="Filtro por estado"),
     skip: int = Query(0, ge=0, description="Número de registros a omitir"),
     limit: int = Query(100, ge=1, le=500, description="Número máximo de registros"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("transferencia"))
 ):
     """
@@ -308,7 +308,7 @@ async def listar_transferencias_origen(
         
         estado_domain = EstadoTransferencia(estado.value) if estado else None
         
-        transferencias = await transferencia_repo.get_by_local_origen(
+        transferencias = transferencia_repo.get_by_local_origen(
             local_id,
             estado=estado_domain,
             skip=skip,
@@ -330,12 +330,12 @@ async def listar_transferencias_origen(
     summary="Transferencias hacia un local",
     description="Obtiene transferencias que llegan a un local específico."
 )
-async def listar_transferencias_destino(
+def listar_transferencias_destino(
     local_id: UUID,
     estado: Optional[EstadoTransferenciaEnum] = Query(None, description="Filtro por estado"),
     skip: int = Query(0, ge=0, description="Número de registros a omitir"),
     limit: int = Query(100, ge=1, le=500, description="Número máximo de registros"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("transferencia"))
 ):
     """
@@ -354,7 +354,7 @@ async def listar_transferencias_destino(
         
         estado_domain = EstadoTransferencia(estado.value) if estado else None
         
-        transferencias = await transferencia_repo.get_by_local_destino(
+        transferencias = transferencia_repo.get_by_local_destino(
             local_id,
             estado=estado_domain,
             skip=skip,
@@ -376,10 +376,10 @@ async def listar_transferencias_destino(
     summary="Transferencias de un producto",
     description="Obtiene todas las transferencias de un producto específico en la tienda."
 )
-async def listar_transferencias_producto(
+def listar_transferencias_producto(
     producto_id: UUID,
     estado: Optional[EstadoTransferenciaEnum] = Query(None, description="Filtro por estado"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -391,7 +391,7 @@ async def listar_transferencias_producto(
         
         estado_domain = EstadoTransferencia(estado.value) if estado else None
         
-        transferencias = await transferencia_repo.get_by_producto(
+        transferencias = transferencia_repo.get_by_producto(
             producto_id,
             tenant_context.tienda_id,
             estado=estado_domain
@@ -412,10 +412,10 @@ async def listar_transferencias_producto(
     summary="Marcar transferencia como enviada",
     description="Marca una transferencia como enviada y actualiza el stock del local origen."
 )
-async def enviar_transferencia(
+def enviar_transferencia(
     transferencia_id: UUID,
     envio_data: TransferenciaEnvio,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_local_context)
 ):
     """
@@ -432,7 +432,7 @@ async def enviar_transferencia(
         transferencia_repo = TransferenciaRepository(session, stock_repo)
         
         # Obtener la transferencia para validaciones
-        transferencia_existente = await transferencia_repo.get_by_id(transferencia_id)
+        transferencia_existente = transferencia_repo.get_by_id(transferencia_id)
         if not transferencia_existente:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -453,7 +453,7 @@ async def enviar_transferencia(
                 detail="Debe estar en el contexto del local origen para enviar"
             )
         
-        transferencia = await transferencia_repo.marcar_como_enviado(
+        transferencia = transferencia_repo.marcar_como_enviado(
             transferencia_id,
             envio_data.cantidad_enviada,
             tenant_context.user_id,
@@ -487,10 +487,10 @@ async def enviar_transferencia(
     summary="Marcar transferencia como recibida",
     description="Marca una transferencia como recibida y actualiza el stock del local destino."
 )
-async def recibir_transferencia(
+def recibir_transferencia(
     transferencia_id: UUID,
     recepcion_data: TransferenciaRecepcion,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_local_context)
 ):
     """
@@ -507,7 +507,7 @@ async def recibir_transferencia(
         transferencia_repo = TransferenciaRepository(session, stock_repo)
         
         # Obtener la transferencia para validaciones
-        transferencia_existente = await transferencia_repo.get_by_id(transferencia_id)
+        transferencia_existente = transferencia_repo.get_by_id(transferencia_id)
         if not transferencia_existente:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -528,7 +528,7 @@ async def recibir_transferencia(
                 detail="Debe estar en el contexto del local destino para recibir"
             )
         
-        transferencia = await transferencia_repo.marcar_como_recibido(
+        transferencia = transferencia_repo.marcar_como_recibido(
             transferencia_id,
             recepcion_data.cantidad_recibida,
             tenant_context.user_id,
@@ -562,10 +562,10 @@ async def recibir_transferencia(
     summary="Cancelar transferencia",
     description="Cancela una transferencia y revierte el stock si es necesario."
 )
-async def cancelar_transferencia(
+def cancelar_transferencia(
     transferencia_id: UUID,
     cancelacion_data: TransferenciaCancelacion,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("transferencia"))
 ):
     """
@@ -580,7 +580,7 @@ async def cancelar_transferencia(
         transferencia_repo = TransferenciaRepository(session, stock_repo)
         
         # Obtener la transferencia para validaciones
-        transferencia_existente = await transferencia_repo.get_by_id(transferencia_id)
+        transferencia_existente = transferencia_repo.get_by_id(transferencia_id)
         if not transferencia_existente:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -595,7 +595,7 @@ async def cancelar_transferencia(
                 detail="No tiene permisos para cancelar esta transferencia"
             )
         
-        transferencia = await transferencia_repo.cancelar_transferencia(
+        transferencia = transferencia_repo.cancelar_transferencia(
             transferencia_id,
             tenant_context.user_id,
             cancelacion_data.motivo_cancelacion
@@ -630,10 +630,10 @@ async def cancelar_transferencia(
     summary="Estadísticas de transferencias",
     description="Obtiene estadísticas completas de transferencias de la tienda."
 )
-async def obtener_estadisticas_transferencias(
+def obtener_estadisticas_transferencias(
     fecha_desde: Optional[datetime] = Query(None, description="Fecha inicio del período"),
     fecha_hasta: Optional[datetime] = Query(None, description="Fecha fin del período"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -645,7 +645,7 @@ async def obtener_estadisticas_transferencias(
         stock_repo = StockLocalRepository(session)
         transferencia_repo = TransferenciaRepository(session, stock_repo)
         
-        estadisticas = await transferencia_repo.get_estadisticas_transferencias(
+        estadisticas = transferencia_repo.get_estadisticas_transferencias(
             tenant_context.tienda_id,
             fecha_desde=fecha_desde,
             fecha_hasta=fecha_hasta
@@ -668,10 +668,10 @@ async def obtener_estadisticas_transferencias(
     summary="Historial de transferencias producto-local",
     description="Obtiene el historial completo de transferencias de un producto en un local."
 )
-async def obtener_historial_producto_local(
+def obtener_historial_producto_local(
     producto_id: UUID,
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -690,7 +690,7 @@ async def obtener_historial_producto_local(
         stock_repo = StockLocalRepository(session)
         transferencia_repo = TransferenciaRepository(session, stock_repo)
         
-        historial = await transferencia_repo.get_historial_producto_local(
+        historial = transferencia_repo.get_historial_producto_local(
             producto_id,
             local_id
         )
@@ -710,12 +710,12 @@ async def obtener_historial_producto_local(
     summary="Validar transferencia posible",
     description="Valida si una transferencia es posible antes de crearla."
 )
-async def validar_transferencia_posible(
+def validar_transferencia_posible(
     producto_id: UUID = Query(..., description="ID del producto"),
     local_origen_id: UUID = Query(..., description="ID del local origen"),
     local_destino_id: UUID = Query(..., description="ID del local destino"),
     cantidad: int = Query(..., gt=0, description="Cantidad a transferir"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("transferencia"))
 ):
     """
@@ -735,7 +735,7 @@ async def validar_transferencia_posible(
         stock_repo = StockLocalRepository(session)
         transferencia_repo = TransferenciaRepository(session, stock_repo)
         
-        validacion = await transferencia_repo.validar_transferencia_posible(
+        validacion = transferencia_repo.validar_transferencia_posible(
             producto_id,
             local_origen_id,
             local_destino_id,

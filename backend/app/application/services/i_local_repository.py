@@ -21,7 +21,7 @@ class ILocalRepository(ABC):
     """
 
     @abstractmethod
-    async def create(self, local_data: LocalCreate) -> Local:
+    def create(self, local_data: LocalCreate) -> Local:
         """
         Crea un nuevo local en una tienda.
 
@@ -39,7 +39,7 @@ class ILocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_id(self, local_id: UUID) -> Optional[Local]:
+    def get_by_id(self, local_id: UUID) -> Optional[Local]:
         """
         Obtiene un local por su ID.
 
@@ -52,7 +52,7 @@ class ILocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_codigo_and_tienda(self, codigo: str, tienda_id: UUID) -> Optional[Local]:
+    def get_by_codigo_and_tienda(self, codigo: str, tienda_id: UUID) -> Optional[Local]:
         """
         Obtiene un local por su código dentro de una tienda específica.
 
@@ -66,7 +66,7 @@ class ILocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_tienda(
+    def get_by_tienda(
         self, 
         tienda_id: UUID, 
         skip: int = 0, 
@@ -88,7 +88,7 @@ class ILocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_locales_activos_by_tienda(self, tienda_id: UUID) -> List[Local]:
+    def get_locales_activos_by_tienda(self, tienda_id: UUID) -> List[Local]:
         """
         Obtiene todos los locales activos de una tienda.
 
@@ -101,7 +101,7 @@ class ILocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def update(self, local_id: UUID, local_data: LocalUpdate) -> Optional[Local]:
+    def update(self, local_id: UUID, local_data: LocalUpdate) -> Optional[Local]:
         """
         Actualiza un local existente.
 
@@ -118,7 +118,7 @@ class ILocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete(self, local_id: UUID) -> bool:
+    def delete(self, local_id: UUID) -> bool:
         """
         Elimina (desactiva) un local.
 
@@ -131,7 +131,7 @@ class ILocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def verificar_codigo_disponible(
+    def verificar_codigo_disponible(
         self, 
         codigo: str, 
         tienda_id: UUID, 
@@ -151,7 +151,7 @@ class ILocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_with_stock(self, local_id: UUID) -> Optional[Local]:
+    def get_with_stock(self, local_id: UUID) -> Optional[Local]:
         """
         Obtiene un local con su información de stock asociado.
 
@@ -164,7 +164,7 @@ class ILocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_with_usuarios(self, local_id: UUID) -> Optional[Local]:
+    def get_with_usuarios(self, local_id: UUID) -> Optional[Local]:
         """
         Obtiene un local con los usuarios que tienen permisos en él.
 
@@ -177,7 +177,7 @@ class ILocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_locales_usuario(self, user_id: UUID) -> List[Local]:
+    def get_locales_usuario(self, user_id: UUID) -> List[Local]:
         """
         Obtiene todos los locales donde un usuario tiene permisos.
 
@@ -190,7 +190,7 @@ class ILocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_locales_para_transferencia(
+    def get_locales_para_transferencia(
         self, 
         local_origen_id: UUID
     ) -> List[Local]:
@@ -207,7 +207,7 @@ class ILocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_estadisticas_local(self, local_id: UUID) -> Dict[str, Any]:
+    def get_estadisticas_local(self, local_id: UUID) -> Dict[str, Any]:
         """
         Obtiene estadísticas básicas de un local.
 
@@ -226,7 +226,7 @@ class ILocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def buscar_locales(
+    def buscar_locales(
         self, 
         tienda_id: UUID,
         texto_busqueda: str,

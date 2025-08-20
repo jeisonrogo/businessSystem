@@ -81,7 +81,7 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
             local_id = self._extract_local_id(request)
 
             # Crear contexto de tenant para el usuario
-            tenant_context = await self.tenant_context_service.crear_contexto_para_usuario(
+            tenant_context = self.tenant_context_service.crear_contexto_para_usuario(
                 usuario=usuario,
                 local_id=local_id
             )

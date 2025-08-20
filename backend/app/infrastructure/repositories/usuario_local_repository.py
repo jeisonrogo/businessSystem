@@ -8,7 +8,7 @@ usando SQLAlchemy/SQLModel con validaciones de negocio.
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 from datetime import datetime, UTC
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session
 from sqlalchemy import select, and_, func, or_
 from sqlalchemy.orm import selectinload
 
@@ -26,15 +26,15 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
     Implementación del repositorio de permisos usuario-local usando SQLAlchemy.
     """
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: Session):
         self.session = session
 
-    async def create(self, usuario_local_data: UsuarioLocalCreate) -> UsuarioLocal:
+    def create(self, usuario_local_data: UsuarioLocalCreate) -> UsuarioLocal:
         """
         Crea una nueva asignación de permisos usuario-local.
         """
         # Verificar que no exista ya una asignación activa
-        existing = await self.get_by_usuario_and_local(
+        existing = self.get_by_usuario_and_local(
             usuario_local_data.user_id, 
             usuario_local_data.local_id
         )
@@ -46,21 +46,21 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         # Crear asignación
         usuario_local = UsuarioLocal(**usuario_local_data.model_dump())
         self.session.add(usuario_local)
-        await self.session.commit()
-        await self.session.refresh(usuario_local)
+        self.session.commit()
+        self.session.refresh(usuario_local)
         
         return usuario_local
 
-    async def get_by_id(self, usuario_local_id: UUID) -> Optional[UsuarioLocal]:
+    def get_by_id(self, usuario_local_id: UUID) -> Optional[UsuarioLocal]:
         """
         Obtiene una asignación de permisos por su ID.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(UsuarioLocal).where(UsuarioLocal.id == usuario_local_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_by_usuario_and_local(
+    def get_by_usuario_and_local(
         self, 
         user_id: UUID, 
         local_id: UUID
@@ -68,7 +68,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         """
         Obtiene los permisos de un usuario en un local específico.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(UsuarioLocal).where(
                 and_(
                     UsuarioLocal.user_id == user_id,
@@ -79,7 +79,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         )
         return result.scalar_one_or_none()
 
-    async def get_by_usuario(
+    def get_by_usuario(
         self, 
         user_id: UUID, 
         incluir_inactivos: bool = False
@@ -94,10 +94,10 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         
         query = query.order_by(UsuarioLocal.created_at.desc())
         
-        result = await self.session.execute(query)
+        result = self.session.exec(query)
         return list(result.scalars().all())
 
-    async def get_by_local(
+    def get_by_local(
         self, 
         local_id: UUID, 
         incluir_inactivos: bool = False
@@ -112,10 +112,10 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         
         query = query.order_by(UsuarioLocal.created_at.desc())
         
-        result = await self.session.execute(query)
+        result = self.session.exec(query)
         return list(result.scalars().all())
 
-    async def get_by_tienda(
+    def get_by_tienda(
         self, 
         tienda_id: UUID, 
         incluir_inactivos: bool = False
@@ -136,10 +136,10 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         
         query = query.order_by(UsuarioLocal.created_at.desc())
         
-        result = await self.session.execute(query)
+        result = self.session.exec(query)
         return list(result.scalars().all())
 
-    async def update(
+    def update(
         self, 
         usuario_local_id: UUID, 
         usuario_local_data: UsuarioLocalUpdate
@@ -147,7 +147,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         """
         Actualiza los permisos de un usuario en un local.
         """
-        usuario_local = await self.get_by_id(usuario_local_id)
+        usuario_local = self.get_by_id(usuario_local_id)
         if not usuario_local:
             return None
 
@@ -158,24 +158,24 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
             for field, value in update_data.items():
                 setattr(usuario_local, field, value)
 
-        await self.session.commit()
-        await self.session.refresh(usuario_local)
+        self.session.commit()
+        self.session.refresh(usuario_local)
         return usuario_local
 
-    async def delete(self, usuario_local_id: UUID) -> bool:
+    def delete(self, usuario_local_id: UUID) -> bool:
         """
         Elimina (desactiva) una asignación de permisos.
         """
-        usuario_local = await self.get_by_id(usuario_local_id)
+        usuario_local = self.get_by_id(usuario_local_id)
         if not usuario_local:
             return False
 
         usuario_local.is_active = False
         usuario_local.updated_at = datetime.now(UTC)
-        await self.session.commit()
+        self.session.commit()
         return True
 
-    async def asignar_perfil_permiso(
+    def asignar_perfil_permiso(
         self,
         user_id: UUID,
         local_id: UUID,
@@ -186,7 +186,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         Asigna un perfil de permisos predefinido a un usuario en un local.
         """
         # Verificar que no exista asignación activa
-        existing = await self.get_by_usuario_and_local(user_id, local_id)
+        existing = self.get_by_usuario_and_local(user_id, local_id)
         if existing:
             raise ValueError("Ya existe una asignación activa para este usuario en el local")
 
@@ -198,9 +198,9 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
             **perfil.get_permisos()
         )
 
-        return await self.create(usuario_local_data)
+        return self.create(usuario_local_data)
 
-    async def usuario_tiene_permiso(
+    def usuario_tiene_permiso(
         self,
         user_id: UUID,
         local_id: UUID,
@@ -209,13 +209,13 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         """
         Verifica si un usuario tiene un permiso específico en un local.
         """
-        usuario_local = await self.get_by_usuario_and_local(user_id, local_id)
+        usuario_local = self.get_by_usuario_and_local(user_id, local_id)
         if not usuario_local:
             return False
 
         return usuario_local.tiene_permiso(permiso)
 
-    async def get_usuarios_con_permiso(
+    def get_usuarios_con_permiso(
         self,
         local_id: UUID,
         permiso: str
@@ -223,7 +223,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         """
         Obtiene usuarios que tienen un permiso específico en un local.
         """
-        usuarios_local = await self.get_by_local(local_id)
+        usuarios_local = self.get_by_local(local_id)
         
         return [
             usuario_local 
@@ -231,11 +231,11 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
             if usuario_local.tiene_permiso(permiso)
         ]
 
-    async def get_responsables_local(self, local_id: UUID) -> List[UsuarioLocal]:
+    def get_responsables_local(self, local_id: UUID) -> List[UsuarioLocal]:
         """
         Obtiene los usuarios responsables de un local.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(UsuarioLocal).where(
                 and_(
                     UsuarioLocal.local_id == local_id,
@@ -246,11 +246,11 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         )
         return list(result.scalars().all())
 
-    async def get_locales_donde_usuario_es_responsable(self, user_id: UUID) -> List[UUID]:
+    def get_locales_donde_usuario_es_responsable(self, user_id: UUID) -> List[UUID]:
         """
         Obtiene los locales donde un usuario es responsable.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(UsuarioLocal.local_id).where(
                 and_(
                     UsuarioLocal.user_id == user_id,
@@ -261,7 +261,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         )
         return list(result.scalars().all())
 
-    async def copiar_permisos_entre_locales(
+    def copiar_permisos_entre_locales(
         self,
         user_id: UUID,
         local_origen_id: UUID,
@@ -272,12 +272,12 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         Copia los permisos de un usuario de un local a otro.
         """
         # Obtener permisos en local origen
-        usuario_local_origen = await self.get_by_usuario_and_local(user_id, local_origen_id)
+        usuario_local_origen = self.get_by_usuario_and_local(user_id, local_origen_id)
         if not usuario_local_origen:
             return None
 
         # Verificar que no exista asignación en destino
-        existing_destino = await self.get_by_usuario_and_local(user_id, local_destino_id)
+        existing_destino = self.get_by_usuario_and_local(user_id, local_destino_id)
         if existing_destino:
             raise ValueError("Ya existe una asignación en el local destino")
 
@@ -298,13 +298,13 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
             created_by=created_by
         )
 
-        return await self.create(nueva_asignacion_data)
+        return self.create(nueva_asignacion_data)
 
-    async def get_usuarios_vendedores_local(self, local_id: UUID) -> List[UsuarioLocal]:
+    def get_usuarios_vendedores_local(self, local_id: UUID) -> List[UsuarioLocal]:
         """
         Obtiene usuarios que pueden vender en un local.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(UsuarioLocal).where(
                 and_(
                     UsuarioLocal.local_id == local_id,
@@ -315,7 +315,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         )
         return list(result.scalars().all())
 
-    async def get_estadisticas_permisos_tienda(self, tienda_id: UUID) -> Dict[str, Any]:
+    def get_estadisticas_permisos_tienda(self, tienda_id: UUID) -> Dict[str, Any]:
         """
         Obtiene estadísticas de permisos en una tienda.
         """
@@ -323,7 +323,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         from app.domain.models.user import User
 
         # Total de asignaciones activas
-        result_total = await self.session.execute(
+        result_total = self.session.exec(
             select(func.count(UsuarioLocal.id))
             .join(Local, UsuarioLocal.local_id == Local.id)
             .where(
@@ -336,7 +336,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         total_asignaciones = result_total.scalar() or 0
 
         # Usuarios únicos con permisos
-        result_usuarios = await self.session.execute(
+        result_usuarios = self.session.exec(
             select(func.count(func.distinct(UsuarioLocal.user_id)))
             .join(Local, UsuarioLocal.local_id == Local.id)
             .where(
@@ -349,7 +349,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         usuarios_unicos = result_usuarios.scalar() or 0
 
         # Responsables por local
-        result_responsables = await self.session.execute(
+        result_responsables = self.session.exec(
             select(
                 Local.nombre,
                 func.count(UsuarioLocal.id)
@@ -367,7 +367,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         responsables_por_local = dict(result_responsables.all())
 
         # Usuarios sin asignación en la tienda
-        result_sin_asignacion = await self.session.execute(
+        result_sin_asignacion = self.session.exec(
             select(func.count(User.id))
             .outerjoin(UsuarioLocal, User.id == UsuarioLocal.user_id)
             .outerjoin(Local, UsuarioLocal.local_id == Local.id)
@@ -395,7 +395,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
             "usuarios_sin_asignacion": usuarios_sin_asignacion
         }
 
-    async def validar_limites_usuario(
+    def validar_limites_usuario(
         self,
         user_id: UUID,
         local_id: UUID,
@@ -405,7 +405,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
         """
         Valida si un usuario puede realizar una operación según sus límites.
         """
-        usuario_local = await self.get_by_usuario_and_local(user_id, local_id)
+        usuario_local = self.get_by_usuario_and_local(user_id, local_id)
         if not usuario_local:
             return False
 
@@ -421,7 +421,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
 
         return False
 
-    async def buscar_usuarios_local(
+    def buscar_usuarios_local(
         self,
         local_id: UUID,
         texto_busqueda: str
@@ -433,7 +433,7 @@ class UsuarioLocalRepository(IUsuarioLocalRepository):
 
         texto_busqueda = f"%{texto_busqueda}%"
         
-        result = await self.session.execute(
+        result = self.session.exec(
             select(UsuarioLocal)
             .join(User, UsuarioLocal.user_id == User.id)
             .where(

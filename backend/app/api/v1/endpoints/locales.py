@@ -8,9 +8,9 @@ incluyendo búsquedas, estadísticas y gestión de usuarios por local.
 from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session
 
-from app.infrastructure.database.session import get_async_session
+from app.infrastructure.database.session import get_session
 from app.infrastructure.repositories.local_repository import LocalRepository
 from app.infrastructure.middleware.tenant_middleware import (
     get_tenant_context,
@@ -39,9 +39,9 @@ router = APIRouter(
     summary="Crear nuevo local",
     description="Crea un nuevo local dentro de una tienda. Requiere permisos de gestión de usuarios."
 )
-async def crear_local(
+def crear_local(
     local_data: LocalCreate,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("gestion_usuarios"))
 ):
     """
@@ -65,7 +65,7 @@ async def crear_local(
             )
         
         local_repo = LocalRepository(session)
-        local = await local_repo.create(local_data)
+        local = local_repo.create(local_data)
         return local
     except ValueError as e:
         raise HTTPException(
@@ -87,11 +87,11 @@ async def crear_local(
     summary="Listar locales de la tienda",
     description="Obtiene todos los locales de la tienda del usuario con paginación opcional."
 )
-async def listar_locales(
+def listar_locales(
     skip: int = Query(0, ge=0, description="Número de registros a omitir"),
     limit: int = Query(100, ge=1, le=500, description="Número máximo de registros a retornar"),
     include_inactive: bool = Query(False, description="Incluir locales inactivos"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -99,7 +99,7 @@ async def listar_locales(
     """
     try:
         local_repo = LocalRepository(session)
-        locales = await local_repo.get_by_tienda(
+        locales = local_repo.get_by_tienda(
             tenant_context.tienda_id,
             skip=skip,
             limit=limit,
@@ -119,8 +119,8 @@ async def listar_locales(
     summary="Listar locales activos de la tienda",
     description="Obtiene solo los locales activos de la tienda del usuario."
 )
-async def listar_locales_activos(
-    session: AsyncSession = Depends(get_async_session),
+def listar_locales_activos(
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -130,7 +130,7 @@ async def listar_locales_activos(
     """
     try:
         local_repo = LocalRepository(session)
-        locales = await local_repo.get_locales_activos_by_tienda(tenant_context.tienda_id)
+        locales = local_repo.get_locales_activos_by_tienda(tenant_context.tienda_id)
         return locales
     except Exception as e:
         raise HTTPException(
@@ -145,8 +145,8 @@ async def listar_locales_activos(
     summary="Locales donde el usuario tiene permisos",
     description="Obtiene los locales donde el usuario autenticado tiene permisos asignados."
 )
-async def listar_locales_usuario(
-    session: AsyncSession = Depends(get_async_session),
+def listar_locales_usuario(
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -156,7 +156,7 @@ async def listar_locales_usuario(
     """
     try:
         local_repo = LocalRepository(session)
-        locales = await local_repo.get_locales_usuario(tenant_context.user_id)
+        locales = local_repo.get_locales_usuario(tenant_context.user_id)
         return locales
     except Exception as e:
         raise HTTPException(
@@ -171,9 +171,9 @@ async def listar_locales_usuario(
     summary="Obtener local por ID",
     description="Obtiene los datos de un local específico por su ID."
 )
-async def obtener_local(
+def obtener_local(
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -183,7 +183,7 @@ async def obtener_local(
     """
     try:
         local_repo = LocalRepository(session)
-        local = await local_repo.get_by_id(local_id)
+        local = local_repo.get_by_id(local_id)
         
         if not local:
             raise HTTPException(
@@ -214,9 +214,9 @@ async def obtener_local(
     summary="Obtener local por código",
     description="Obtiene un local por su código único dentro de la tienda."
 )
-async def obtener_local_por_codigo(
+def obtener_local_por_codigo(
     codigo: str,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -224,7 +224,7 @@ async def obtener_local_por_codigo(
     """
     try:
         local_repo = LocalRepository(session)
-        local = await local_repo.get_by_codigo_and_tienda(codigo, tenant_context.tienda_id)
+        local = local_repo.get_by_codigo_and_tienda(codigo, tenant_context.tienda_id)
         
         if not local:
             raise HTTPException(
@@ -248,10 +248,10 @@ async def obtener_local_por_codigo(
     summary="Actualizar local",
     description="Actualiza los datos de un local existente."
 )
-async def actualizar_local(
+def actualizar_local(
     local_id: UUID,
     local_data: LocalUpdate,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("gestion_usuarios"))
 ):
     """
@@ -263,7 +263,7 @@ async def actualizar_local(
         local_repo = LocalRepository(session)
         
         # Verificar que el local existe y pertenece a la tienda
-        local_existente = await local_repo.get_by_id(local_id)
+        local_existente = local_repo.get_by_id(local_id)
         if not local_existente:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -276,7 +276,7 @@ async def actualizar_local(
                 detail="No puede actualizar locales de otra tienda"
             )
         
-        local = await local_repo.update(local_id, local_data)
+        local = local_repo.update(local_id, local_data)
         return local
     except ValueError as e:
         raise HTTPException(
@@ -298,9 +298,9 @@ async def actualizar_local(
     summary="Eliminar local",
     description="Desactiva un local del sistema (eliminación suave)."
 )
-async def eliminar_local(
+def eliminar_local(
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("gestion_usuarios"))
 ):
     """
@@ -312,7 +312,7 @@ async def eliminar_local(
         local_repo = LocalRepository(session)
         
         # Verificar que el local existe y pertenece a la tienda
-        local_existente = await local_repo.get_by_id(local_id)
+        local_existente = local_repo.get_by_id(local_id)
         if not local_existente:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -325,7 +325,7 @@ async def eliminar_local(
                 detail="No puede eliminar locales de otra tienda"
             )
         
-        eliminado = await local_repo.delete(local_id)
+        eliminado = local_repo.delete(local_id)
         
         if not eliminado:
             raise HTTPException(
@@ -349,9 +349,9 @@ async def eliminar_local(
     summary="Estadísticas de local",
     description="Obtiene estadísticas básicas de un local (productos, stock, usuarios, transferencias)."
 )
-async def obtener_estadisticas_local(
+def obtener_estadisticas_local(
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -370,7 +370,7 @@ async def obtener_estadisticas_local(
         local_repo = LocalRepository(session)
         
         # Verificar que el local existe y pertenece a la tienda
-        local = await local_repo.get_by_id(local_id)
+        local = local_repo.get_by_id(local_id)
         if not local:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -384,7 +384,7 @@ async def obtener_estadisticas_local(
             )
         
         # Obtener estadísticas
-        estadisticas = await local_repo.get_estadisticas_local(local_id)
+        estadisticas = local_repo.get_estadisticas_local(local_id)
         
         return LocalEstadisticas(
             local_id=local_id,
@@ -405,9 +405,9 @@ async def obtener_estadisticas_local(
     summary="Locales disponibles para transferencia",
     description="Obtiene los locales disponibles para transferir desde un local origen."
 )
-async def obtener_locales_para_transferencia(
+def obtener_locales_para_transferencia(
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("transferencia"))
 ):
     """
@@ -426,7 +426,7 @@ async def obtener_locales_para_transferencia(
         local_repo = LocalRepository(session)
         
         # Verificar que el local origen existe y pertenece a la tienda
-        local_origen = await local_repo.get_by_id(local_id)
+        local_origen = local_repo.get_by_id(local_id)
         if not local_origen:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -440,7 +440,7 @@ async def obtener_locales_para_transferencia(
             )
         
         # Obtener locales disponibles para transferencia
-        locales_destino = await local_repo.get_locales_para_transferencia(local_id)
+        locales_destino = local_repo.get_locales_para_transferencia(local_id)
         return locales_destino
         
     except HTTPException:
@@ -458,11 +458,11 @@ async def obtener_locales_para_transferencia(
     summary="Buscar locales",
     description="Busca locales por texto en nombre, código o dirección con filtros opcionales."
 )
-async def buscar_locales(
+def buscar_locales(
     texto: str = Query(..., min_length=2, description="Texto a buscar"),
     ciudad: Optional[str] = Query(None, description="Filtro por ciudad"),
     departamento: Optional[str] = Query(None, description="Filtro por departamento"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -472,7 +472,7 @@ async def buscar_locales(
     """
     try:
         local_repo = LocalRepository(session)
-        locales = await local_repo.buscar_locales(
+        locales = local_repo.buscar_locales(
             tienda_id=tenant_context.tienda_id,
             texto_busqueda=texto,
             ciudad=ciudad,
@@ -492,10 +492,10 @@ async def buscar_locales(
     summary="Verificar disponibilidad de código",
     description="Verifica si un código de local está disponible en la tienda."
 )
-async def verificar_codigo_disponible(
+def verificar_codigo_disponible(
     codigo: str,
     local_id: Optional[UUID] = Query(None, description="ID de local a excluir (para updates)"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("gestion_usuarios"))
 ):
     """
@@ -505,7 +505,7 @@ async def verificar_codigo_disponible(
     """
     try:
         local_repo = LocalRepository(session)
-        disponible = await local_repo.verificar_codigo_disponible(
+        disponible = local_repo.verificar_codigo_disponible(
             codigo, 
             tenant_context.tienda_id,
             local_id
@@ -529,9 +529,9 @@ async def verificar_codigo_disponible(
     summary="Obtener local con stock",
     description="Obtiene un local junto con toda su información de stock asociado."
 )
-async def obtener_local_con_stock(
+def obtener_local_con_stock(
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("consulta_stock"))
 ):
     """
@@ -546,7 +546,7 @@ async def obtener_local_con_stock(
             )
         
         local_repo = LocalRepository(session)
-        local = await local_repo.get_with_stock(local_id)
+        local = local_repo.get_with_stock(local_id)
         
         if not local:
             raise HTTPException(
@@ -577,9 +577,9 @@ async def obtener_local_con_stock(
     summary="Obtener local con usuarios",
     description="Obtiene un local junto con los usuarios que tienen permisos en él."
 )
-async def obtener_local_con_usuarios(
+def obtener_local_con_usuarios(
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -587,7 +587,7 @@ async def obtener_local_con_usuarios(
     """
     try:
         local_repo = LocalRepository(session)
-        local = await local_repo.get_with_usuarios(local_id)
+        local = local_repo.get_with_usuarios(local_id)
         
         if not local:
             raise HTTPException(

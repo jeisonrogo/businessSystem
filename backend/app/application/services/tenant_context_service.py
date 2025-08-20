@@ -42,7 +42,7 @@ class TenantContextService:
         self.local_repository = local_repository
         self.usuario_local_repository = usuario_local_repository
 
-    async def crear_contexto_para_usuario(
+    def crear_contexto_para_usuario(
         self,
         usuario: User,
         local_id: Optional[UUID] = None
@@ -64,12 +64,12 @@ class TenantContextService:
             raise ContextoInvalidoError("Usuario no tiene tienda asignada")
 
         # Obtener tienda del usuario
-        tienda = await self.tienda_repository.get_by_id(usuario.tienda_id)
+        tienda = self.tienda_repository.get_by_id(usuario.tienda_id)
         if not tienda or not tienda.is_active:
             raise ContextoInvalidoError("Tienda no existe o está inactiva")
 
         # Obtener permisos del usuario por local
-        permisos_locales = await self.usuario_local_repository.get_by_usuario(usuario.id)
+        permisos_locales = self.usuario_local_repository.get_by_usuario(usuario.id)
         permisos_dict = {}
         
         for permiso_local in permisos_locales:
@@ -91,11 +91,11 @@ class TenantContextService:
 
         # Si se especifica local, validar y configurar contexto de local
         if local_id:
-            await self._configurar_contexto_local(contexto, local_id, usuario.id)
+            self._configurar_contexto_local(contexto, local_id, usuario.id)
 
         return contexto
 
-    async def _configurar_contexto_local(
+    def _configurar_contexto_local(
         self,
         contexto: TenantContext,
         local_id: UUID,
@@ -113,7 +113,7 @@ class TenantContextService:
             ContextoInvalidoError: Si el local no existe o usuario no tiene acceso
         """
         # Verificar que el local existe y pertenece a la tienda
-        local = await self.local_repository.get_by_id(local_id)
+        local = self.local_repository.get_by_id(local_id)
         if not local or not local.is_active:
             raise ContextoInvalidoError("Local no existe o está inactivo")
 
@@ -121,7 +121,7 @@ class TenantContextService:
             raise ContextoInvalidoError("Local no pertenece a la tienda del usuario")
 
         # Verificar que el usuario tiene permisos en el local
-        permisos_local = await self.usuario_local_repository.get_by_usuario_and_local(
+        permisos_local = self.usuario_local_repository.get_by_usuario_and_local(
             user_id, local_id
         )
         if not permisos_local or not permisos_local.is_active:
@@ -130,7 +130,7 @@ class TenantContextService:
         # Configurar contexto de local
         contexto.cambiar_contexto_local(local.id, local.codigo, local.nombre)
 
-    async def validar_permiso_operacion(
+    def validar_permiso_operacion(
         self,
         contexto: TenantContext,
         operacion: str,
@@ -162,7 +162,7 @@ class TenantContextService:
 
         return True
 
-    async def cambiar_contexto_local(
+    def cambiar_contexto_local(
         self,
         contexto: TenantContext,
         nuevo_local_id: Optional[UUID]
@@ -186,10 +186,10 @@ class TenantContextService:
             return contexto
 
         # Configurar nuevo contexto de local
-        await self._configurar_contexto_local(contexto, nuevo_local_id, contexto.user_id)
+        self._configurar_contexto_local(contexto, nuevo_local_id, contexto.user_id)
         return contexto
 
-    async def get_locales_disponibles_usuario(
+    def get_locales_disponibles_usuario(
         self,
         user_id: UUID,
         tienda_id: UUID
@@ -205,14 +205,14 @@ class TenantContextService:
             Lista de locales donde el usuario tiene permisos
         """
         # Obtener asignaciones activas del usuario en la tienda
-        asignaciones = await self.usuario_local_repository.get_by_usuario(user_id)
+        asignaciones = self.usuario_local_repository.get_by_usuario(user_id)
         local_ids = [asig.local_id for asig in asignaciones if asig.is_active]
 
         if not local_ids:
             return []
 
         # Obtener los locales de la tienda donde tiene permisos
-        locales_tienda = await self.local_repository.get_by_tienda(tienda_id)
+        locales_tienda = self.local_repository.get_by_tienda(tienda_id)
         locales_disponibles = [
             local for local in locales_tienda 
             if local.id in local_ids and local.is_active
@@ -220,7 +220,7 @@ class TenantContextService:
 
         return locales_disponibles
 
-    async def get_contexto_disponible_usuario(self, user_id: UUID) -> Dict[str, Any]:
+    def get_contexto_disponible_usuario(self, user_id: UUID) -> Dict[str, Any]:
         """
         Obtiene toda la información de contexto disponible para un usuario.
 
@@ -261,7 +261,7 @@ class TenantContextService:
         else:
             return contexto.get_filters_base()
 
-    async def validar_acceso_recurso(
+    def validar_acceso_recurso(
         self,
         contexto: TenantContext,
         recurso_tienda_id: UUID,
@@ -316,7 +316,7 @@ class TenantContextService:
         """
         return TenantContext.from_dict(data)
 
-    async def refrescar_permisos_usuario(
+    def refrescar_permisos_usuario(
         self,
         contexto: TenantContext
     ) -> TenantContext:
@@ -330,7 +330,7 @@ class TenantContextService:
             TenantContext: Contexto con permisos actualizados
         """
         # Obtener permisos actualizados
-        permisos_locales = await self.usuario_local_repository.get_by_usuario(
+        permisos_locales = self.usuario_local_repository.get_by_usuario(
             contexto.user_id
         )
         

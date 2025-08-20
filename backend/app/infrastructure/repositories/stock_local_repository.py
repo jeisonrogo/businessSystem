@@ -9,7 +9,7 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 from decimal import Decimal
 from datetime import datetime, UTC
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session
 from sqlalchemy import select, and_, func, or_, update
 from sqlalchemy.orm import selectinload
 
@@ -22,15 +22,15 @@ class StockLocalRepository(IStockLocalRepository):
     Implementación del repositorio de stock por local usando SQLAlchemy.
     """
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: Session):
         self.session = session
 
-    async def create(self, stock_data: StockLocalCreate) -> StockLocal:
+    def create(self, stock_data: StockLocalCreate) -> StockLocal:
         """
         Crea un registro de stock inicial para un producto en un local.
         """
         # Verificar que no exista ya stock para este producto-local
-        existing_stock = await self.get_by_producto_and_local(
+        existing_stock = self.get_by_producto_and_local(
             stock_data.producto_id, stock_data.local_id
         )
         if existing_stock:
@@ -43,21 +43,21 @@ class StockLocalRepository(IStockLocalRepository):
         stock.valor_total_inventario = stock.cantidad * stock.costo_promedio
         
         self.session.add(stock)
-        await self.session.commit()
-        await self.session.refresh(stock)
+        self.session.commit()
+        self.session.refresh(stock)
         
         return stock
 
-    async def get_by_id(self, stock_id: UUID) -> Optional[StockLocal]:
+    def get_by_id(self, stock_id: UUID) -> Optional[StockLocal]:
         """
         Obtiene un registro de stock por su ID.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(StockLocal).where(StockLocal.id == stock_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_by_producto_and_local(
+    def get_by_producto_and_local(
         self, 
         producto_id: UUID, 
         local_id: UUID
@@ -65,7 +65,7 @@ class StockLocalRepository(IStockLocalRepository):
         """
         Obtiene el stock de un producto específico en un local.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(StockLocal).where(
                 and_(
                     StockLocal.producto_id == producto_id,
@@ -75,7 +75,7 @@ class StockLocalRepository(IStockLocalRepository):
         )
         return result.scalar_one_or_none()
 
-    async def get_by_local(
+    def get_by_local(
         self, 
         local_id: UUID,
         skip: int = 0,
@@ -92,21 +92,21 @@ class StockLocalRepository(IStockLocalRepository):
         
         query = query.offset(skip).limit(limit).order_by(StockLocal.updated_at.desc())
         
-        result = await self.session.execute(query)
+        result = self.session.exec(query)
         return list(result.scalars().all())
 
-    async def get_by_producto(self, producto_id: UUID) -> List[StockLocal]:
+    def get_by_producto(self, producto_id: UUID) -> List[StockLocal]:
         """
         Obtiene el stock de un producto en todos los locales.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(StockLocal)
             .where(StockLocal.producto_id == producto_id)
             .order_by(StockLocal.cantidad.desc())
         )
         return list(result.scalars().all())
 
-    async def get_by_tienda(
+    def get_by_tienda(
         self, 
         tienda_id: UUID,
         skip: int = 0,
@@ -126,10 +126,10 @@ class StockLocalRepository(IStockLocalRepository):
             .order_by(StockLocal.updated_at.desc())
         )
         
-        result = await self.session.execute(query)
+        result = self.session.exec(query)
         return list(result.scalars().all())
 
-    async def actualizar_stock(
+    def actualizar_stock(
         self,
         producto_id: UUID,
         local_id: UUID,
@@ -140,18 +140,18 @@ class StockLocalRepository(IStockLocalRepository):
         """
         Actualiza el stock de un producto en un local.
         """
-        stock = await self.get_by_producto_and_local(producto_id, local_id)
+        stock = self.get_by_producto_and_local(producto_id, local_id)
         if not stock:
             return None
 
         # Usar el método de dominio para actualizar
         stock.actualizar_stock(nueva_cantidad, nuevo_costo, usuario_id)
         
-        await self.session.commit()
-        await self.session.refresh(stock)
+        self.session.commit()
+        self.session.refresh(stock)
         return stock
 
-    async def incrementar_stock(
+    def incrementar_stock(
         self,
         producto_id: UUID,
         local_id: UUID,
@@ -162,18 +162,18 @@ class StockLocalRepository(IStockLocalRepository):
         """
         Incrementa el stock con cálculo de costo promedio ponderado.
         """
-        stock = await self.get_by_producto_and_local(producto_id, local_id)
+        stock = self.get_by_producto_and_local(producto_id, local_id)
         if not stock:
             return None
 
         # Usar el método de dominio para incrementar
         stock.incrementar_stock(cantidad_incremento, costo_unitario, usuario_id)
         
-        await self.session.commit()
-        await self.session.refresh(stock)
+        self.session.commit()
+        self.session.refresh(stock)
         return stock
 
-    async def decrementar_stock(
+    def decrementar_stock(
         self,
         producto_id: UUID,
         local_id: UUID,
@@ -183,18 +183,18 @@ class StockLocalRepository(IStockLocalRepository):
         """
         Decrementa el stock manteniendo el costo promedio.
         """
-        stock = await self.get_by_producto_and_local(producto_id, local_id)
+        stock = self.get_by_producto_and_local(producto_id, local_id)
         if not stock:
             return None
 
         # Usar el método de dominio para decrementar
         stock.decrementar_stock(cantidad_decremento, usuario_id)
         
-        await self.session.commit()
-        await self.session.refresh(stock)
+        self.session.commit()
+        self.session.refresh(stock)
         return stock
 
-    async def update_configuracion(
+    def update_configuracion(
         self,
         stock_id: UUID,
         stock_data: StockLocalUpdate
@@ -202,7 +202,7 @@ class StockLocalRepository(IStockLocalRepository):
         """
         Actualiza la configuración de stock (mínimos, máximos, etc.).
         """
-        stock = await self.get_by_id(stock_id)
+        stock = self.get_by_id(stock_id)
         if not stock:
             return None
 
@@ -214,30 +214,30 @@ class StockLocalRepository(IStockLocalRepository):
             
             stock.updated_at = datetime.now(UTC)
 
-        await self.session.commit()
-        await self.session.refresh(stock)
+        self.session.commit()
+        self.session.refresh(stock)
         return stock
 
-    async def delete(self, stock_id: UUID) -> bool:
+    def delete(self, stock_id: UUID) -> bool:
         """
         Elimina un registro de stock (solo si cantidad es 0).
         """
-        stock = await self.get_by_id(stock_id)
+        stock = self.get_by_id(stock_id)
         if not stock:
             return False
 
         if stock.cantidad > 0:
             raise ValueError("No se puede eliminar stock con cantidad mayor a 0")
 
-        await self.session.delete(stock)
-        await self.session.commit()
+        self.session.delete(stock)
+        self.session.commit()
         return True
 
-    async def get_productos_bajo_minimo(self, local_id: UUID) -> List[StockLocal]:
+    def get_productos_bajo_minimo(self, local_id: UUID) -> List[StockLocal]:
         """
         Obtiene productos con stock por debajo del mínimo en un local.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(StockLocal)
             .where(
                 and_(
@@ -249,11 +249,11 @@ class StockLocalRepository(IStockLocalRepository):
         )
         return list(result.scalars().all())
 
-    async def get_productos_agotados(self, local_id: UUID) -> List[StockLocal]:
+    def get_productos_agotados(self, local_id: UUID) -> List[StockLocal]:
         """
         Obtiene productos agotados (cantidad = 0) en un local.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(StockLocal)
             .where(
                 and_(
@@ -265,19 +265,19 @@ class StockLocalRepository(IStockLocalRepository):
         )
         return list(result.scalars().all())
 
-    async def get_resumen_por_local(self, local_id: UUID) -> Dict[str, Any]:
+    def get_resumen_por_local(self, local_id: UUID) -> Dict[str, Any]:
         """
         Obtiene resumen de inventario de un local.
         """
         # Total de productos
-        result_total = await self.session.execute(
+        result_total = self.session.exec(
             select(func.count(StockLocal.id))
             .where(StockLocal.local_id == local_id)
         )
         total_productos = result_total.scalar() or 0
 
         # Productos con stock
-        result_con_stock = await self.session.execute(
+        result_con_stock = self.session.exec(
             select(func.count(StockLocal.id))
             .where(
                 and_(
@@ -289,7 +289,7 @@ class StockLocalRepository(IStockLocalRepository):
         productos_con_stock = result_con_stock.scalar() or 0
 
         # Productos bajo mínimo
-        result_bajo_minimo = await self.session.execute(
+        result_bajo_minimo = self.session.exec(
             select(func.count(StockLocal.id))
             .where(
                 and_(
@@ -302,7 +302,7 @@ class StockLocalRepository(IStockLocalRepository):
         productos_bajo_minimo = result_bajo_minimo.scalar() or 0
 
         # Productos agotados
-        result_agotados = await self.session.execute(
+        result_agotados = self.session.exec(
             select(func.count(StockLocal.id))
             .where(
                 and_(
@@ -314,7 +314,7 @@ class StockLocalRepository(IStockLocalRepository):
         productos_agotados = result_agotados.scalar() or 0
 
         # Valor total del inventario
-        result_valor = await self.session.execute(
+        result_valor = self.session.exec(
             select(func.coalesce(func.sum(StockLocal.valor_total_inventario), 0))
             .where(StockLocal.local_id == local_id)
         )
@@ -328,11 +328,11 @@ class StockLocalRepository(IStockLocalRepository):
             "valor_total_inventario": float(valor_total_inventario)
         }
 
-    async def get_stock_global_producto(self, producto_id: UUID) -> Dict[str, Any]:
+    def get_stock_global_producto(self, producto_id: UUID) -> Dict[str, Any]:
         """
         Obtiene el stock global de un producto en todos los locales.
         """
-        stocks_locales = await self.get_by_producto(producto_id)
+        stocks_locales = self.get_by_producto(producto_id)
         
         stock_total = sum(stock.cantidad for stock in stocks_locales)
         valor_total = sum(stock.valor_total_inventario for stock in stocks_locales)
@@ -350,7 +350,7 @@ class StockLocalRepository(IStockLocalRepository):
             "valor_total_global": float(valor_total)
         }
 
-    async def buscar_productos_con_stock(
+    def buscar_productos_con_stock(
         self,
         tienda_id: UUID,
         texto_busqueda: str,
@@ -383,10 +383,10 @@ class StockLocalRepository(IStockLocalRepository):
 
         query = query.where(StockLocal.cantidad > 0).order_by(Product.nombre)
 
-        result = await self.session.execute(query)
+        result = self.session.exec(query)
         return list(result.scalars().all())
 
-    async def validar_stock_disponible(
+    def validar_stock_disponible(
         self,
         producto_id: UUID,
         local_id: UUID,
@@ -395,7 +395,7 @@ class StockLocalRepository(IStockLocalRepository):
         """
         Valida si hay stock suficiente para una operación.
         """
-        stock = await self.get_by_producto_and_local(producto_id, local_id)
+        stock = self.get_by_producto_and_local(producto_id, local_id)
         if not stock:
             return False
         

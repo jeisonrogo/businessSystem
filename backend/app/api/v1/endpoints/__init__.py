@@ -11,13 +11,13 @@ from . import facturas
 from . import contabilidad
 from . import asientos
 
-# Multi-tenant endpoints - temporarily disabled for middleware setup
-# from . import tiendas
-# from . import locales
-# from . import stock_local
-# from . import transferencias
-# from . import usuario_locales
-# from . import tenant_context
+# Multi-tenant endpoints
+from . import tiendas
+from . import locales
+from . import stock_local
+from . import transferencias
+from . import usuario_locales
+from . import tenant_context
 
 __all__ = [
     # Existing endpoints
@@ -33,7 +33,7 @@ __all__ = [
     
     # Multi-tenant endpoints
     "tiendas",
-    "locales",
+    "locales", 
     "stock_local",
     "transferencias",
     "usuario_locales",

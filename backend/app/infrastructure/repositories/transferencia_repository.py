@@ -8,7 +8,7 @@ con control de estados y actualizaciones de stock automáticas.
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 from datetime import datetime, UTC
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session
 from sqlalchemy import select, and_, func, or_, extract
 
 from app.domain.models.transferencia import (
@@ -25,16 +25,16 @@ class TransferenciaRepository(ITransferenciaRepository):
     Implementación del repositorio de transferencias usando SQLAlchemy.
     """
 
-    def __init__(self, session: AsyncSession, stock_local_repository: IStockLocalRepository):
+    def __init__(self, session: Session, stock_local_repository: IStockLocalRepository):
         self.session = session
         self.stock_local_repository = stock_local_repository
 
-    async def create(self, transferencia_data: TransferenciaInventarioCreate) -> TransferenciaInventario:
+    def create(self, transferencia_data: TransferenciaInventarioCreate) -> TransferenciaInventario:
         """
         Crea una nueva solicitud de transferencia.
         """
         # Validar que los locales pertenezcan a la misma tienda
-        validacion = await self.validar_transferencia_posible(
+        validacion = self.validar_transferencia_posible(
             transferencia_data.producto_id,
             transferencia_data.local_origen_id,
             transferencia_data.local_destino_id,
@@ -46,8 +46,8 @@ class TransferenciaRepository(ITransferenciaRepository):
 
         # Generar número de transferencia único
         from app.domain.models.local import Local
-        local_origen = await self.session.get(Local, transferencia_data.local_origen_id)
-        numero_transferencia = await self.generar_numero_transferencia(local_origen.tienda_id)
+        local_origen = self.session.get(Local, transferencia_data.local_origen_id)
+        numero_transferencia = self.generar_numero_transferencia(local_origen.tienda_id)
 
         # Crear transferencia
         transferencia_dict = transferencia_data.model_dump()
@@ -57,34 +57,34 @@ class TransferenciaRepository(ITransferenciaRepository):
         
         transferencia = TransferenciaInventario(**transferencia_dict)
         self.session.add(transferencia)
-        await self.session.commit()
-        await self.session.refresh(transferencia)
+        self.session.commit()
+        self.session.refresh(transferencia)
         
         return transferencia
 
-    async def get_by_id(self, transferencia_id: UUID) -> Optional[TransferenciaInventario]:
+    def get_by_id(self, transferencia_id: UUID) -> Optional[TransferenciaInventario]:
         """
         Obtiene una transferencia por su ID.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(TransferenciaInventario).where(
                 TransferenciaInventario.id == transferencia_id
             )
         )
         return result.scalar_one_or_none()
 
-    async def get_by_numero(self, numero_transferencia: str) -> Optional[TransferenciaInventario]:
+    def get_by_numero(self, numero_transferencia: str) -> Optional[TransferenciaInventario]:
         """
         Obtiene una transferencia por su número único.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(TransferenciaInventario).where(
                 TransferenciaInventario.numero_transferencia == numero_transferencia
             )
         )
         return result.scalar_one_or_none()
 
-    async def get_by_local_origen(
+    def get_by_local_origen(
         self,
         local_origen_id: UUID,
         estado: Optional[EstadoTransferencia] = None,
@@ -105,10 +105,10 @@ class TransferenciaRepository(ITransferenciaRepository):
             TransferenciaInventario.fecha_solicitud.desc()
         )
         
-        result = await self.session.execute(query)
+        result = self.session.exec(query)
         return list(result.scalars().all())
 
-    async def get_by_local_destino(
+    def get_by_local_destino(
         self,
         local_destino_id: UUID,
         estado: Optional[EstadoTransferencia] = None,
@@ -129,10 +129,10 @@ class TransferenciaRepository(ITransferenciaRepository):
             TransferenciaInventario.fecha_solicitud.desc()
         )
         
-        result = await self.session.execute(query)
+        result = self.session.exec(query)
         return list(result.scalars().all())
 
-    async def get_by_producto(
+    def get_by_producto(
         self,
         producto_id: UUID,
         tienda_id: UUID,
@@ -159,10 +159,10 @@ class TransferenciaRepository(ITransferenciaRepository):
         
         query = query.order_by(TransferenciaInventario.fecha_solicitud.desc())
         
-        result = await self.session.execute(query)
+        result = self.session.exec(query)
         return list(result.scalars().all())
 
-    async def get_by_tienda(
+    def get_by_tienda(
         self,
         tienda_id: UUID,
         estado: Optional[EstadoTransferencia] = None,
@@ -195,10 +195,10 @@ class TransferenciaRepository(ITransferenciaRepository):
             TransferenciaInventario.fecha_solicitud.desc()
         )
         
-        result = await self.session.execute(query)
+        result = self.session.exec(query)
         return list(result.scalars().all())
 
-    async def marcar_como_enviado(
+    def marcar_como_enviado(
         self,
         transferencia_id: UUID,
         cantidad_enviada: int,
@@ -208,7 +208,7 @@ class TransferenciaRepository(ITransferenciaRepository):
         """
         Marca una transferencia como enviada y actualiza stock del local origen.
         """
-        transferencia = await self.get_by_id(transferencia_id)
+        transferencia = self.get_by_id(transferencia_id)
         if not transferencia:
             return None
 
@@ -216,7 +216,7 @@ class TransferenciaRepository(ITransferenciaRepository):
             raise ValueError("Solo se pueden enviar transferencias en estado PENDIENTE")
 
         # Validar stock disponible
-        stock_disponible = await self.stock_local_repository.validar_stock_disponible(
+        stock_disponible = self.stock_local_repository.validar_stock_disponible(
             transferencia.producto_id,
             transferencia.local_origen_id,
             cantidad_enviada
@@ -234,18 +234,18 @@ class TransferenciaRepository(ITransferenciaRepository):
             transferencia.observaciones = observaciones
 
         # Decrementar stock en local origen
-        await self.stock_local_repository.decrementar_stock(
+        self.stock_local_repository.decrementar_stock(
             transferencia.producto_id,
             transferencia.local_origen_id,
             cantidad_enviada,
             usuario_envia_id
         )
 
-        await self.session.commit()
-        await self.session.refresh(transferencia)
+        self.session.commit()
+        self.session.refresh(transferencia)
         return transferencia
 
-    async def marcar_como_recibido(
+    def marcar_como_recibido(
         self,
         transferencia_id: UUID,
         cantidad_recibida: int,
@@ -255,7 +255,7 @@ class TransferenciaRepository(ITransferenciaRepository):
         """
         Marca una transferencia como recibida y actualiza stock del local destino.
         """
-        transferencia = await self.get_by_id(transferencia_id)
+        transferencia = self.get_by_id(transferencia_id)
         if not transferencia:
             return None
 
@@ -275,13 +275,13 @@ class TransferenciaRepository(ITransferenciaRepository):
 
         # Incrementar stock en local destino
         # Usar el costo promedio del local origen para mantener consistencia
-        stock_origen = await self.stock_local_repository.get_by_producto_and_local(
+        stock_origen = self.stock_local_repository.get_by_producto_and_local(
             transferencia.producto_id,
             transferencia.local_origen_id
         )
         costo_transferencia = stock_origen.costo_promedio if stock_origen else None
 
-        await self.stock_local_repository.incrementar_stock(
+        self.stock_local_repository.incrementar_stock(
             transferencia.producto_id,
             transferencia.local_destino_id,
             cantidad_recibida,
@@ -289,11 +289,11 @@ class TransferenciaRepository(ITransferenciaRepository):
             usuario_recibe_id
         )
 
-        await self.session.commit()
-        await self.session.refresh(transferencia)
+        self.session.commit()
+        self.session.refresh(transferencia)
         return transferencia
 
-    async def cancelar_transferencia(
+    def cancelar_transferencia(
         self,
         transferencia_id: UUID,
         usuario_id: UUID,
@@ -302,7 +302,7 @@ class TransferenciaRepository(ITransferenciaRepository):
         """
         Cancela una transferencia y revierte stock si es necesario.
         """
-        transferencia = await self.get_by_id(transferencia_id)
+        transferencia = self.get_by_id(transferencia_id)
         if not transferencia:
             return None
 
@@ -311,7 +311,7 @@ class TransferenciaRepository(ITransferenciaRepository):
 
         # Si está enviada, revertir el stock en origen
         if transferencia.estado == EstadoTransferencia.ENVIADO:
-            await self.stock_local_repository.incrementar_stock(
+            self.stock_local_repository.incrementar_stock(
                 transferencia.producto_id,
                 transferencia.local_origen_id,
                 transferencia.cantidad_enviada,
@@ -323,29 +323,29 @@ class TransferenciaRepository(ITransferenciaRepository):
         transferencia.estado = EstadoTransferencia.CANCELADO
         transferencia.observaciones = f"Cancelado: {motivo_cancelacion}"
 
-        await self.session.commit()
-        await self.session.refresh(transferencia)
+        self.session.commit()
+        self.session.refresh(transferencia)
         return transferencia
 
-    async def get_transferencias_pendientes(self, tienda_id: UUID) -> List[TransferenciaInventario]:
+    def get_transferencias_pendientes(self, tienda_id: UUID) -> List[TransferenciaInventario]:
         """
         Obtiene todas las transferencias pendientes de una tienda.
         """
-        return await self.get_by_tienda(
+        return self.get_by_tienda(
             tienda_id, 
             estado=EstadoTransferencia.PENDIENTE
         )
 
-    async def get_transferencias_en_transito(self, tienda_id: UUID) -> List[TransferenciaInventario]:
+    def get_transferencias_en_transito(self, tienda_id: UUID) -> List[TransferenciaInventario]:
         """
         Obtiene todas las transferencias enviadas pero no recibidas.
         """
-        return await self.get_by_tienda(
+        return self.get_by_tienda(
             tienda_id, 
             estado=EstadoTransferencia.ENVIADO
         )
 
-    async def get_estadisticas_transferencias(
+    def get_estadisticas_transferencias(
         self,
         tienda_id: UUID,
         fecha_desde: Optional[datetime] = None,
@@ -369,13 +369,13 @@ class TransferenciaRepository(ITransferenciaRepository):
             base_query = base_query.where(TransferenciaInventario.fecha_solicitud <= fecha_hasta)
 
         # Total de transferencias
-        result_total = await self.session.execute(
+        result_total = self.session.exec(
             select(func.count()).select_from(base_query.subquery())
         )
         total_transferencias = result_total.scalar() or 0
 
         # Transferencias por estado
-        result_por_estado = await self.session.execute(
+        result_por_estado = self.session.exec(
             select(
                 TransferenciaInventario.estado,
                 func.count(TransferenciaInventario.id)
@@ -393,7 +393,7 @@ class TransferenciaRepository(ITransferenciaRepository):
             "tiempo_promedio_procesamiento": 0  # Se puede implementar si es necesario
         }
 
-    async def generar_numero_transferencia(self, tienda_id: UUID) -> str:
+    def generar_numero_transferencia(self, tienda_id: UUID) -> str:
         """
         Genera un número único para una nueva transferencia.
         """
@@ -403,7 +403,7 @@ class TransferenciaRepository(ITransferenciaRepository):
         # Contar transferencias del año actual para la tienda
         from app.domain.models.local import Local
         
-        result = await self.session.execute(
+        result = self.session.exec(
             select(func.count(TransferenciaInventario.id))
             .join(Local, TransferenciaInventario.local_origen_id == Local.id)
             .where(
@@ -420,7 +420,7 @@ class TransferenciaRepository(ITransferenciaRepository):
         
         return f"TRANS-{año_actual}-{numero_secuencial:03d}"
 
-    async def get_historial_producto_local(
+    def get_historial_producto_local(
         self,
         producto_id: UUID,
         local_id: UUID
@@ -428,7 +428,7 @@ class TransferenciaRepository(ITransferenciaRepository):
         """
         Obtiene el historial de transferencias de un producto en un local.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(TransferenciaInventario)
             .where(
                 and_(
@@ -443,7 +443,7 @@ class TransferenciaRepository(ITransferenciaRepository):
         )
         return list(result.scalars().all())
 
-    async def validar_transferencia_posible(
+    def validar_transferencia_posible(
         self,
         producto_id: UUID,
         local_origen_id: UUID,
@@ -462,7 +462,7 @@ class TransferenciaRepository(ITransferenciaRepository):
         # Verificar que los locales pertenecen a la misma tienda
         from app.domain.models.local import Local
         
-        result_locales = await self.session.execute(
+        result_locales = self.session.exec(
             select(Local.tienda_id)
             .where(Local.id.in_([local_origen_id, local_destino_id]))
         )
@@ -472,19 +472,19 @@ class TransferenciaRepository(ITransferenciaRepository):
             motivos.append("Los locales deben pertenecer a la misma tienda")
 
         # Verificar stock disponible
-        stock_disponible = await self.stock_local_repository.validar_stock_disponible(
+        stock_disponible = self.stock_local_repository.validar_stock_disponible(
             producto_id, local_origen_id, cantidad
         )
         
         if not stock_disponible:
             # Obtener stock actual para información
-            stock_local = await self.stock_local_repository.get_by_producto_and_local(
+            stock_local = self.stock_local_repository.get_by_producto_and_local(
                 producto_id, local_origen_id
             )
             stock_actual = stock_local.cantidad if stock_local else 0
             motivos.append(f"Stock insuficiente (disponible: {stock_actual}, requerido: {cantidad})")
         else:
-            stock_local = await self.stock_local_repository.get_by_producto_and_local(
+            stock_local = self.stock_local_repository.get_by_producto_and_local(
                 producto_id, local_origen_id
             )
             stock_actual = stock_local.cantidad if stock_local else 0

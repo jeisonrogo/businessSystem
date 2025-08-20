@@ -8,9 +8,9 @@ específicos de usuarios en locales individuales.
 from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session
 
-from app.infrastructure.database.session import get_async_session
+from app.infrastructure.database.session import get_session
 from app.infrastructure.repositories.usuario_local_repository import UsuarioLocalRepository
 from app.infrastructure.middleware.tenant_middleware import (
     get_tenant_context,
@@ -41,9 +41,9 @@ router = APIRouter(
     summary="Crear permisos usuario-local",
     description="Crea una nueva asignación de permisos para un usuario en un local específico."
 )
-async def crear_permisos_usuario_local(
+def crear_permisos_usuario_local(
     usuario_local_data: UsuarioLocalCreate,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("gestion_usuarios"))
 ):
     """
@@ -71,7 +71,7 @@ async def crear_permisos_usuario_local(
             )
         
         usuario_local_repo = UsuarioLocalRepository(session)
-        usuario_local = await usuario_local_repo.create(usuario_local_data)
+        usuario_local = usuario_local_repo.create(usuario_local_data)
         return usuario_local
     except ValueError as e:
         raise HTTPException(
@@ -94,9 +94,9 @@ async def crear_permisos_usuario_local(
     summary="Asignar perfil de permisos",
     description="Asigna un perfil predefinido de permisos a un usuario en un local."
 )
-async def asignar_perfil_permiso(
+def asignar_perfil_permiso(
     asignacion_data: UsuarioLocalAsignarPerfil,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("gestion_usuarios"))
 ):
     """
@@ -122,7 +122,7 @@ async def asignar_perfil_permiso(
         # Convertir enum de API a domain enum
         perfil_domain = PerfilPermiso(asignacion_data.perfil.value)
         
-        usuario_local = await usuario_local_repo.asignar_perfil_permiso(
+        usuario_local = usuario_local_repo.asignar_perfil_permiso(
             asignacion_data.user_id,
             asignacion_data.local_id,
             perfil_domain,
@@ -149,9 +149,9 @@ async def asignar_perfil_permiso(
     summary="Listar permisos de la tienda",
     description="Obtiene todas las asignaciones de permisos de la tienda."
 )
-async def listar_permisos_tienda(
+def listar_permisos_tienda(
     incluir_inactivos: bool = Query(False, description="Incluir asignaciones inactivas"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -161,7 +161,7 @@ async def listar_permisos_tienda(
     """
     try:
         usuario_local_repo = UsuarioLocalRepository(session)
-        asignaciones = await usuario_local_repo.get_by_tienda(
+        asignaciones = usuario_local_repo.get_by_tienda(
             tenant_context.tienda_id,
             incluir_inactivos=incluir_inactivos
         )
@@ -179,10 +179,10 @@ async def listar_permisos_tienda(
     summary="Permisos de un usuario",
     description="Obtiene todas las asignaciones de permisos de un usuario específico."
 )
-async def listar_permisos_usuario(
+def listar_permisos_usuario(
     user_id: UUID,
     incluir_inactivos: bool = Query(False, description="Incluir asignaciones inactivas"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -201,7 +201,7 @@ async def listar_permisos_usuario(
             )
         
         usuario_local_repo = UsuarioLocalRepository(session)
-        asignaciones = await usuario_local_repo.get_by_usuario(
+        asignaciones = usuario_local_repo.get_by_usuario(
             user_id,
             incluir_inactivos=incluir_inactivos
         )
@@ -228,10 +228,10 @@ async def listar_permisos_usuario(
     summary="Usuarios con permisos en un local",
     description="Obtiene todos los usuarios que tienen permisos en un local específico."
 )
-async def listar_usuarios_local(
+def listar_usuarios_local(
     local_id: UUID,
     incluir_inactivos: bool = Query(False, description="Incluir asignaciones inactivas"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -246,7 +246,7 @@ async def listar_usuarios_local(
             )
         
         usuario_local_repo = UsuarioLocalRepository(session)
-        usuarios_local = await usuario_local_repo.get_by_local(
+        usuarios_local = usuario_local_repo.get_by_local(
             local_id,
             incluir_inactivos=incluir_inactivos
         )
@@ -266,9 +266,9 @@ async def listar_usuarios_local(
     summary="Obtener asignación específica",
     description="Obtiene una asignación específica de permisos por su ID."
 )
-async def obtener_asignacion_permisos(
+def obtener_asignacion_permisos(
     usuario_local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -276,7 +276,7 @@ async def obtener_asignacion_permisos(
     """
     try:
         usuario_local_repo = UsuarioLocalRepository(session)
-        asignacion = await usuario_local_repo.get_by_id(usuario_local_id)
+        asignacion = usuario_local_repo.get_by_id(usuario_local_id)
         
         if not asignacion:
             raise HTTPException(
@@ -307,10 +307,10 @@ async def obtener_asignacion_permisos(
     summary="Permisos específicos usuario-local",
     description="Obtiene los permisos específicos de un usuario en un local."
 )
-async def obtener_permisos_usuario_local(
+def obtener_permisos_usuario_local(
     user_id: UUID,
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -335,7 +335,7 @@ async def obtener_permisos_usuario_local(
             )
         
         usuario_local_repo = UsuarioLocalRepository(session)
-        asignacion = await usuario_local_repo.get_by_usuario_and_local(user_id, local_id)
+        asignacion = usuario_local_repo.get_by_usuario_and_local(user_id, local_id)
         
         if not asignacion:
             raise HTTPException(
@@ -359,10 +359,10 @@ async def obtener_permisos_usuario_local(
     summary="Actualizar permisos",
     description="Actualiza los permisos de una asignación usuario-local existente."
 )
-async def actualizar_permisos(
+def actualizar_permisos(
     usuario_local_id: UUID,
     permisos_data: UsuarioLocalUpdate,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("gestion_usuarios"))
 ):
     """
@@ -372,7 +372,7 @@ async def actualizar_permisos(
         usuario_local_repo = UsuarioLocalRepository(session)
         
         # Verificar que la asignación existe y pertenece a la tienda
-        asignacion_existente = await usuario_local_repo.get_by_id(usuario_local_id)
+        asignacion_existente = usuario_local_repo.get_by_id(usuario_local_id)
         if not asignacion_existente:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -385,7 +385,7 @@ async def actualizar_permisos(
                 detail="No puede actualizar permisos en locales de otra tienda"
             )
         
-        asignacion = await usuario_local_repo.update(usuario_local_id, permisos_data)
+        asignacion = usuario_local_repo.update(usuario_local_id, permisos_data)
         return asignacion
     except HTTPException:
         raise
@@ -402,9 +402,9 @@ async def actualizar_permisos(
     summary="Eliminar permisos",
     description="Desactiva una asignación de permisos (eliminación suave)."
 )
-async def eliminar_permisos(
+def eliminar_permisos(
     usuario_local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("gestion_usuarios"))
 ):
     """
@@ -416,7 +416,7 @@ async def eliminar_permisos(
         usuario_local_repo = UsuarioLocalRepository(session)
         
         # Verificar que la asignación existe y pertenece a la tienda
-        asignacion_existente = await usuario_local_repo.get_by_id(usuario_local_id)
+        asignacion_existente = usuario_local_repo.get_by_id(usuario_local_id)
         if not asignacion_existente:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -429,7 +429,7 @@ async def eliminar_permisos(
                 detail="No puede eliminar permisos en locales de otra tienda"
             )
         
-        eliminado = await usuario_local_repo.delete(usuario_local_id)
+        eliminado = usuario_local_repo.delete(usuario_local_id)
         
         if not eliminado:
             raise HTTPException(
@@ -455,9 +455,9 @@ async def eliminar_permisos(
     summary="Responsables de un local",
     description="Obtiene los usuarios responsables de un local específico."
 )
-async def obtener_responsables_local(
+def obtener_responsables_local(
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -471,7 +471,7 @@ async def obtener_responsables_local(
             )
         
         usuario_local_repo = UsuarioLocalRepository(session)
-        responsables = await usuario_local_repo.get_responsables_local(local_id)
+        responsables = usuario_local_repo.get_responsables_local(local_id)
         return responsables
     except HTTPException:
         raise
@@ -488,9 +488,9 @@ async def obtener_responsables_local(
     summary="Vendedores de un local",
     description="Obtiene los usuarios que pueden vender en un local específico."
 )
-async def obtener_vendedores_local(
+def obtener_vendedores_local(
     local_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -504,7 +504,7 @@ async def obtener_vendedores_local(
             )
         
         usuario_local_repo = UsuarioLocalRepository(session)
-        vendedores = await usuario_local_repo.get_usuarios_vendedores_local(local_id)
+        vendedores = usuario_local_repo.get_usuarios_vendedores_local(local_id)
         return vendedores
     except HTTPException:
         raise
@@ -521,9 +521,9 @@ async def obtener_vendedores_local(
     summary="Locales donde usuario es responsable",
     description="Obtiene los locales donde un usuario es responsable."
 )
-async def obtener_locales_responsable(
+def obtener_locales_responsable(
     user_id: UUID,
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -539,7 +539,7 @@ async def obtener_locales_responsable(
             )
         
         usuario_local_repo = UsuarioLocalRepository(session)
-        locales = await usuario_local_repo.get_locales_donde_usuario_es_responsable(user_id)
+        locales = usuario_local_repo.get_locales_donde_usuario_es_responsable(user_id)
         return locales
     except HTTPException:
         raise
@@ -557,11 +557,11 @@ async def obtener_locales_responsable(
     summary="Copiar permisos entre locales",
     description="Copia los permisos de un usuario de un local origen a un local destino."
 )
-async def copiar_permisos_entre_locales(
+def copiar_permisos_entre_locales(
     user_id: UUID = Query(..., description="ID del usuario"),
     local_origen_id: UUID = Query(..., description="ID del local origen"),
     local_destino_id: UUID = Query(..., description="ID del local destino"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("gestion_usuarios"))
 ):
     """
@@ -580,7 +580,7 @@ async def copiar_permisos_entre_locales(
             )
         
         usuario_local_repo = UsuarioLocalRepository(session)
-        nueva_asignacion = await usuario_local_repo.copiar_permisos_entre_locales(
+        nueva_asignacion = usuario_local_repo.copiar_permisos_entre_locales(
             user_id,
             local_origen_id,
             local_destino_id,
@@ -614,8 +614,8 @@ async def copiar_permisos_entre_locales(
     summary="Estadísticas de permisos",
     description="Obtiene estadísticas de permisos de usuario-local en la tienda."
 )
-async def obtener_estadisticas_permisos(
-    session: AsyncSession = Depends(get_async_session),
+def obtener_estadisticas_permisos(
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -625,7 +625,7 @@ async def obtener_estadisticas_permisos(
     """
     try:
         usuario_local_repo = UsuarioLocalRepository(session)
-        estadisticas = await usuario_local_repo.get_estadisticas_permisos_tienda(
+        estadisticas = usuario_local_repo.get_estadisticas_permisos_tienda(
             tenant_context.tienda_id
         )
         
@@ -646,12 +646,12 @@ async def obtener_estadisticas_permisos(
     summary="Validar límites de usuario",
     description="Valida si un usuario puede realizar una operación según sus límites."
 )
-async def validar_limites_usuario(
+def validar_limites_usuario(
     user_id: UUID = Query(..., description="ID del usuario"),
     local_id: UUID = Query(..., description="ID del local"),
     tipo_operacion: str = Query(..., description="Tipo de operación: 'descuento' o 'credito'"),
     valor: float = Query(..., ge=0, description="Valor de la operación"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
@@ -676,7 +676,7 @@ async def validar_limites_usuario(
             )
         
         usuario_local_repo = UsuarioLocalRepository(session)
-        puede_realizar = await usuario_local_repo.validar_limites_usuario(
+        puede_realizar = usuario_local_repo.validar_limites_usuario(
             user_id,
             local_id,
             tipo_operacion,
@@ -705,10 +705,10 @@ async def validar_limites_usuario(
     summary="Buscar usuarios en local",
     description="Busca usuarios en un local por nombre o email."
 )
-async def buscar_usuarios_local(
+def buscar_usuarios_local(
     local_id: UUID,
     texto: str = Query(..., min_length=2, description="Texto a buscar"),
-    session: AsyncSession = Depends(get_async_session),
+    session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(require_permission("ver_reportes"))
 ):
     """
@@ -722,7 +722,7 @@ async def buscar_usuarios_local(
             )
         
         usuario_local_repo = UsuarioLocalRepository(session)
-        usuarios = await usuario_local_repo.buscar_usuarios_local(local_id, texto)
+        usuarios = usuario_local_repo.buscar_usuarios_local(local_id, texto)
         return usuarios
     except HTTPException:
         raise

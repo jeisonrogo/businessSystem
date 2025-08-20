@@ -27,7 +27,7 @@ class IStockLocalRepository(ABC):
     """
 
     @abstractmethod
-    async def create(self, stock_data: StockLocalCreate) -> StockLocal:
+    def create(self, stock_data: StockLocalCreate) -> StockLocal:
         """
         Crea un registro de stock inicial para un producto en un local.
 
@@ -44,7 +44,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_id(self, stock_id: UUID) -> Optional[StockLocal]:
+    def get_by_id(self, stock_id: UUID) -> Optional[StockLocal]:
         """
         Obtiene un registro de stock por su ID.
 
@@ -57,7 +57,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_producto_and_local(
+    def get_by_producto_and_local(
         self, 
         producto_id: UUID, 
         local_id: UUID
@@ -75,7 +75,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_local(
+    def get_by_local(
         self, 
         local_id: UUID,
         skip: int = 0,
@@ -97,7 +97,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_producto(self, producto_id: UUID) -> List[StockLocal]:
+    def get_by_producto(self, producto_id: UUID) -> List[StockLocal]:
         """
         Obtiene el stock de un producto en todos los locales.
 
@@ -110,7 +110,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_tienda(
+    def get_by_tienda(
         self, 
         tienda_id: UUID,
         skip: int = 0,
@@ -130,7 +130,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def actualizar_stock(
+    def actualizar_stock(
         self,
         producto_id: UUID,
         local_id: UUID,
@@ -157,7 +157,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def incrementar_stock(
+    def incrementar_stock(
         self,
         producto_id: UUID,
         local_id: UUID,
@@ -184,7 +184,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def decrementar_stock(
+    def decrementar_stock(
         self,
         producto_id: UUID,
         local_id: UUID,
@@ -209,7 +209,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def update_configuracion(
+    def update_configuracion(
         self,
         stock_id: UUID,
         stock_data: StockLocalUpdate
@@ -227,7 +227,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete(self, stock_id: UUID) -> bool:
+    def delete(self, stock_id: UUID) -> bool:
         """
         Elimina un registro de stock (solo si cantidad es 0).
 
@@ -243,7 +243,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_productos_bajo_minimo(self, local_id: UUID) -> List[StockLocal]:
+    def get_productos_bajo_minimo(self, local_id: UUID) -> List[StockLocal]:
         """
         Obtiene productos con stock por debajo del mínimo en un local.
 
@@ -256,7 +256,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_productos_agotados(self, local_id: UUID) -> List[StockLocal]:
+    def get_productos_agotados(self, local_id: UUID) -> List[StockLocal]:
         """
         Obtiene productos agotados (cantidad = 0) en un local.
 
@@ -269,7 +269,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_resumen_por_local(self, local_id: UUID) -> Dict[str, Any]:
+    def get_resumen_por_local(self, local_id: UUID) -> Dict[str, Any]:
         """
         Obtiene resumen de inventario de un local.
 
@@ -287,7 +287,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_stock_global_producto(self, producto_id: UUID) -> Dict[str, Any]:
+    def get_stock_global_producto(self, producto_id: UUID) -> Dict[str, Any]:
         """
         Obtiene el stock global de un producto en todos los locales.
 
@@ -304,7 +304,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def buscar_productos_con_stock(
+    def buscar_productos_con_stock(
         self,
         tienda_id: UUID,
         texto_busqueda: str,
@@ -324,7 +324,7 @@ class IStockLocalRepository(ABC):
         pass
 
     @abstractmethod
-    async def validar_stock_disponible(
+    def validar_stock_disponible(
         self,
         producto_id: UUID,
         local_id: UUID,

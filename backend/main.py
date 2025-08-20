@@ -27,13 +27,13 @@ from app.api.v1.endpoints.clientes import router as clientes_router
 from app.api.v1.endpoints.facturas import router as facturas_router
 from app.api.v1.endpoints.dashboard import router as dashboard_router
 
-# Multi-tenant endpoints - temporarily disabled for middleware setup
-# from app.api.v1.endpoints.tiendas import router as tiendas_router
-# from app.api.v1.endpoints.locales import router as locales_router
-# from app.api.v1.endpoints.stock_local import router as stock_local_router
-# from app.api.v1.endpoints.transferencias import router as transferencias_router
-# from app.api.v1.endpoints.usuario_locales import router as usuario_locales_router
-# from app.api.v1.endpoints.tenant_context import router as tenant_context_router
+# Multi-tenant endpoints
+from app.api.v1.endpoints.tiendas import router as tiendas_router
+from app.api.v1.endpoints.locales import router as locales_router
+from app.api.v1.endpoints.stock_local import router as stock_local_router
+from app.api.v1.endpoints.transferencias import router as transferencias_router
+from app.api.v1.endpoints.usuario_locales import router as usuario_locales_router
+from app.api.v1.endpoints.tenant_context import router as tenant_context_router
 
 app = FastAPI(
     title="Sistema de Gestión Empresarial Multi-Tenant",
@@ -114,13 +114,13 @@ app.include_router(clientes_router, prefix="/api/v1/clientes", tags=["clientes"]
 app.include_router(facturas_router, prefix="/api/v1/facturas", tags=["facturas"])
 app.include_router(dashboard_router, prefix="/api/v1/dashboard", tags=["dashboard"])
 
-# Incluir routers multi-tenant - temporarily disabled for middleware setup
-# app.include_router(tiendas_router, prefix="/api/v1")
-# app.include_router(locales_router, prefix="/api/v1")
-# app.include_router(stock_local_router, prefix="/api/v1")
-# app.include_router(transferencias_router, prefix="/api/v1")
-# app.include_router(usuario_locales_router, prefix="/api/v1")
-# app.include_router(tenant_context_router, prefix="/api/v1")
+# Incluir routers multi-tenant
+app.include_router(tiendas_router, prefix="/api/v1")
+app.include_router(locales_router, prefix="/api/v1")
+app.include_router(stock_local_router, prefix="/api/v1")
+app.include_router(transferencias_router, prefix="/api/v1")
+app.include_router(usuario_locales_router, prefix="/api/v1")
+app.include_router(tenant_context_router, prefix="/api/v1")
 
 
 @app.get("/")

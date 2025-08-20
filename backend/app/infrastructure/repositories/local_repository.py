@@ -7,7 +7,7 @@ con SQLAlchemy/SQLModel incluyendo operaciones CRUD y consultas específicas.
 
 from typing import List, Optional, Dict, Any
 from uuid import UUID
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import Session
 from sqlalchemy import select, and_, func, or_
 from sqlalchemy.orm import selectinload
 
@@ -20,15 +20,15 @@ class LocalRepository(ILocalRepository):
     Implementación del repositorio de locales usando SQLAlchemy.
     """
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: Session):
         self.session = session
 
-    async def create(self, local_data: LocalCreate) -> Local:
+    def create(self, local_data: LocalCreate) -> Local:
         """
         Crea un nuevo local en una tienda.
         """
         # Verificar que el código no exista en la tienda
-        codigo_disponible = await self.verificar_codigo_disponible(
+        codigo_disponible = self.verificar_codigo_disponible(
             local_data.codigo, local_data.tienda_id
         )
         if not codigo_disponible:
@@ -39,21 +39,21 @@ class LocalRepository(ILocalRepository):
         # Crear local
         local = Local(**local_data.model_dump())
         self.session.add(local)
-        await self.session.commit()
-        await self.session.refresh(local)
+        self.session.commit()
+        self.session.refresh(local)
         
         return local
 
-    async def get_by_id(self, local_id: UUID) -> Optional[Local]:
+    def get_by_id(self, local_id: UUID) -> Optional[Local]:
         """
         Obtiene un local por su ID.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(Local).where(Local.id == local_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_by_codigo_and_tienda(
+    def get_by_codigo_and_tienda(
         self, 
         codigo: str, 
         tienda_id: UUID
@@ -61,14 +61,14 @@ class LocalRepository(ILocalRepository):
         """
         Obtiene un local por su código dentro de una tienda específica.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(Local).where(
                 and_(Local.codigo == codigo, Local.tienda_id == tienda_id)
             )
         )
         return result.scalar_one_or_none()
 
-    async def get_by_tienda(
+    def get_by_tienda(
         self, 
         tienda_id: UUID, 
         skip: int = 0, 
@@ -85,32 +85,32 @@ class LocalRepository(ILocalRepository):
         
         query = query.offset(skip).limit(limit).order_by(Local.created_at.desc())
         
-        result = await self.session.execute(query)
+        result = self.session.exec(query)
         return list(result.scalars().all())
 
-    async def get_locales_activos_by_tienda(self, tienda_id: UUID) -> List[Local]:
+    def get_locales_activos_by_tienda(self, tienda_id: UUID) -> List[Local]:
         """
         Obtiene todos los locales activos de una tienda.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(Local).where(
                 and_(Local.tienda_id == tienda_id, Local.is_active == True)
             ).order_by(Local.nombre)
         )
         return list(result.scalars().all())
 
-    async def update(self, local_id: UUID, local_data: LocalUpdate) -> Optional[Local]:
+    def update(self, local_id: UUID, local_data: LocalUpdate) -> Optional[Local]:
         """
         Actualiza un local existente.
         """
         # Obtener local actual
-        local = await self.get_by_id(local_id)
+        local = self.get_by_id(local_id)
         if not local:
             return None
 
         # Verificar código único si se está cambiando
         if local_data.codigo and local_data.codigo != local.codigo:
-            codigo_disponible = await self.verificar_codigo_disponible(
+            codigo_disponible = self.verificar_codigo_disponible(
                 local_data.codigo, local.tienda_id, local_id
             )
             if not codigo_disponible:
@@ -125,24 +125,24 @@ class LocalRepository(ILocalRepository):
             for field, value in update_data.items():
                 setattr(local, field, value)
 
-        await self.session.commit()
-        await self.session.refresh(local)
+        self.session.commit()
+        self.session.refresh(local)
         return local
 
-    async def delete(self, local_id: UUID) -> bool:
+    def delete(self, local_id: UUID) -> bool:
         """
         Elimina (desactiva) un local.
         """
-        local = await self.get_by_id(local_id)
+        local = self.get_by_id(local_id)
         if not local:
             return False
 
         local.is_active = False
         local.actualizar_timestamp()
-        await self.session.commit()
+        self.session.commit()
         return True
 
-    async def verificar_codigo_disponible(
+    def verificar_codigo_disponible(
         self, 
         codigo: str, 
         tienda_id: UUID, 
@@ -158,38 +158,38 @@ class LocalRepository(ILocalRepository):
         if local_id:
             query = query.where(Local.id != local_id)
         
-        result = await self.session.execute(query)
+        result = self.session.exec(query)
         return result.scalar_one_or_none() is None
 
-    async def get_with_stock(self, local_id: UUID) -> Optional[Local]:
+    def get_with_stock(self, local_id: UUID) -> Optional[Local]:
         """
         Obtiene un local con su información de stock asociado.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(Local)
             .options(selectinload(Local.stock_productos))
             .where(Local.id == local_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_with_usuarios(self, local_id: UUID) -> Optional[Local]:
+    def get_with_usuarios(self, local_id: UUID) -> Optional[Local]:
         """
         Obtiene un local con los usuarios que tienen permisos en él.
         """
-        result = await self.session.execute(
+        result = self.session.exec(
             select(Local)
             .options(selectinload(Local.usuarios_con_permisos))
             .where(Local.id == local_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_locales_usuario(self, user_id: UUID) -> List[Local]:
+    def get_locales_usuario(self, user_id: UUID) -> List[Local]:
         """
         Obtiene todos los locales donde un usuario tiene permisos.
         """
         from app.domain.models.usuario_local import UsuarioLocal
 
-        result = await self.session.execute(
+        result = self.session.exec(
             select(Local)
             .join(UsuarioLocal, Local.id == UsuarioLocal.local_id)
             .where(
@@ -203,7 +203,7 @@ class LocalRepository(ILocalRepository):
         )
         return list(result.scalars().all())
 
-    async def get_locales_para_transferencia(
+    def get_locales_para_transferencia(
         self, 
         local_origen_id: UUID
     ) -> List[Local]:
@@ -211,12 +211,12 @@ class LocalRepository(ILocalRepository):
         Obtiene locales disponibles para transferencia desde un local origen.
         """
         # Obtener la tienda del local origen
-        local_origen = await self.get_by_id(local_origen_id)
+        local_origen = self.get_by_id(local_origen_id)
         if not local_origen:
             return []
 
         # Obtener todos los locales activos de la misma tienda excepto el origen
-        result = await self.session.execute(
+        result = self.session.exec(
             select(Local).where(
                 and_(
                     Local.tienda_id == local_origen.tienda_id,
@@ -227,7 +227,7 @@ class LocalRepository(ILocalRepository):
         )
         return list(result.scalars().all())
 
-    async def get_estadisticas_local(self, local_id: UUID) -> Dict[str, Any]:
+    def get_estadisticas_local(self, local_id: UUID) -> Dict[str, Any]:
         """
         Obtiene estadísticas básicas de un local.
         """
@@ -236,28 +236,28 @@ class LocalRepository(ILocalRepository):
         from app.domain.models.transferencia import TransferenciaInventario, EstadoTransferencia
 
         # Contar productos con stock
-        result_productos = await self.session.execute(
+        result_productos = self.session.exec(
             select(func.count(StockLocal.id))
             .where(StockLocal.local_id == local_id)
         )
         total_productos = result_productos.scalar() or 0
 
         # Sumar stock total
-        result_stock_total = await self.session.execute(
+        result_stock_total = self.session.exec(
             select(func.coalesce(func.sum(StockLocal.cantidad), 0))
             .where(StockLocal.local_id == local_id)
         )
         total_stock = result_stock_total.scalar() or 0
 
         # Sumar valor del inventario
-        result_valor = await self.session.execute(
+        result_valor = self.session.exec(
             select(func.coalesce(func.sum(StockLocal.valor_total_inventario), 0))
             .where(StockLocal.local_id == local_id)
         )
         valor_inventario = result_valor.scalar() or 0
 
         # Contar productos bajo mínimo
-        result_bajo_minimo = await self.session.execute(
+        result_bajo_minimo = self.session.exec(
             select(func.count(StockLocal.id))
             .where(
                 and_(
@@ -269,7 +269,7 @@ class LocalRepository(ILocalRepository):
         productos_bajo_minimo = result_bajo_minimo.scalar() or 0
 
         # Contar usuarios con permisos
-        result_usuarios = await self.session.execute(
+        result_usuarios = self.session.exec(
             select(func.count(UsuarioLocal.id))
             .where(
                 and_(
@@ -281,7 +281,7 @@ class LocalRepository(ILocalRepository):
         total_usuarios = result_usuarios.scalar() or 0
 
         # Contar transferencias pendientes
-        result_transferencias = await self.session.execute(
+        result_transferencias = self.session.exec(
             select(func.count(TransferenciaInventario.id))
             .where(
                 and_(
@@ -307,7 +307,7 @@ class LocalRepository(ILocalRepository):
             "transferencias_pendientes": transferencias_pendientes
         }
 
-    async def buscar_locales(
+    def buscar_locales(
         self, 
         tienda_id: UUID,
         texto_busqueda: str,
@@ -339,5 +339,5 @@ class LocalRepository(ILocalRepository):
         
         query = query.where(Local.is_active == True).order_by(Local.nombre)
         
-        result = await self.session.execute(query)
+        result = self.session.exec(query)
         return list(result.scalars().all())

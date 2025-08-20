@@ -26,7 +26,7 @@ class ITransferenciaRepository(ABC):
     """
 
     @abstractmethod
-    async def create(self, transferencia_data: TransferenciaInventarioCreate) -> TransferenciaInventario:
+    def create(self, transferencia_data: TransferenciaInventarioCreate) -> TransferenciaInventario:
         """
         Crea una nueva solicitud de transferencia.
 
@@ -44,7 +44,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_id(self, transferencia_id: UUID) -> Optional[TransferenciaInventario]:
+    def get_by_id(self, transferencia_id: UUID) -> Optional[TransferenciaInventario]:
         """
         Obtiene una transferencia por su ID.
 
@@ -57,7 +57,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_numero(self, numero_transferencia: str) -> Optional[TransferenciaInventario]:
+    def get_by_numero(self, numero_transferencia: str) -> Optional[TransferenciaInventario]:
         """
         Obtiene una transferencia por su número único.
 
@@ -70,7 +70,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_local_origen(
+    def get_by_local_origen(
         self,
         local_origen_id: UUID,
         estado: Optional[EstadoTransferencia] = None,
@@ -92,7 +92,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_local_destino(
+    def get_by_local_destino(
         self,
         local_destino_id: UUID,
         estado: Optional[EstadoTransferencia] = None,
@@ -114,7 +114,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_producto(
+    def get_by_producto(
         self,
         producto_id: UUID,
         tienda_id: UUID,
@@ -134,7 +134,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_tienda(
+    def get_by_tienda(
         self,
         tienda_id: UUID,
         estado: Optional[EstadoTransferencia] = None,
@@ -160,7 +160,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def marcar_como_enviado(
+    def marcar_como_enviado(
         self,
         transferencia_id: UUID,
         cantidad_enviada: int,
@@ -186,7 +186,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def marcar_como_recibido(
+    def marcar_como_recibido(
         self,
         transferencia_id: UUID,
         cantidad_recibida: int,
@@ -211,7 +211,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def cancelar_transferencia(
+    def cancelar_transferencia(
         self,
         transferencia_id: UUID,
         usuario_id: UUID,
@@ -234,7 +234,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_transferencias_pendientes(self, tienda_id: UUID) -> List[TransferenciaInventario]:
+    def get_transferencias_pendientes(self, tienda_id: UUID) -> List[TransferenciaInventario]:
         """
         Obtiene todas las transferencias pendientes de una tienda.
 
@@ -247,7 +247,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_transferencias_en_transito(self, tienda_id: UUID) -> List[TransferenciaInventario]:
+    def get_transferencias_en_transito(self, tienda_id: UUID) -> List[TransferenciaInventario]:
         """
         Obtiene todas las transferencias enviadas pero no recibidas.
 
@@ -260,7 +260,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_estadisticas_transferencias(
+    def get_estadisticas_transferencias(
         self,
         tienda_id: UUID,
         fecha_desde: Optional[datetime] = None,
@@ -285,7 +285,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def generar_numero_transferencia(self, tienda_id: UUID) -> str:
+    def generar_numero_transferencia(self, tienda_id: UUID) -> str:
         """
         Genera un número único para una nueva transferencia.
 
@@ -298,7 +298,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_historial_producto_local(
+    def get_historial_producto_local(
         self,
         producto_id: UUID,
         local_id: UUID
@@ -316,7 +316,7 @@ class ITransferenciaRepository(ABC):
         pass
 
     @abstractmethod
-    async def validar_transferencia_posible(
+    def validar_transferencia_posible(
         self,
         producto_id: UUID,
         local_origen_id: UUID,
