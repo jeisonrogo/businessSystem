@@ -6,6 +6,15 @@ Este archivo inicializa la aplicación FastAPI siguiendo los principios de Clean
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
+from sqlalchemy.ext.asyncio import AsyncSession
+
+# Middleware imports
+from app.infrastructure.middleware.tenant_middleware import TenantContextMiddleware
+from app.application.services.tenant_context_service import TenantContextService
+from app.infrastructure.database.session import get_session
+from app.infrastructure.repositories.tienda_repository import TiendaRepository
+from app.infrastructure.repositories.local_repository import LocalRepository
+from app.infrastructure.repositories.usuario_local_repository import UsuarioLocalRepository
 
 # Existing endpoints
 from app.api.v1.endpoints.auth import router as auth_router
@@ -18,13 +27,13 @@ from app.api.v1.endpoints.clientes import router as clientes_router
 from app.api.v1.endpoints.facturas import router as facturas_router
 from app.api.v1.endpoints.dashboard import router as dashboard_router
 
-# Multi-tenant endpoints
-from app.api.v1.endpoints.tiendas import router as tiendas_router
-from app.api.v1.endpoints.locales import router as locales_router
-from app.api.v1.endpoints.stock_local import router as stock_local_router
-from app.api.v1.endpoints.transferencias import router as transferencias_router
-from app.api.v1.endpoints.usuario_locales import router as usuario_locales_router
-from app.api.v1.endpoints.tenant_context import router as tenant_context_router
+# Multi-tenant endpoints - temporarily disabled for middleware setup
+# from app.api.v1.endpoints.tiendas import router as tiendas_router
+# from app.api.v1.endpoints.locales import router as locales_router
+# from app.api.v1.endpoints.stock_local import router as stock_local_router
+# from app.api.v1.endpoints.transferencias import router as transferencias_router
+# from app.api.v1.endpoints.usuario_locales import router as usuario_locales_router
+# from app.api.v1.endpoints.tenant_context import router as tenant_context_router
 
 app = FastAPI(
     title="Sistema de Gestión Empresarial Multi-Tenant",
@@ -41,6 +50,59 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Crear una instancia singleton del servicio de contexto de tenant
+# que será inicializada durante el startup de la aplicación
+_tenant_service_instance = None
+
+def get_tenant_service() -> TenantContextService:
+    """Obtiene la instancia del servicio de contexto de tenant."""
+    global _tenant_service_instance
+    if _tenant_service_instance is None:
+        # Crear una sesión temporal para inicializar los repositorios
+        for session in get_session():
+            tienda_repo = TiendaRepository(session)
+            local_repo = LocalRepository(session)
+            usuario_local_repo = UsuarioLocalRepository(session)
+            
+            _tenant_service_instance = TenantContextService(
+                tienda_repository=tienda_repo,
+                local_repository=local_repo,
+                usuario_local_repository=usuario_local_repo
+            )
+            break
+    
+    return _tenant_service_instance
+
+# Configurar middleware con servicio lazy-loaded
+class LazyTenantContextMiddleware(TenantContextMiddleware):
+    """Middleware que carga el servicio de contexto de forma lazy."""
+    
+    def __init__(self, app, exclude_paths=None):
+        # No pasamos tenant_context_service en __init__
+        super().__init__(app, None, exclude_paths)
+    
+    async def dispatch(self, request, call_next):
+        # Obtener el servicio de forma lazy al procesar la primera request
+        if self.tenant_context_service is None:
+            self.tenant_context_service = get_tenant_service()
+        
+        return await super().dispatch(request, call_next)
+
+# Configuración del middleware de contexto multi-tenant
+# Se ejecuta después de CORS pero antes de los endpoints  
+app.add_middleware(
+    LazyTenantContextMiddleware,
+    exclude_paths=[
+        "/docs",
+        "/redoc", 
+        "/openapi.json",
+        "/health",
+        "/",
+        "/api/v1/auth/login",
+        "/api/v1/auth/register"
+    ]
+)
+
 # Incluir routers existentes
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
@@ -52,13 +114,13 @@ app.include_router(clientes_router, prefix="/api/v1/clientes", tags=["clientes"]
 app.include_router(facturas_router, prefix="/api/v1/facturas", tags=["facturas"])
 app.include_router(dashboard_router, prefix="/api/v1/dashboard", tags=["dashboard"])
 
-# Incluir routers multi-tenant
-app.include_router(tiendas_router, prefix="/api/v1")
-app.include_router(locales_router, prefix="/api/v1")
-app.include_router(stock_local_router, prefix="/api/v1")
-app.include_router(transferencias_router, prefix="/api/v1")
-app.include_router(usuario_locales_router, prefix="/api/v1")
-app.include_router(tenant_context_router, prefix="/api/v1")
+# Incluir routers multi-tenant - temporarily disabled for middleware setup
+# app.include_router(tiendas_router, prefix="/api/v1")
+# app.include_router(locales_router, prefix="/api/v1")
+# app.include_router(stock_local_router, prefix="/api/v1")
+# app.include_router(transferencias_router, prefix="/api/v1")
+# app.include_router(usuario_locales_router, prefix="/api/v1")
+# app.include_router(tenant_context_router, prefix="/api/v1")
 
 
 @app.get("/")

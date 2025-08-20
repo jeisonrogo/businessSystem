@@ -1,14 +1,14 @@
 # Infrastructure repositories package
 
-# Existing repositories
-from .user_repository import UserRepository
-from .product_repository import ProductRepository
-from .inventario_repository import InventarioRepository
-from .dashboard_repository import DashboardRepository
-from .cliente_repository import ClienteRepository
-from .factura_repository import FacturaRepository
-from .cuenta_contable_repository import CuentaContableRepository
-from .asiento_contable_repository import AsientoContableRepository
+# Existing repositories - aliasing SQL* classes for backward compatibility
+from .user_repository import SQLUserRepository as UserRepository
+from .product_repository import SQLProductRepository as ProductRepository
+from .inventario_repository import SQLInventarioRepository as InventarioRepository
+from .dashboard_repository import SQLDashboardRepository as DashboardRepository
+from .cliente_repository import SQLClienteRepository as ClienteRepository
+from .factura_repository import SQLFacturaRepository as FacturaRepository
+from .cuenta_contable_repository import SQLCuentaContableRepository as CuentaContableRepository
+from .asiento_contable_repository import SQLAsientoContableRepository as AsientoContableRepository
 
 # Multi-tenant repositories
 from .tienda_repository import TiendaRepository

@@ -18,12 +18,15 @@ class PermisoLocal(str, Enum):
     """Permisos específicos que un usuario puede tener en un local."""
     VER_STOCK = "ver_stock"                    # Puede ver inventario del local
     VENDER = "vender"                          # Puede crear facturas en el local
-    TRANSFERIR = "transferir"                  # Puede crear transferencias desde el local
-    RESPONSABLE = "responsable"                # Es responsable/administrador del local
-    MODIFICAR_PRECIOS = "modificar_precios"    # Puede modificar precios de productos
-    APLICAR_DESCUENTOS = "aplicar_descuentos"  # Puede aplicar descuentos en ventas
-    VER_REPORTES = "ver_reportes"              # Puede acceder a reportes del local
-    GESTIONAR_USUARIOS = "gestionar_usuarios"  # Puede gestionar usuarios del local
+
+
+class PerfilPermiso(str, Enum):
+    """Perfiles predefinidos de permisos que pueden asignarse a usuarios."""
+    VENDEDOR = "VENDEDOR"
+    RESPONSABLE_LOCAL = "RESPONSABLE_LOCAL"
+    GERENTE_VENTAS = "GERENTE_VENTAS"
+    CONTADOR = "CONTADOR"
+    ADMINISTRADOR = "ADMINISTRADOR"
 
 
 class UsuarioLocal(SQLModel, table=True):
