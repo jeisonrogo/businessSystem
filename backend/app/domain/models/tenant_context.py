@@ -10,7 +10,6 @@ from uuid import UUID
 from enum import Enum
 
 from pydantic import BaseModel, Field
-from usuario_local import PermisoLocal
 
 
 class TenantContextType(str, Enum):
@@ -97,7 +96,7 @@ class TenantContext(BaseModel):
         """
         local_key = str(local_id)
         permisos = self.permisos_locales.get(local_key, [])
-        return PermisoLocal.VENDER.value in permisos
+        return "vender" in permisos
 
     def puede_ver_stock_local(self, local_id: UUID) -> bool:
         """
@@ -111,7 +110,7 @@ class TenantContext(BaseModel):
         """
         local_key = str(local_id)
         permisos = self.permisos_locales.get(local_key, [])
-        return PermisoLocal.VER_STOCK.value in permisos
+        return "ver_stock" in permisos
 
     def puede_transferir_desde_local(self, local_id: UUID) -> bool:
         """
@@ -125,7 +124,7 @@ class TenantContext(BaseModel):
         """
         local_key = str(local_id)
         permisos = self.permisos_locales.get(local_key, [])
-        return PermisoLocal.TRANSFERIR.value in permisos
+        return "transferir" in permisos
 
     def es_responsable_local(self, local_id: UUID) -> bool:
         """
@@ -139,36 +138,36 @@ class TenantContext(BaseModel):
         """
         local_key = str(local_id)
         permisos = self.permisos_locales.get(local_key, [])
-        return PermisoLocal.RESPONSABLE.value in permisos
+        return "responsable" in permisos
 
-    def tiene_permiso_en_local(self, local_id: UUID, permiso: PermisoLocal) -> bool:
+    def tiene_permiso_en_local(self, local_id: UUID, permiso: str) -> bool:
         """
         Verifica si el usuario tiene un permiso específico en el local.
         
         Args:
             local_id: ID del local a verificar
-            permiso: Permiso a verificar
+            permiso: Permiso a verificar (string)
             
         Returns:
             bool: True si tiene el permiso
         """
         local_key = str(local_id)
         permisos = self.permisos_locales.get(local_key, [])
-        return permiso.value in permisos
+        return permiso in permisos
 
-    def get_locales_con_permiso(self, permiso: PermisoLocal) -> List[UUID]:
+    def get_locales_con_permiso(self, permiso: str) -> List[UUID]:
         """
         Retorna lista de locales donde el usuario tiene el permiso especificado.
         
         Args:
-            permiso: Permiso a buscar
+            permiso: Permiso a buscar (string)
             
         Returns:
             List[UUID]: Lista de IDs de locales con el permiso
         """
         locales_con_permiso = []
         for local_key, permisos in self.permisos_locales.items():
-            if permiso.value in permisos:
+            if permiso in permisos:
                 try:
                     locales_con_permiso.append(UUID(local_key))
                 except ValueError:
@@ -182,7 +181,7 @@ class TenantContext(BaseModel):
         Returns:
             List[UUID]: Lista de IDs de locales donde puede vender
         """
-        return self.get_locales_con_permiso(PermisoLocal.VENDER)
+        return self.get_locales_con_permiso("vender")
 
     def get_locales_transferencia_permitidos(self) -> List[UUID]:
         """
@@ -191,7 +190,7 @@ class TenantContext(BaseModel):
         Returns:
             List[UUID]: Lista de IDs de locales donde puede transferir
         """
-        return self.get_locales_con_permiso(PermisoLocal.TRANSFERIR)
+        return self.get_locales_con_permiso("transferir")
 
     def get_locales_responsable(self) -> List[UUID]:
         """
@@ -200,7 +199,7 @@ class TenantContext(BaseModel):
         Returns:
             List[UUID]: Lista de IDs de locales donde es responsable
         """
-        return self.get_locales_con_permiso(PermisoLocal.RESPONSABLE)
+        return self.get_locales_con_permiso("responsable")
 
     def validar_operacion_en_contexto_actual(self, operacion: str) -> bool:
         """
@@ -218,12 +217,12 @@ class TenantContext(BaseModel):
         
         # Con contexto de local, verificar permisos específicos
         operacion_permiso_map = {
-            'venta': PermisoLocal.VENDER,
-            'transferencia': PermisoLocal.TRANSFERIR,
-            'consulta_stock': PermisoLocal.VER_STOCK,
-            'gestion_usuarios': PermisoLocal.GESTIONAR_USUARIOS,
-            'modificar_precios': PermisoLocal.MODIFICAR_PRECIOS,
-            'ver_reportes': PermisoLocal.VER_REPORTES,
+            'venta': 'vender',
+            'transferencia': 'transferir',
+            'consulta_stock': 'ver_stock',
+            'gestion_usuarios': 'gestionar_usuarios',
+            'modificar_precios': 'modificar_precios',
+            'ver_reportes': 'ver_reportes',
         }
         
         permiso_requerido = operacion_permiso_map.get(operacion)
