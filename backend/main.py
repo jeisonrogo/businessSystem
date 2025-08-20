@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
+# Existing endpoints
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.users import router as users_router
 from app.api.v1.endpoints.products import router as products_router
@@ -17,10 +18,18 @@ from app.api.v1.endpoints.clientes import router as clientes_router
 from app.api.v1.endpoints.facturas import router as facturas_router
 from app.api.v1.endpoints.dashboard import router as dashboard_router
 
+# Multi-tenant endpoints
+from app.api.v1.endpoints.tiendas import router as tiendas_router
+from app.api.v1.endpoints.locales import router as locales_router
+from app.api.v1.endpoints.stock_local import router as stock_local_router
+from app.api.v1.endpoints.transferencias import router as transferencias_router
+from app.api.v1.endpoints.usuario_locales import router as usuario_locales_router
+from app.api.v1.endpoints.tenant_context import router as tenant_context_router
+
 app = FastAPI(
-    title="Sistema de Gestión Empresarial",
-    description="API para gestión de inventario, contabilidad, facturación y ventas",
-    version="1.0.0"
+    title="Sistema de Gestión Empresarial Multi-Tenant",
+    description="API para gestión de inventario, contabilidad, facturación y ventas con soporte multi-tenant",
+    version="2.0.0"
 )
 
 # Configuración de CORS
@@ -32,7 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Incluir routers
+# Incluir routers existentes
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
 app.include_router(products_router, prefix="/api/v1/products", tags=["products"])
@@ -43,14 +52,29 @@ app.include_router(clientes_router, prefix="/api/v1/clientes", tags=["clientes"]
 app.include_router(facturas_router, prefix="/api/v1/facturas", tags=["facturas"])
 app.include_router(dashboard_router, prefix="/api/v1/dashboard", tags=["dashboard"])
 
+# Incluir routers multi-tenant
+app.include_router(tiendas_router, prefix="/api/v1")
+app.include_router(locales_router, prefix="/api/v1")
+app.include_router(stock_local_router, prefix="/api/v1")
+app.include_router(transferencias_router, prefix="/api/v1")
+app.include_router(usuario_locales_router, prefix="/api/v1")
+app.include_router(tenant_context_router, prefix="/api/v1")
+
 
 @app.get("/")
 async def root():
     """Endpoint raíz que proporciona información básica de la API."""
     return {
-        "message": "Sistema de Gestión Empresarial API",
-        "version": "1.0.0",
+        "message": "Sistema de Gestión Empresarial Multi-Tenant API",
+        "version": "2.0.0",
         "status": "active",
+        "features": [
+            "Multi-tenant architecture",
+            "Independent inventory per location",
+            "Inter-location transfers",
+            "Granular user permissions",
+            "Weighted average costing"
+        ],
         "timestamp": datetime.now()
     }
 
