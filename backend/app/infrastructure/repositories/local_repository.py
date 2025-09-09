@@ -341,3 +341,49 @@ class LocalRepository(ILocalRepository):
         
         result = self.session.exec(query)
         return list(result.scalars().all())
+
+    def count_by_tienda(self, tienda_id: UUID, include_inactive: bool = False) -> int:
+        """
+        Cuenta el número de locales de una tienda específica.
+        
+        Args:
+            tienda_id: ID de la tienda
+            include_inactive: Si incluir locales inactivos
+            
+        Returns:
+            int: Número de locales de la tienda
+        """
+        query = select(func.count(Local.id)).where(Local.tienda_id == tienda_id)
+        
+        if not include_inactive:
+            query = query.where(Local.is_active == True)
+        
+        result = self.session.exec(query)
+        return result.scalar() or 0
+
+    def get_all(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        include_inactive: bool = False
+    ) -> List[Local]:
+        """
+        Obtiene todos los locales del sistema con paginación.
+        
+        Args:
+            skip: Número de registros a omitir
+            limit: Número máximo de registros a retornar
+            include_inactive: Si incluir locales inactivos
+            
+        Returns:
+            Lista de locales
+        """
+        query = select(Local)
+        
+        if not include_inactive:
+            query = query.where(Local.is_active == True)
+        
+        query = query.order_by(Local.created_at.desc()).offset(skip).limit(limit)
+        
+        result = self.session.exec(query)
+        return list(result.scalars().all())

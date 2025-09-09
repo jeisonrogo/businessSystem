@@ -72,8 +72,9 @@ class Local(SQLModel, table=True):
         back_populates="local_destino", 
         sa_relationship_kwargs={"foreign_keys": "TransferenciaInventario.local_destino_id"}
     )
-    clientes_origen: List["Cliente"] = Relationship(back_populates="local_origen")
-    asientos_contables: List["AsientoContable"] = Relationship(back_populates="local")
+    # Temporarily disabled until these relationships are properly implemented
+    # clientes_origen: List["Cliente"] = Relationship(back_populates="local_origen")
+    # asientos_contables: List["AsientoContable"] = Relationship(back_populates="local")
     
     @field_validator('codigo')
     @classmethod

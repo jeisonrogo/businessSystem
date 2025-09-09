@@ -190,7 +190,7 @@ class GetCurrentUserUseCase:
         # Obtener usuario actualizado de la base de datos
         from uuid import UUID
         user_id = UUID(token_data["user_id"])
-        user = await self.user_repository.get_by_id(user_id)
+        user = await self.user_repository.get_by_id_async(user_id)
         
         if not user:
             raise AuthenticationError("Usuario no encontrado")
@@ -246,7 +246,7 @@ class UpdateProfileUseCase:
         
         from uuid import UUID
         user_id = UUID(token_data["user_id"])
-        user = await self.user_repository.get_by_id(user_id)
+        user = await self.user_repository.get_by_id_async(user_id)
         
         if not user:
             raise AuthenticationError("Usuario no encontrado")
@@ -311,7 +311,7 @@ class ChangePasswordUseCase:
         
         from uuid import UUID
         user_id = UUID(token_data["user_id"])
-        user = await self.user_repository.get_by_id(user_id)
+        user = await self.user_repository.get_by_id_async(user_id)
         
         if not user:
             raise AuthenticationError("Usuario no encontrado")

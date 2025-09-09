@@ -65,6 +65,9 @@ class TiendaResponse(TiendaBase):
     is_active: bool = Field(..., description="Estado activo de la tienda")
     created_at: datetime = Field(..., description="Fecha de creación")
     updated_at: Optional[datetime] = Field(None, description="Fecha de última actualización")
+    
+    # Campo calculado dinámicamente en los endpoints
+    total_locales: int = Field(default=0, description="Número total de locales de la tienda")
 
     class Config:
         from_attributes = True
@@ -120,6 +123,10 @@ class LocalResponse(LocalBase):
     is_active: bool = Field(..., description="Estado activo del local")
     created_at: datetime = Field(..., description="Fecha de creación")
     updated_at: Optional[datetime] = Field(None, description="Fecha de última actualización")
+    
+    # Estadísticas del local
+    total_productos: Optional[int] = Field(0, description="Total de productos con stock en el local")
+    valor_inventario: Optional[float] = Field(0, description="Valor total del inventario en el local")
 
     class Config:
         from_attributes = True

@@ -5,7 +5,7 @@ Intercepta las requests para establecer y propagar el contexto de tenant
 a través de toda la aplicación.
 """
 
-from fastapi import Request, HTTPException, status
+from fastapi import Request, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
@@ -21,6 +21,11 @@ from app.domain.models.tenant_context import (
     ContextoInvalidoError
 )
 from app.application.services.tenant_context_service import TenantContextService
+from app.infrastructure.auth.auth_utils import AuthenticationUtils
+from app.infrastructure.repositories.user_repository import SQLUserRepository
+from app.infrastructure.database.session import get_session
+from app.domain.models.user import User
+from sqlmodel import Session
 
 logger = logging.getLogger(__name__)
 
@@ -71,27 +76,29 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
         try:
             # Extraer usuario de la request (debe haberse ejecutado auth middleware)
             usuario = getattr(request.state, 'current_user', None)
+            
+            # Si no hay usuario en el estado, intentar obtenerlo del token
             if not usuario:
-                return JSONResponse(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    content={"detail": "Usuario no autenticado"}
-                )
+                usuario = await self._extract_user_from_token(request)
+                if not usuario:
+                    return JSONResponse(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        content={"detail": "Usuario no autenticado"}
+                    )
+                # Almacenar en el estado para futuras consultas
+                request.state.current_user = usuario
 
-            # Extraer local_id del header o query params si está presente
-            local_id = self._extract_local_id(request)
+            # Por ahora, simplemente almacenar el usuario en el estado
+            # El contexto se creará usando el dependency cuando sea necesario
+            request.state.tenant_context = None  # Se creará dinámicamente
 
-            # Crear contexto de tenant para el usuario
-            tenant_context = self.tenant_context_service.crear_contexto_para_usuario(
-                usuario=usuario,
-                local_id=local_id
-            )
-
-            # Almacenar contexto en el estado de la request
-            request.state.tenant_context = tenant_context
-
-            # Agregar headers de contexto para debugging
+            # Procesar la request
             response = await call_next(request)
-            self._add_context_headers(response, tenant_context)
+            
+            # Agregar headers de contexto si existe
+            tenant_context = getattr(request.state, 'tenant_context', None)
+            if tenant_context:
+                self._add_context_headers(response, tenant_context)
 
             return response
 
@@ -186,6 +193,47 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
 
         return None
 
+    async def _extract_user_from_token(self, request: Request) -> Optional[User]:
+        """
+        Extrae el usuario del token JWT cuando no está en el estado de la request.
+        
+        Args:
+            request: Request de FastAPI
+            
+        Returns:
+            Optional[User]: Usuario si el token es válido, None si no
+        """
+        try:
+            # Extraer token del header Authorization
+            auth_header = request.headers.get("Authorization")
+            if not auth_header or not auth_header.startswith("Bearer "):
+                return None
+            
+            token = auth_header.replace("Bearer ", "")
+            
+            # Verificar y decodificar el token
+            auth_utils = AuthenticationUtils()
+            user_data = auth_utils.get_user_from_token(token)
+            
+            if not user_data:
+                return None
+            
+            # Obtener el usuario de la base de datos (usando sesión síncrona)
+            for session in get_session():
+                user_repository = SQLUserRepository(session)
+                user_id = UUID(user_data["user_id"])
+                user = user_repository.get_by_id(user_id)
+                
+                if user and user.is_active:
+                    return user
+                break
+            
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Error extrayendo usuario del token: {str(e)}")
+            return None
+
     def _add_context_headers(self, response, tenant_context: TenantContext) -> None:
         """
         Agrega headers informativos sobre el contexto actual.
@@ -212,16 +260,16 @@ class TenantContextDependency:
     """
     Dependency para inyectar el contexto de tenant en endpoints.
     
-    Extrae el contexto desde el estado de la request establecido
-    por el middleware.
+    Crea el contexto dinámicamente desde el usuario autenticado.
     """
 
-    def __call__(self, request: Request) -> TenantContext:
+    def __call__(self, request: Request, session: Session = Depends(get_session)) -> TenantContext:
         """
-        Obtiene el contexto de tenant de la request.
+        Obtiene o crea el contexto de tenant de la request.
 
         Args:
             request: Request de FastAPI
+            session: Sesión de base de datos
 
         Returns:
             TenantContext: Contexto actual
@@ -229,15 +277,96 @@ class TenantContextDependency:
         Raises:
             HTTPException: Si no hay contexto disponible
         """
+        # Intentar obtener contexto desde middleware primero
         tenant_context = getattr(request.state, 'tenant_context', None)
         
-        if not tenant_context:
+        if tenant_context:
+            return tenant_context
+
+        # Si no hay contexto en middleware, crear uno dinámicamente
+        try:
+            # Extraer usuario de la request o token
+            usuario = getattr(request.state, 'current_user', None)
+            
+            if not usuario:
+                # Extraer del token JWT
+                auth_header = request.headers.get("Authorization")
+                if not auth_header or not auth_header.startswith("Bearer "):
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Usuario no autenticado"
+                    )
+                
+                token = auth_header.replace("Bearer ", "")
+                from app.infrastructure.auth.auth_utils import AuthenticationUtils
+                auth_utils = AuthenticationUtils()
+                user_data = auth_utils.get_user_from_token(token)
+                
+                if not user_data:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Token inválido"
+                    )
+                
+                # Obtener usuario de la base de datos
+                from app.infrastructure.repositories.user_repository import SQLUserRepository
+                user_repository = SQLUserRepository(session)
+                user_id = UUID(user_data["user_id"])
+                
+                # Usar método síncrono para evitar problemas de async
+                from sqlmodel import select
+                from app.domain.models.user import User
+                usuario = session.exec(select(User).where(User.id == user_id)).first()
+                
+                if not usuario or not usuario.is_active:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Usuario no válido"
+                    )
+
+            # Crear servicio de contexto con la sesión actual
+            from app.infrastructure.repositories.tienda_repository import TiendaRepository
+            from app.infrastructure.repositories.local_repository import LocalRepository
+            from app.infrastructure.repositories.usuario_local_repository import UsuarioLocalRepository
+            
+            tienda_repo = TiendaRepository(session)
+            local_repo = LocalRepository(session)
+            usuario_local_repo = UsuarioLocalRepository(session)
+            
+            tenant_service = TenantContextService(
+                tienda_repository=tienda_repo,
+                local_repository=local_repo,
+                usuario_local_repository=usuario_local_repo
+            )
+            
+            # Extraer local_id si está presente
+            local_id = None
+            local_id_header = request.headers.get("X-Local-ID")
+            if local_id_header:
+                try:
+                    local_id = UUID(local_id_header)
+                except ValueError:
+                    pass
+
+            # Crear contexto
+            tenant_context = tenant_service.crear_contexto_para_usuario(
+                usuario=usuario,
+                local_id=local_id
+            )
+            
+            # Guardar en el estado de la request para futuras llamadas
+            request.state.tenant_context = tenant_context
+            
+            return tenant_context
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error creando contexto de tenant dinámicamente: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Contexto de tenant no disponible"
+                detail="Error interno al crear contexto de tenant"
             )
-
-        return tenant_context
 
 
 class LocalContextDependency:

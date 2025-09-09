@@ -10,6 +10,7 @@ import { CssBaseline } from '@mui/material';
 
 // Context
 import { AuthProvider } from './context/AuthContext';
+import { TenantProvider } from './context/TenantContext';
 
 // Components
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -50,7 +51,8 @@ function App() {
       <CssBaseline />
       <ErrorBoundary>
         <AuthProvider>
-          <Router>
+          <TenantProvider>
+            <Router>
             <Routes>
             {/* Ruta de login */}
             <Route path="/login" element={<LoginForm />} />
@@ -124,8 +126,9 @@ function App() {
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-        </Router>
-      </AuthProvider>
+            </Router>
+          </TenantProvider>
+        </AuthProvider>
       </ErrorBoundary>
     </ThemeProvider>
   );

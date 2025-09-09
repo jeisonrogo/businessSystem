@@ -85,31 +85,42 @@ def crear_local(
     "/",
     response_model=List[LocalResponse],
     summary="Listar locales de la tienda",
-    description="Obtiene todos los locales de la tienda del usuario con paginación opcional."
+    description="Obtiene todos los locales de la tienda especificada o del usuario con paginación opcional."
 )
 def listar_locales(
+    tienda_id: Optional[UUID] = Query(None, description="ID de la tienda para filtrar locales"),
     skip: int = Query(0, ge=0, description="Número de registros a omitir"),
     limit: int = Query(100, ge=1, le=500, description="Número máximo de registros a retornar"),
     include_inactive: bool = Query(False, description="Incluir locales inactivos"),
-    session: Session = Depends(get_session),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    session: Session = Depends(get_session)
 ):
     """
-    Obtiene la lista de locales de la tienda del usuario.
+    Obtiene la lista de locales de la tienda especificada o todas las tiendas.
     """
     try:
         local_repo = LocalRepository(session)
-        locales = local_repo.get_by_tienda(
-            tenant_context.tienda_id,
-            skip=skip,
-            limit=limit,
-            include_inactive=include_inactive
-        )
+        
+        if tienda_id:
+            # Filtrar por tienda específica
+            locales = local_repo.get_by_tienda(
+                tienda_id,
+                skip=skip,
+                limit=limit,
+                include_inactive=include_inactive
+            )
+        else:
+            # Si no se especifica tienda_id, obtener todos los locales (para admin)
+            locales = local_repo.get_all(
+                skip=skip,
+                limit=limit,
+                include_inactive=include_inactive
+            )
+        
         return locales
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error interno al obtener los locales"
+            detail=f"Error interno al obtener los locales: {str(e)}"
         )
 
 

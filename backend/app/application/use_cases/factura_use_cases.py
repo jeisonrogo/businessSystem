@@ -15,6 +15,7 @@ from app.application.services.i_cliente_repository import IClienteRepository
 from app.application.services.i_product_repository import IProductRepository
 from app.application.services.i_cuenta_contable_repository import ICuentaContableRepository
 from app.application.services.i_asiento_contable_repository import IAsientoContableRepository
+from app.application.services.i_inventario_repository import IInventarioRepository
 from app.application.services.integracion_contable_service import IntegracionContableService
 from app.domain.models.facturacion import (
     Factura,
@@ -22,6 +23,11 @@ from app.domain.models.facturacion import (
     FacturaUpdate,
     EstadoFactura,
     TipoFactura
+)
+from app.domain.models.movimiento_inventario import (
+    MovimientoInventario,
+    MovimientoInventarioCreate,
+    TipoMovimiento
 )
 
 
@@ -72,12 +78,14 @@ class CreateFacturaUseCase:
         factura_repository: IFacturaRepository,
         cliente_repository: IClienteRepository,
         product_repository: IProductRepository,
+        inventario_repository: Optional[IInventarioRepository] = None,
         cuenta_repository: Optional[ICuentaContableRepository] = None,
         asiento_repository: Optional[IAsientoContableRepository] = None
     ):
         self.factura_repository = factura_repository
         self.cliente_repository = cliente_repository
         self.product_repository = product_repository
+        self.inventario_repository = inventario_repository
         
         # Servicio de integración contable (opcional)
         if cuenta_repository and asiento_repository:
@@ -87,7 +95,7 @@ class CreateFacturaUseCase:
         else:
             self.integracion_contable = None
     
-    async def execute(self, factura_data: FacturaCreate, created_by: Optional[UUID] = None) -> Factura:
+    async def execute(self, factura_data: FacturaCreate, created_by: Optional[UUID] = None, local_id: Optional[UUID] = None) -> Factura:
         """
         Crear una nueva factura con validaciones completas.
         
@@ -130,14 +138,15 @@ class CreateFacturaUseCase:
                         f"Producto {producto.nombre} está inactivo"
                     )
                 
-                if producto.stock < detalle.cantidad:
-                    raise StockInsuficienteError(
-                        f"Stock insuficiente para {producto.nombre}. "
-                        f"Disponible: {producto.stock}, Solicitado: {detalle.cantidad}"
-                    )
+                # NOTA: La validación de stock se realiza en el repositorio usando StockLocal
+                # por local específico. No validamos aquí para evitar duplicar lógica.
+                pass
             
             # Crear la factura
-            factura = await self.factura_repository.create(factura_data, created_by)
+            # NOTA: El repositorio de facturas ya maneja la actualización de stock
+            # y la creación de movimientos de inventario internamente, por lo que
+            # no necesitamos crear movimientos adicionales aquí.
+            factura = await self.factura_repository.create(factura_data, created_by, local_id)
             
             # Generar asiento contable automático si está configurado
             if self.integracion_contable:
@@ -226,7 +235,8 @@ class ListFacturasUseCase:
         tipo_factura: Optional[TipoFactura] = None,
         fecha_desde: Optional[date] = None,
         fecha_hasta: Optional[date] = None,
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        local_id: Optional[UUID] = None
     ) -> dict:
         """
         Listar facturas con paginación y filtros.
@@ -240,6 +250,7 @@ class ListFacturasUseCase:
             fecha_desde: Filtrar desde fecha
             fecha_hasta: Filtrar hasta fecha
             search: Término de búsqueda
+            local_id: Filtrar por local específico
             
         Returns:
             dict: Lista de facturas con metadatos de paginación
@@ -261,7 +272,8 @@ class ListFacturasUseCase:
             tipo_factura=tipo_factura,
             fecha_desde=fecha_desde,
             fecha_hasta=fecha_hasta,
-            search=search
+            search=search,
+            local_id=local_id
         )
         
         total = await self.factura_repository.count_total(
@@ -270,7 +282,8 @@ class ListFacturasUseCase:
             tipo_factura=tipo_factura,
             fecha_desde=fecha_desde,
             fecha_hasta=fecha_hasta,
-            search=search
+            search=search,
+            local_id=local_id
         )
         
         # Calcular metadatos
@@ -293,7 +306,7 @@ class UpdateFacturaUseCase:
     def __init__(self, factura_repository: IFacturaRepository):
         self.factura_repository = factura_repository
     
-    async def execute(self, factura_id: UUID, factura_data: FacturaUpdate) -> Factura:
+    async def execute(self, factura_id: UUID, factura_data: FacturaUpdate, local_id: Optional[UUID] = None, updated_by: Optional[UUID] = None) -> Factura:
         """
         Actualizar una factura existente.
         
@@ -315,7 +328,7 @@ class UpdateFacturaUseCase:
                 raise FacturaNotFoundError(f"Factura con ID {factura_id} no encontrada")
             
             # Actualizar la factura
-            updated_factura = await self.factura_repository.update(factura_id, factura_data)
+            updated_factura = await self.factura_repository.update(factura_id, factura_data, local_id, updated_by)
             if not updated_factura:
                 raise FacturaNotFoundError(f"Factura con ID {factura_id} no encontrada")
             
@@ -354,7 +367,8 @@ class AnularFacturaUseCase:
         self, 
         factura_id: UUID,
         motivo_anulacion: str = "Anulación de factura",
-        created_by: Optional[UUID] = None
+        created_by: Optional[UUID] = None,
+        local_id: Optional[UUID] = None
     ) -> bool:
         """
         Anular una factura y revertir el stock.
@@ -379,7 +393,7 @@ class AnularFacturaUseCase:
                 raise FacturaStateError("La factura ya está anulada")
             
             # Anular la factura
-            success = await self.factura_repository.delete(factura_id)
+            success = await self.factura_repository.delete(factura_id, local_id, created_by)
             if not success:
                 raise FacturaNotFoundError(f"Factura con ID {factura_id} no encontrada")
             

@@ -400,3 +400,39 @@ class StockLocalRepository(IStockLocalRepository):
             return False
         
         return stock.cantidad >= cantidad_requerida
+
+    def get_statistics_by_local(self, local_id: UUID) -> dict:
+        """
+        Obtiene estadísticas de stock para un local específico.
+        
+        Returns:
+            dict: Estadísticas que incluye total_productos, valor_total, etc.
+        """
+        try:
+            stocks_locales = self.get_by_local(local_id)
+            
+            # Contar productos con stock > 0
+            total_productos = len([stock for stock in stocks_locales if stock.cantidad > 0])
+            valor_total = sum(stock.valor_total_inventario or 0 for stock in stocks_locales)
+            
+            # Calcular stock total (suma de todas las cantidades)
+            stock_total = sum(stock.cantidad for stock in stocks_locales)
+            
+            # Contar productos sin stock
+            productos_sin_stock = len([stock for stock in stocks_locales if stock.cantidad == 0])
+            
+            return {
+                "total_productos": total_productos,
+                "valor_inventario": float(valor_total),  # Cambiar nombre para coincidir con el use case
+                "productos_sin_stock": productos_sin_stock,
+                "stock_total": stock_total,
+                "total_registros": len(stocks_locales)
+            }
+        except Exception:
+            return {
+                "total_productos": 0,
+                "valor_inventario": 0.0,
+                "productos_sin_stock": 0,
+                "stock_total": 0,
+                "total_registros": 0
+            }

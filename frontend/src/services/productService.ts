@@ -8,9 +8,12 @@ import { apiRequest } from './api';
 
 export class ProductService {
   /**
-   * Obtener lista de productos con paginación
+   * Obtener lista de productos con paginación y filtrado por contexto local
    */
-  static async getProducts(params?: QueryParams): Promise<ProductListResponse> {
+  static async getProducts(params?: QueryParams & {
+    local_id?: string;
+    todos_los_locales?: boolean;
+  }): Promise<ProductListResponse> {
     const response = await apiRequest.get<any>(ENDPOINTS.PRODUCTS.BASE, params);
     
     // Transformar la respuesta del backend al formato esperado por el frontend
@@ -19,6 +22,14 @@ export class ProductService {
         ...product,
         precio_base: Number(product.precio_base),
         precio_publico: Number(product.precio_publico),
+        // Nuevos campos de stock local-específico
+        stock_local_actual: product.stock_local_actual || 0,
+        stock_total_tienda: product.stock_total_tienda || 0,
+        costo_promedio_local: product.costo_promedio_local || 0,
+        valor_total_inventario: product.valor_total_inventario || 0,
+        local_id: product.local_id,
+        local_nombre: product.local_nombre,
+        locales_stock: product.locales_stock || [], // Para vista de todos los locales
       })),
       total: response.data.total,
       page: response.data.page,
@@ -96,17 +107,21 @@ export class ProductService {
   /**
    * Actualizar solo el stock de un producto
    */
-  static async updateStock(id: string, stock: number): Promise<{
+  static async updateStock(id: string, stock: number, localId?: string): Promise<{
     message: string;
     stock_anterior: number;
     stock_nuevo: number;
   }> {
     try {
+      // Construir URL con parámetros de query si se proporciona localId
+      const baseUrl = ENDPOINTS.PRODUCTS.UPDATE_STOCK(id);
+      const url = localId ? `${baseUrl}?local_id=${localId}` : baseUrl;
+      
       const response = await apiRequest.patch<{
         message: string;
         stock_anterior: number;
         stock_nuevo: number;
-      }>(ENDPOINTS.PRODUCTS.UPDATE_STOCK(id), { stock });
+      }>(url, { stock });
       return response.data;
     } catch (error: any) {
       throw this.handleApiError(error, 'Error al actualizar stock');

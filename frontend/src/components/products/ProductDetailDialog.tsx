@@ -120,9 +120,9 @@ const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
               />
               
               <Chip
-                label={getStockStatus(product.stock)}
-                color={getStockColor(product.stock)}
-                icon={product.stock === 0 ? <Warning /> : <Inventory />}
+                label={getStockStatus(product.stock_local_actual ?? 0)}
+                color={getStockColor(product.stock_local_actual ?? 0)}
+                icon={(product.stock_local_actual ?? 0) === 0 ? <Warning /> : <Inventory />}
               />
             </Box>
           </Grid>
@@ -217,7 +217,7 @@ const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                       Stock Actual
                     </Typography>
                     <Typography variant="h6">
-                      {product.stock} unidades
+                      {product.stock_local_actual ?? 0} unidades
                     </Typography>
                   </CardContent>
                 </Card>

@@ -8,7 +8,7 @@ from typing import Optional, List
 from uuid import UUID
 from decimal import Decimal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 # Esquemas de autenticación
@@ -130,12 +130,26 @@ from app.domain.models.product import (
 
 
 # Esquemas específicos para la API de productos
-class ProductCreateRequest(DomainProductCreate):
+class ProductCreateRequest(BaseModel):
     """
-    Esquema para la solicitud de creación de producto.
-    Hereda de DomainProductCreate para mantener la consistencia.
+    Esquema para la solicitud de creación de producto desde la API.
+    No incluye tienda_id ya que se asigna automáticamente del contexto.
     """
-    pass
+    sku: str = Field(..., min_length=1, max_length=50, description="Código único del producto (SKU)")
+    nombre: str = Field(..., min_length=1, max_length=255, description="Nombre del producto")
+    descripcion: Optional[str] = Field(None, description="Descripción detallada del producto")
+    url_foto: Optional[str] = Field(None, max_length=512, description="URL de la imagen del producto")
+    precio_base: Decimal = Field(..., gt=0, description="Costo del producto para el negocio")
+    precio_publico: Decimal = Field(..., gt=0, description="Precio de venta al público")
+    stock_inicial: Optional[int] = Field(0, ge=0, description="Stock inicial para el local actual")
+    
+    @field_validator('precio_publico')
+    @classmethod
+    def precio_publico_mayor_que_base(cls, v, info):
+        """Validar que el precio público sea mayor o igual al precio base."""
+        if hasattr(info, 'data') and 'precio_base' in info.data and v < info.data['precio_base']:
+            raise ValueError('El precio público debe ser mayor o igual al precio base')
+        return v
 
 
 class ProductUpdateRequest(DomainProductUpdate):

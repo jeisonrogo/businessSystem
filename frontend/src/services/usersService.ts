@@ -13,6 +13,10 @@ export interface User {
   rol: string;
   created_at: string;
   is_active: boolean;
+  tienda_id?: string;
+  local_principal_id?: string;
+  locales_asignados?: LocalAssignment[];
+  total_locales_asignados?: number;
 }
 
 export interface CreateUserRequest {
@@ -46,6 +50,80 @@ export interface UsersListParams {
   role?: string;
   is_active?: boolean;
 }
+
+// Interfaces para asignación de locales
+export interface LocalAssignment {
+  assignment_id: string;
+  local_id: string;
+  local_nombre: string;
+  local_codigo: string;
+  puede_vender: boolean;
+  puede_ver_stock: boolean;
+  puede_transferir: boolean;
+  es_responsable: boolean;
+  puede_modificar_precios: boolean;
+  puede_aplicar_descuentos: boolean;
+  puede_ver_reportes: boolean;
+  puede_gestionar_usuarios: boolean;
+  limite_descuento_porcentaje?: number;
+  limite_credito_monto?: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AvailableLocal {
+  id: string;
+  nombre: string;
+  codigo: string;
+  direccion?: string;
+  ciudad?: string;
+  is_active: boolean;
+}
+
+export interface CreateLocalAssignmentRequest {
+  user_id: string;
+  local_id: string;
+  puede_vender?: boolean;
+  puede_ver_stock?: boolean;
+  puede_transferir?: boolean;
+  es_responsable?: boolean;
+  puede_modificar_precios?: boolean;
+  puede_aplicar_descuentos?: boolean;
+  puede_ver_reportes?: boolean;
+  puede_gestionar_usuarios?: boolean;
+  limite_descuento_porcentaje?: number;
+  limite_credito_monto?: number;
+}
+
+export interface UpdateLocalAssignmentRequest {
+  puede_vender?: boolean;
+  puede_ver_stock?: boolean;
+  puede_transferir?: boolean;
+  es_responsable?: boolean;
+  puede_modificar_precios?: boolean;
+  puede_aplicar_descuentos?: boolean;
+  puede_ver_reportes?: boolean;
+  puede_gestionar_usuarios?: boolean;
+  limite_descuento_porcentaje?: number;
+  limite_credito_monto?: number;
+  is_active?: boolean;
+}
+
+export const PERMISSION_PROFILES = {
+  VENDEDOR: 'VENDEDOR',
+  RESPONSABLE_LOCAL: 'RESPONSABLE_LOCAL',
+  GERENTE_VENTAS: 'GERENTE_VENTAS',
+  CONTADOR: 'CONTADOR',
+  ADMINISTRADOR: 'ADMINISTRADOR'
+} as const;
+
+export const PERMISSION_PROFILE_LABELS = {
+  [PERMISSION_PROFILES.VENDEDOR]: 'Vendedor',
+  [PERMISSION_PROFILES.RESPONSABLE_LOCAL]: 'Responsable de Local',
+  [PERMISSION_PROFILES.GERENTE_VENTAS]: 'Gerente de Ventas',
+  [PERMISSION_PROFILES.CONTADOR]: 'Contador',
+  [PERMISSION_PROFILES.ADMINISTRADOR]: 'Administrador'
+};
 
 // Constantes para roles
 export const USER_ROLES = {
@@ -85,7 +163,7 @@ class UsersService {
   }
 
   /**
-   * Obtener un usuario por ID
+   * Obtener un usuario por ID (información básica)
    */
   async getUserById(userId: string): Promise<User> {
     try {
@@ -264,6 +342,157 @@ class UsersService {
    */
   getRoleLabel(role: string): string {
     return USER_ROLE_LABELS[role as keyof typeof USER_ROLE_LABELS] || role;
+  }
+
+  // ================================
+  // MÉTODOS PARA GESTIÓN DE LOCALES
+  // ================================
+
+  /**
+   * Obtener las asignaciones de locales de un usuario
+   */
+  async getUserLocalAssignments(userId: string): Promise<LocalAssignment[]> {
+    try {
+      const response = await apiClient.get(`/users/${userId}/locales`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener asignaciones de locales:', error);
+      throw new Error(error.response?.data?.detail || 'Error al obtener las asignaciones de locales');
+    }
+  }
+
+  /**
+   * Obtener locales disponibles para asignar a un usuario
+   */
+  async getAvailableLocalsForUser(userId: string): Promise<AvailableLocal[]> {
+    try {
+      const response = await apiClient.get(`/users/${userId}/locales/disponibles`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener locales disponibles:', error);
+      throw new Error(error.response?.data?.detail || 'Error al obtener los locales disponibles');
+    }
+  }
+
+  /**
+   * Asignar un usuario a un local con permisos específicos
+   */
+  async assignUserToLocal(assignmentData: CreateLocalAssignmentRequest): Promise<LocalAssignment> {
+    try {
+      const response = await apiClient.post(`/users/${assignmentData.user_id}/locales`, assignmentData);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al asignar usuario a local:', error);
+      throw new Error(error.response?.data?.detail || 'Error al asignar el usuario al local');
+    }
+  }
+
+  /**
+   * Asignar un usuario a un local usando un perfil predefinido
+   */
+  async assignUserToLocalWithProfile(
+    userId: string, 
+    localId: string, 
+    profile: keyof typeof PERMISSION_PROFILES
+  ): Promise<LocalAssignment> {
+    try {
+      const response = await apiClient.post(`/users/${userId}/locales/perfil`, {
+        local_id: localId,
+        perfil: profile
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al asignar perfil:', error);
+      throw new Error(error.response?.data?.detail || 'Error al asignar el perfil al usuario');
+    }
+  }
+
+  /**
+   * Actualizar permisos de un usuario en un local
+   */
+  async updateUserLocalAssignment(
+    userId: string,
+    assignmentId: string,
+    updateData: UpdateLocalAssignmentRequest
+  ): Promise<LocalAssignment> {
+    try {
+      const response = await apiClient.put(`/users/${userId}/locales/${assignmentId}`, updateData);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al actualizar asignación:', error);
+      throw new Error(error.response?.data?.detail || 'Error al actualizar la asignación');
+    }
+  }
+
+  /**
+   * Remover un usuario de un local
+   */
+  async removeUserFromLocal(userId: string, assignmentId: string): Promise<void> {
+    try {
+      await apiClient.delete(`/users/${userId}/locales/${assignmentId}`);
+    } catch (error: any) {
+      console.error('Error al remover usuario del local:', error);
+      throw new Error(error.response?.data?.detail || 'Error al remover el usuario del local');
+    }
+  }
+
+  /**
+   * Obtener información detallada de un usuario con sus asignaciones de locales
+   */
+  async getUserWithLocalAssignments(userId: string): Promise<User> {
+    try {
+      const response = await apiClient.get(`/users/${userId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error al obtener usuario con asignaciones:', error);
+      throw new Error(error.response?.data?.detail || 'Error al obtener el usuario con sus asignaciones');
+    }
+  }
+
+  /**
+   * Obtener etiqueta de perfil de permisos
+   */
+  getPermissionProfileLabel(profile: string): string {
+    return PERMISSION_PROFILE_LABELS[profile as keyof typeof PERMISSION_PROFILE_LABELS] || profile;
+  }
+
+  /**
+   * Validar permisos de local
+   */
+  validateLocalPermissions(permissions: Partial<CreateLocalAssignmentRequest>): string[] {
+    const errors: string[] = [];
+
+    if (permissions.limite_descuento_porcentaje !== undefined) {
+      if (permissions.limite_descuento_porcentaje < 0 || permissions.limite_descuento_porcentaje > 100) {
+        errors.push('El límite de descuento debe estar entre 0% y 100%');
+      }
+    }
+
+    if (permissions.limite_credito_monto !== undefined) {
+      if (permissions.limite_credito_monto < 0) {
+        errors.push('El límite de crédito no puede ser negativo');
+      }
+    }
+
+    return errors;
+  }
+
+  /**
+   * Formatear descripción de permisos
+   */
+  formatPermissionsDescription(assignment: LocalAssignment): string {
+    const permissions = [];
+    
+    if (assignment.puede_vender) permissions.push('Vender');
+    if (assignment.puede_ver_stock) permissions.push('Ver Stock');
+    if (assignment.puede_transferir) permissions.push('Transferir');
+    if (assignment.es_responsable) permissions.push('Responsable');
+    if (assignment.puede_modificar_precios) permissions.push('Modificar Precios');
+    if (assignment.puede_aplicar_descuentos) permissions.push('Aplicar Descuentos');
+    if (assignment.puede_ver_reportes) permissions.push('Ver Reportes');
+    if (assignment.puede_gestionar_usuarios) permissions.push('Gestionar Usuarios');
+
+    return permissions.length > 0 ? permissions.join(', ') : 'Sin permisos específicos';
   }
 }
 

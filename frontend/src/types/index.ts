@@ -34,7 +34,7 @@ export interface LoginResponse {
   user: User;
 }
 
-// Producto
+// Producto (Multi-tenant - sin stock global)
 export interface Product extends BaseEntity {
   sku: string;
   nombre: string;
@@ -42,8 +42,27 @@ export interface Product extends BaseEntity {
   url_foto?: string;
   precio_base: number;
   precio_publico: number;
-  stock: number;
+  tienda_id: string;
   is_active: boolean;
+  // Campos calculados para stock multi-tenant
+  stock_total_tienda?: number;
+  stock_local_actual?: number;
+  valor_total_inventario?: number;
+  locales_con_stock?: string[];
+  // Nuevos campos para contexto local-específico
+  costo_promedio_local?: number;
+  local_id?: string;
+  local_nombre?: string;
+  locales_stock?: LocalStockInfo[]; // Para vista de todos los locales
+}
+
+export interface LocalStockInfo {
+  local_id: string;
+  local_nombre: string;
+  local_codigo: string;
+  stock_cantidad: number;
+  costo_promedio: number;
+  valor_inventario: number;
 }
 
 export interface ProductCreate {
@@ -53,7 +72,8 @@ export interface ProductCreate {
   url_foto?: string;
   precio_base: number;
   precio_publico: number;
-  stock?: number;
+  tienda_id: string;
+  stock_inicial?: number;
 }
 
 export interface ProductUpdate {
@@ -327,6 +347,7 @@ export interface InventorySummary {
   productos_sin_stock: number;
   productos_stock_bajo: number;
   ultimo_movimiento: string | null;
+  stock_total: number;
 }
 
 export interface InventoryStats {

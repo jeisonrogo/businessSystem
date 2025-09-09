@@ -76,7 +76,9 @@ class SQLUserRepository(IUserRepository):
                 email=user_data.email,
                 nombre=user_data.nombre,
                 rol=user_data.rol,
-                hashed_password=hashed_password
+                hashed_password=hashed_password,
+                tienda_id=user_data.tienda_id,
+                local_principal_id=user_data.local_principal_id
             )
             
             self.session.add(db_user)
@@ -97,9 +99,9 @@ class SQLUserRepository(IUserRepository):
             self.session.rollback()
             raise Exception(f"Error al crear usuario: {str(e)}")
     
-    async def get_by_id(self, user_id: UUID) -> Optional[User]:
+    async def get_by_id_async(self, user_id: UUID) -> Optional[User]:
         """
-        Obtiene un usuario por su ID.
+        Obtiene un usuario por su ID (versión asíncrona).
         
         Args:
             user_id (UUID): ID del usuario
@@ -162,7 +164,7 @@ class SQLUserRepository(IUserRepository):
         """
         try:
             # Buscar el usuario
-            db_user = await self.get_by_id(user_id)
+            db_user = await self.get_by_id_async(user_id)
             if not db_user:
                 return None
             
@@ -210,7 +212,7 @@ class SQLUserRepository(IUserRepository):
             bool: True si fue eliminado, False si no existe
         """
         try:
-            db_user = await self.get_by_id(user_id)
+            db_user = await self.get_by_id_async(user_id)
             if not db_user:
                 return False
             
@@ -255,7 +257,8 @@ class SQLUserRepository(IUserRepository):
         limit: int = 50,
         search: Optional[str] = None,
         role: Optional[str] = None,
-        is_active: Optional[bool] = None
+        is_active: Optional[bool] = None,
+        tienda_id: Optional[UUID] = None
     ) -> List[User]:
         """
         Lista usuarios aplicando filtros y paginación.
@@ -266,6 +269,7 @@ class SQLUserRepository(IUserRepository):
             search: Texto para buscar en nombre y email
             role: Filtrar por rol específico
             is_active: Filtrar por estado activo
+            tienda_id: Filtrar por tienda específica (para multi-tenant)
             
         Returns:
             List[User]: Lista de usuarios filtrados
@@ -287,6 +291,10 @@ class SQLUserRepository(IUserRepository):
             
             if is_active is not None:
                 statement = statement.where(User.is_active == is_active)
+            
+            # Filtrar por tienda (multi-tenant)
+            if tienda_id is not None:
+                statement = statement.where(User.tienda_id == tienda_id)
             
             # Aplicar paginación
             offset = (page - 1) * limit
@@ -377,3 +385,34 @@ class SQLUserRepository(IUserRepository):
         except Exception as e:
             self.session.rollback()
             raise Exception(f"Error al cambiar contraseña: {str(e)}") 
+    
+    # ============ MÉTODOS SÍNCRONOS ============
+    # Requeridos para compatibility con dependencias síncronas
+
+    def get_by_id(self, user_id: UUID) -> Optional[User]:
+        """
+        Obtiene un usuario por su ID (versión síncrona).
+        
+        Args:
+            user_id (UUID): ID del usuario
+            
+        Returns:
+            Optional[User]: Usuario encontrado o None
+        """
+        statement = select(User).where(User.id == user_id, User.is_active == True)
+        result = self.session.exec(statement)
+        return result.first()
+    
+    def get_by_email_sync(self, email: str) -> Optional[User]:
+        """
+        Obtiene un usuario por su email (versión síncrona).
+        
+        Args:
+            email (str): Email del usuario
+            
+        Returns:
+            Optional[User]: Usuario encontrado o None
+        """
+        statement = select(User).where(User.email == email)
+        result = self.session.exec(statement)
+        return result.first()

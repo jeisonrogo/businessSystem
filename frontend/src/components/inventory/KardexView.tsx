@@ -236,7 +236,7 @@ const KardexView: React.FC<KardexViewProps> = ({
                       <strong>{option.sku}</strong> - {option.nombre}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Stock: {option.stock} | Precio: {formatCurrency(option.precio_publico)}
+                      Stock: {option.stock_local_actual ?? 0} | Precio: {formatCurrency(option.precio_publico)}
                     </Typography>
                   </Box>
                 </li>

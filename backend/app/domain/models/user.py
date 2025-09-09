@@ -72,22 +72,29 @@ class User(UserBase, table=True):
     local_principal: Optional["Local"] = Relationship()
     permisos_locales: List["UsuarioLocal"] = Relationship(
         back_populates="usuario",
-        cascade_delete=True
+        cascade_delete=True,
+        sa_relationship_kwargs={"foreign_keys": "[UsuarioLocal.user_id]"}
     )
     
-    # Actividades del usuario
-    transferencias_solicitadas: List["TransferenciaInventario"] = Relationship(
-        back_populates="usuario_solicita",
-        sa_relationship_kwargs={"foreign_keys": "TransferenciaInventario.usuario_solicita_id"}
-    )
-    transferencias_enviadas: List["TransferenciaInventario"] = Relationship(
-        back_populates="usuario_envia",
-        sa_relationship_kwargs={"foreign_keys": "TransferenciaInventario.usuario_envia_id"}
-    )
-    transferencias_recibidas: List["TransferenciaInventario"] = Relationship(
-        back_populates="usuario_recibe",
-        sa_relationship_kwargs={"foreign_keys": "TransferenciaInventario.usuario_recibe_id"}
-    )
+    # Actividades del usuario (temporalmente deshabilitadas para simplificar)
+    # transferencias_solicitadas: List["TransferenciaInventario"] = Relationship(
+    #     sa_relationship_kwargs={
+    #         "foreign_keys": "[TransferenciaInventario.usuario_solicita_id]",
+    #         "back_populates": "usuario_solicita"
+    #     }
+    # )
+    # transferencias_enviadas: List["TransferenciaInventario"] = Relationship(
+    #     sa_relationship_kwargs={
+    #         "foreign_keys": "[TransferenciaInventario.usuario_envia_id]",
+    #         "back_populates": "usuario_envia"
+    #     }
+    # )
+    # transferencias_recibidas: List["TransferenciaInventario"] = Relationship(
+    #     sa_relationship_kwargs={
+    #         "foreign_keys": "[TransferenciaInventario.usuario_recibe_id]",
+    #         "back_populates": "usuario_recibe"
+    #     }
+    # )
     
     def tiene_acceso_a_tienda(self, tienda_id: UUID) -> bool:
         """

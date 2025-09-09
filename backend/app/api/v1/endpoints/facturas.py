@@ -38,9 +38,12 @@ from app.application.use_cases.factura_use_cases import (
 from app.application.services.i_factura_repository import IFacturaRepository
 from app.application.services.i_cliente_repository import IClienteRepository
 from app.application.services.i_product_repository import IProductRepository
+from app.application.services.i_inventario_repository import IInventarioRepository
 from app.infrastructure.repositories.factura_repository import SQLFacturaRepository
 from app.infrastructure.repositories.cliente_repository import SQLClienteRepository
 from app.infrastructure.repositories.product_repository import SQLProductRepository
+from app.infrastructure.repositories.inventario_repository import SQLInventarioRepository
+from app.infrastructure.repositories.stock_local_repository import StockLocalRepository
 from app.infrastructure.repositories.cuenta_contable_repository import SQLCuentaContableRepository
 from app.infrastructure.repositories.asiento_contable_repository import SQLAsientoContableRepository
 from app.domain.models.facturacion import (
@@ -56,6 +59,8 @@ from app.domain.models.facturacion import (
 from app.infrastructure.database.session import get_session
 from app.api.v1.endpoints.auth import get_current_user
 from app.domain.models.user import User
+from app.infrastructure.middleware.tenant_middleware import get_tenant_context
+from app.domain.models.tenant_context import TenantContext
 from sqlmodel import Session
 
 router = APIRouter(tags=["Facturas"])
@@ -86,13 +91,21 @@ def get_asiento_repository(session: Session = Depends(get_session)):
     return SQLAsientoContableRepository(session)
 
 
+def get_inventario_repository(session: Session = Depends(get_session), product_repo: IProductRepository = Depends(get_product_repository)):
+    """Dependencia para obtener el repositorio de inventario."""
+    stock_local_repo = StockLocalRepository(session)
+    return SQLInventarioRepository(session, product_repo, stock_local_repo)
+
+
 @router.post("/", response_model=FacturaResponse, status_code=201)
 async def crear_factura(
     factura_data: FacturaCreate,
     current_user: User = Depends(get_current_user),
+    tenant_context: TenantContext = Depends(get_tenant_context),
     factura_repo: IFacturaRepository = Depends(get_factura_repository),
     cliente_repo: IClienteRepository = Depends(get_cliente_repository),
     product_repo: IProductRepository = Depends(get_product_repository),
+    inventario_repo: IInventarioRepository = Depends(get_inventario_repository),
     cuenta_repo = Depends(get_cuenta_repository),
     asiento_repo = Depends(get_asiento_repository)
 ):
@@ -107,11 +120,22 @@ async def crear_factura(
     - **detalles**: Lista de productos/servicios facturados
     """
     try:
+        # Verificar contexto de local para validación de stock
+        local_id = tenant_context.local_id if tenant_context.tiene_contexto_local else None
+        
+        # Verificar que se tenga un contexto de local seleccionado
+        if not local_id:
+            raise HTTPException(
+                status_code=400, 
+                detail="Debe seleccionar un local para crear facturas. Use el selector de contexto local."
+            )
+        
         use_case = CreateFacturaUseCase(
             factura_repo, cliente_repo, product_repo,
+            inventario_repo,  # Integración con inventario
             cuenta_repo, asiento_repo  # Integración contable
         )
-        factura = await use_case.execute(factura_data, current_user.id)
+        factura = await use_case.execute(factura_data, current_user.id, local_id)
         return factura
     
     except ClienteNotFoundForFacturaError as e:
@@ -124,6 +148,28 @@ async def crear_factura(
         raise HTTPException(status_code=400, detail=str(e))
     except FacturaError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
+        # Las excepciones de stock insuficiente a menudo vienen como ValueError
+        error_msg = str(e)
+        if "stock insuficiente" in error_msg.lower() and "disponible:" in error_msg.lower():
+            # Crear un mensaje limpio para errores de stock
+            if "Disponible:" in error_msg and "Solicitado:" in error_msg:
+                parts = error_msg.split("Disponible:")
+                if len(parts) > 1:
+                    stock_part = "Disponible:" + parts[1].strip()
+                    # Extraer nombre del producto si es posible
+                    if " para " in error_msg:
+                        product_part = error_msg.split(" para ")[1].split(" en este local")[0]
+                        clean_msg = f"Stock insuficiente para {product_part.strip()}. {stock_part}"
+                    else:
+                        clean_msg = f"Stock insuficiente. {stock_part}"
+                else:
+                    clean_msg = "Stock insuficiente para realizar la venta"
+            else:
+                clean_msg = "Stock insuficiente para realizar la venta"
+        else:
+            clean_msg = error_msg
+        raise HTTPException(status_code=400, detail=clean_msg)
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
@@ -175,10 +221,11 @@ async def listar_facturas(
     fecha_hasta: Optional[date] = Query(None, description="Fecha hasta"),
     search: Optional[str] = Query(None, description="Búsqueda en número/cliente"),
     current_user: User = Depends(get_current_user),
+    tenant_context: TenantContext = Depends(get_tenant_context),
     factura_repo: IFacturaRepository = Depends(get_factura_repository)
 ):
     """
-    Listar facturas con paginación y filtros.
+    Listar facturas del local seleccionado con paginación y filtros.
     
     - **page**: Número de página (inicia en 1)
     - **limit**: Número de registros por página (máximo 100)
@@ -188,8 +235,16 @@ async def listar_facturas(
     - **fecha_desde**: Filtrar desde fecha
     - **fecha_hasta**: Filtrar hasta fecha
     - **search**: Buscar en número de factura y datos del cliente
+    
+    NOTA: Solo muestra facturas del local actualmente seleccionado.
     """
     try:
+        # Verificar que hay contexto de local
+        if not tenant_context.tiene_contexto_local:
+            raise HTTPException(
+                status_code=400,
+                detail="Debe seleccionar un local para ver las facturas"
+            )
         use_case = ListFacturasUseCase(factura_repo)
         result = await use_case.execute(
             page=page,
@@ -199,7 +254,8 @@ async def listar_facturas(
             tipo_factura=tipo_factura,
             fecha_desde=fecha_desde,
             fecha_hasta=fecha_hasta,
-            search=search
+            search=search,
+            local_id=tenant_context.local_id
         )
         
         # Transformar facturas a FacturaListItem

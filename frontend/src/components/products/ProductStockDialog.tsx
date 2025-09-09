@@ -15,9 +15,11 @@ import {
   Alert,
   CircularProgress,
   InputAdornment,
+  Chip,
 } from '@mui/material';
-import { Inventory } from '@mui/icons-material';
+import { Inventory, Store, LocationOn } from '@mui/icons-material';
 import { Product } from '../../types';
+import { useTenant } from '../../context/TenantContext';
 
 interface ProductStockDialogProps {
   open: boolean;
@@ -36,7 +38,8 @@ const ProductStockDialog: React.FC<ProductStockDialogProps> = ({
   loading = false,
   error,
 }) => {
-  const [newStock, setNewStock] = useState<number>(0);
+  const { currentContext, setShowStoreSwitcher } = useTenant();
+  const [newStock, setNewStock] = useState<number | ''>('');
   const [validationError, setValidationError] = useState<string>('');
   const [internalLoading, setInternalLoading] = useState<boolean>(false);
   const [internalError, setInternalError] = useState<string>('');
@@ -44,7 +47,8 @@ const ProductStockDialog: React.FC<ProductStockDialogProps> = ({
   // Resetear el formulario cuando se abre el diálogo
   useEffect(() => {
     if (open && product) {
-      setNewStock(product.stock);
+      const currentStock = product.stock_local_actual ?? 0;
+      setNewStock(currentStock);
       setValidationError('');
       setInternalError('');
     }
@@ -52,10 +56,17 @@ const ProductStockDialog: React.FC<ProductStockDialogProps> = ({
 
   const handleStockChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    const numericValue = value === '' ? 0 : Number(value);
     
-    if (numericValue < 0) {
-      setValidationError('El stock no puede ser negativo');
+    if (value === '') {
+      setNewStock('');
+      setValidationError('');
+      return;
+    }
+    
+    const numericValue = Number(value);
+    
+    if (isNaN(numericValue) || numericValue < 0) {
+      setValidationError('El stock debe ser un número no negativo');
     } else {
       setValidationError('');
     }
@@ -66,8 +77,16 @@ const ProductStockDialog: React.FC<ProductStockDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (newStock < 0) {
-      setValidationError('El stock no puede ser negativo');
+    // Validar contexto de tenant
+    if (!currentContext?.tiene_contexto_local) {
+      setInternalError('Debe seleccionar una tienda y local para actualizar stock');
+      return;
+    }
+    
+    const stockValue = typeof newStock === 'string' ? Number(newStock) : newStock;
+    
+    if (isNaN(stockValue) || stockValue < 0) {
+      setValidationError('El stock debe ser un número no negativo');
       return;
     }
 
@@ -77,7 +96,7 @@ const ProductStockDialog: React.FC<ProductStockDialogProps> = ({
     setInternalError('');
 
     try {
-      await onUpdateStock(newStock);
+      await onUpdateStock(stockValue);
     } catch (error: any) {
       console.error('Error al actualizar stock:', error);
       setInternalError(error.message || 'Error al actualizar stock');
@@ -92,7 +111,7 @@ const ProductStockDialog: React.FC<ProductStockDialogProps> = ({
     onClose();
   };
 
-  const stockDifference = product ? newStock - product.stock : 0;
+  const stockDifference = product && typeof newStock === 'number' ? newStock - (product.stock_local_actual ?? 0) : 0;
   const isIncreasing = stockDifference > 0;
 
   if (!product) return null;
@@ -122,7 +141,7 @@ const ProductStockDialog: React.FC<ProductStockDialogProps> = ({
           </Alert>
         )}
 
-        {/* Información del producto */}
+        {/* Información del producto y contexto */}
         <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
             {product.nombre}
@@ -130,9 +149,49 @@ const ProductStockDialog: React.FC<ProductStockDialogProps> = ({
           <Typography variant="body2" color="text.secondary" gutterBottom>
             SKU: {product.sku}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Stock actual: <strong>{product.stock} unidades</strong>
-          </Typography>
+          
+          {/* Información de contexto multi-tenant */}
+          {currentContext?.tiene_contexto_local ? (
+            <Box sx={{ mt: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Store fontSize="small" color="primary" />
+                <Typography variant="body2">
+                  <strong>{currentContext.tienda_nombre}</strong>
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <LocationOn fontSize="small" color="secondary" />
+                <Typography variant="body2">
+                  {currentContext.local_nombre}
+                </Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                Stock en este local: <strong>{product.stock_local_actual ?? 0} unidades</strong>
+              </Typography>
+              {(product.stock_total_tienda ?? 0) > 0 && (
+                <Typography variant="caption" color="text.secondary">
+                  Stock total en tienda: {product.stock_total_tienda} unidades
+                </Typography>
+              )}
+            </Box>
+          ) : (
+            <Alert 
+              severity="warning" 
+              sx={{ mt: 2 }}
+              action={
+                <Button 
+                  size="small" 
+                  onClick={() => setShowStoreSwitcher(true)}
+                >
+                  Seleccionar
+                </Button>
+              }
+            >
+              <Typography variant="body2">
+                Debe seleccionar una tienda y local para actualizar stock.
+              </Typography>
+            </Alert>
+          )}
         </Box>
 
         {/* Campo de stock */}

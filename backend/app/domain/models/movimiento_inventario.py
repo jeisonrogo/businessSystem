@@ -57,9 +57,23 @@ class MovimientoInventario(SQLModel, table=True):
     created_at: datetime = SQLField(default_factory=lambda: datetime.now(UTC))
     created_by: Optional[UUID] = SQLField(default=None, nullable=True)  # Usuario que registró
     
+    # Multi-tenant: cada movimiento pertenece a un local específico
+    local_id: Optional[UUID] = SQLField(
+        default=None,
+        foreign_key="locales.id", 
+        index=True,
+        description="ID del local donde ocurre el movimiento"
+    )
+    transferencia_id: Optional[UUID] = SQLField(
+        default=None,
+        foreign_key="transferencias_inventario.id",
+        description="ID de la transferencia si aplica"
+    )
+    
     # Relaciones
-    # producto: "Product" = Relationship(back_populates="movimientos_inventario")
-    # usuario: Optional["User"] = Relationship()
+    producto: "Product" = Relationship()
+    local: Optional["Local"] = Relationship(back_populates="movimientos_inventario")
+    transferencia: Optional["TransferenciaInventario"] = Relationship(back_populates="movimientos_inventario")
 
 
 # Esquemas para la API
@@ -71,10 +85,14 @@ class MovimientoInventarioBase(BaseModel):
     precio_unitario: Decimal = Field(..., gt=0, description="Precio unitario de compra/venta")
     referencia: Optional[str] = Field(None, max_length=100, description="Referencia (factura, orden, etc.)")
     observaciones: Optional[str] = Field(None, max_length=500, description="Observaciones adicionales")
+    local_id: Optional[UUID] = Field(None, description="ID del local donde ocurre el movimiento")
+    costo_unitario: Optional[Decimal] = Field(None, description="Costo unitario (para entradas)")
 
 
 class MovimientoInventarioCreate(MovimientoInventarioBase):
     """Esquema para crear un nuevo movimiento de inventario."""
+    stock_anterior: Optional[int] = Field(None, ge=0, description="Stock antes del movimiento (calculado por el sistema)")
+    stock_posterior: Optional[int] = Field(None, ge=0, description="Stock después del movimiento (calculado por el sistema)")
     
     @field_validator('cantidad')
     @classmethod
@@ -93,10 +111,22 @@ class MovimientoInventarioCreate(MovimientoInventarioBase):
         return v
 
 
+class ProductoInfo(BaseModel):
+    """Información básica del producto para mostrar en movimientos."""
+    id: UUID
+    sku: str
+    nombre: str
+    precio_publico: Decimal
+    
+    class Config:
+        from_attributes = True
+
+
 class MovimientoInventarioResponse(BaseModel):
     """Esquema para respuestas de la API con información del movimiento."""
     id: UUID
     producto_id: UUID
+    producto: Optional[ProductoInfo] = None  # Información del producto
     tipo_movimiento: TipoMovimiento
     cantidad: int
     precio_unitario: Decimal
@@ -107,6 +137,7 @@ class MovimientoInventarioResponse(BaseModel):
     observaciones: Optional[str]
     created_at: datetime
     created_by: Optional[UUID]
+    local_id: Optional[UUID] = None
     
     class Config:
         from_attributes = True
@@ -144,6 +175,7 @@ class InventarioResumenResponse(BaseModel):
     productos_sin_stock: int
     productos_stock_bajo: int
     ultimo_movimiento: Optional[datetime]
+    stock_total: int  # Nuevo campo para stock total
 
 
 class CostoPromedioCalculation(BaseModel):
@@ -179,6 +211,7 @@ class MovimientoInventarioFilter(BaseModel):
     fecha_hasta: Optional[datetime] = Field(None, description="Fecha hasta")
     referencia: Optional[str] = Field(None, description="Filtrar por referencia")
     created_by: Optional[UUID] = Field(None, description="Filtrar por usuario")
+    local_id: Optional[UUID] = Field(None, description="Filtrar por local")
 
 
 class EstadisticasInventario(BaseModel):

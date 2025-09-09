@@ -214,45 +214,26 @@ class SQLProductRepository(IProductRepository):
 
     async def update_stock(self, product_id: UUID, new_stock: int) -> Optional[Product]:
         """
-        Actualizar solo el stock de un producto.
+        DEPRECADO: Este método es obsoleto en el sistema multi-tenant.
         
-        Implementa BR-01: Stock no puede ser negativo.
+        En el sistema multi-tenant, el stock se maneja por local a través de StockLocal.
+        Use StockLocalRepository para actualizar stock en locales específicos.
+        
+        Para compatibilidad temporal, este método ahora lanza una excepción.
         """
-        try:
-            if new_stock < 0:
-                raise ValueError("El stock no puede ser negativo (BR-01)")
-            
-            product = await self.get_by_id(product_id)
-            if not product:
-                return None
-            
-            product.stock = new_stock
-            self.session.add(product)
-            self.session.commit()
-            self.session.refresh(product)
-            
-            return product
-            
-        except ValueError as e:
-            self.session.rollback()
-            raise e
-        except Exception as e:
-            self.session.rollback()
-            raise Exception(f"Error al actualizar el stock: {str(e)}")
+        raise Exception(
+            "El stock global por producto está obsoleto en el sistema multi-tenant. "
+            "Use StockLocalRepository.actualizar_cantidad() para actualizar stock en locales específicos."
+        )
 
     async def get_low_stock_products(self, threshold: int = 10) -> List[Product]:
         """
-        Obtener productos con stock bajo.
+        DEPRECADO: Este método es obsoleto en el sistema multi-tenant.
+        
+        En el sistema multi-tenant, el stock se maneja por local.
+        Use StockLocalRepository.get_productos_stock_bajo() para obtener productos
+        con stock bajo en locales específicos.
+        
+        Para compatibilidad temporal, este método retorna una lista vacía.
         """
-        try:
-            statement = select(Product).where(
-                and_(
-                    Product.stock <= threshold,
-                    Product.is_active == True
-                )
-            ).order_by(Product.stock, Product.nombre)
-            
-            result = self.session.exec(statement)
-            return result.all()
-        except Exception as e:
-            raise Exception(f"Error al obtener productos con stock bajo: {str(e)}") 
+        return [] 

@@ -18,6 +18,12 @@ class PermisoLocal(str, Enum):
     """Permisos específicos que un usuario puede tener en un local."""
     VER_STOCK = "ver_stock"                    # Puede ver inventario del local
     VENDER = "vender"                          # Puede crear facturas en el local
+    TRANSFERIR = "transferir"                  # Puede crear transferencias
+    RESPONSABLE = "responsable"                # Es responsable del local
+    MODIFICAR_PRECIOS = "modificar_precios"    # Puede modificar precios
+    APLICAR_DESCUENTOS = "aplicar_descuentos"  # Puede aplicar descuentos
+    VER_REPORTES = "ver_reportes"              # Puede ver reportes
+    GESTIONAR_USUARIOS = "gestionar_usuarios"  # Puede gestionar usuarios
 
 
 class PerfilPermiso(str, Enum):
@@ -27,6 +33,72 @@ class PerfilPermiso(str, Enum):
     GERENTE_VENTAS = "GERENTE_VENTAS"
     CONTADOR = "CONTADOR"
     ADMINISTRADOR = "ADMINISTRADOR"
+    
+    def get_permisos(self) -> dict:
+        """Retorna los permisos asociados a cada perfil."""
+        permisos_por_perfil = {
+            self.VENDEDOR: {
+                "puede_vender": True,
+                "puede_ver_stock": True,
+                "puede_transferir": False,
+                "es_responsable": False,
+                "puede_modificar_precios": False,
+                "puede_aplicar_descuentos": False,
+                "puede_ver_reportes": False,
+                "puede_gestionar_usuarios": False,
+                "limite_descuento_porcentaje": 5.0,
+                "limite_credito_monto": None
+            },
+            self.RESPONSABLE_LOCAL: {
+                "puede_vender": True,
+                "puede_ver_stock": True,
+                "puede_transferir": True,
+                "es_responsable": True,
+                "puede_modificar_precios": True,
+                "puede_aplicar_descuentos": True,
+                "puede_ver_reportes": True,
+                "puede_gestionar_usuarios": False,
+                "limite_descuento_porcentaje": 20.0,
+                "limite_credito_monto": 1000000.0
+            },
+            self.GERENTE_VENTAS: {
+                "puede_vender": True,
+                "puede_ver_stock": True,
+                "puede_transferir": True,
+                "es_responsable": False,
+                "puede_modificar_precios": True,
+                "puede_aplicar_descuentos": True,
+                "puede_ver_reportes": True,
+                "puede_gestionar_usuarios": True,
+                "limite_descuento_porcentaje": 30.0,
+                "limite_credito_monto": 5000000.0
+            },
+            self.CONTADOR: {
+                "puede_vender": False,
+                "puede_ver_stock": True,
+                "puede_transferir": False,
+                "es_responsable": False,
+                "puede_modificar_precios": False,
+                "puede_aplicar_descuentos": False,
+                "puede_ver_reportes": True,
+                "puede_gestionar_usuarios": False,
+                "limite_descuento_porcentaje": None,
+                "limite_credito_monto": None
+            },
+            self.ADMINISTRADOR: {
+                "puede_vender": True,
+                "puede_ver_stock": True,
+                "puede_transferir": True,
+                "es_responsable": True,
+                "puede_modificar_precios": True,
+                "puede_aplicar_descuentos": True,
+                "puede_ver_reportes": True,
+                "puede_gestionar_usuarios": True,
+                "limite_descuento_porcentaje": None,
+                "limite_credito_monto": None
+            }
+        }
+        return permisos_por_perfil.get(self, {})
 
 
 class UsuarioLocal(SQLModel, table=True):
@@ -310,6 +382,11 @@ class UsuarioLocalResponse(BaseModel):
     
     # Campos calculados
     permisos_activos: List[str] = []
+    
+    # Información del local para frontend
+    local_nombre: Optional[str] = None
+    local_codigo: Optional[str] = None
+    assignment_id: Optional[UUID] = None  # Para compatibilidad con frontend
     
     class Config:
         from_attributes = True

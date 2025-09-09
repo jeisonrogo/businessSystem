@@ -75,7 +75,9 @@ class TenantContextService:
         for permiso_local in permisos_locales:
             if permiso_local.is_active:
                 local_key = str(permiso_local.local_id)
-                permisos_dict[local_key] = permiso_local.get_permisos_activos()
+                # Convertir enums a strings para el contexto
+                permisos_enum = permiso_local.get_permisos_activos()
+                permisos_dict[local_key] = [permiso.value for permiso in permisos_enum]
 
         # Crear contexto base
         contexto = TenantContext(
@@ -338,7 +340,9 @@ class TenantContextService:
         for permiso_local in permisos_locales:
             if permiso_local.is_active:
                 local_key = str(permiso_local.local_id)
-                permisos_dict[local_key] = permiso_local.get_permisos_activos()
+                # Convertir enums a strings para el contexto
+                permisos_enum = permiso_local.get_permisos_activos()
+                permisos_dict[local_key] = [permiso.value for permiso in permisos_enum]
 
         # Actualizar permisos en el contexto
         contexto.permisos_locales = permisos_dict

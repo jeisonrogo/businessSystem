@@ -6,6 +6,7 @@ Consolida datos de múltiples módulos para generar reportes gerenciales.
 from typing import List, Optional, Tuple, Dict, Any
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from uuid import UUID
 from sqlmodel import Session, select, func, text, or_, and_
 from sqlalchemy import extract, case
 
@@ -28,6 +29,7 @@ from app.domain.models.dashboard import (
 # Importar modelos para queries
 from app.domain.models.facturacion import Factura, DetalleFactura, Cliente, EstadoFactura
 from app.domain.models.product import Product
+from app.domain.models.stock_local import StockLocal
 from app.domain.models.movimiento_inventario import MovimientoInventario, TipoMovimiento
 from app.domain.models.contabilidad import CuentaContable, AsientoContable, DetalleAsiento
 from app.domain.models.user import User
@@ -75,16 +77,21 @@ class SQLDashboardRepository(IDashboardRepository):
             alertas=alertas
         )
 
-    async def get_metricas_rapidas(self) -> MetricasRapidas:
-        """Obtiene métricas rápidas para widgets pequeños."""
+    async def get_metricas_rapidas(self, local_id: Optional[UUID] = None) -> MetricasRapidas:
+        """Obtiene métricas rápidas para widgets pequeños filtradas por local."""
         hoy = date.today()
         inicio_mes = date(hoy.year, hoy.month, 1)
+        
+        # Construir condiciones base para las facturas
+        condiciones_base = [Factura.estado != EstadoFactura.ANULADA]
+        if local_id:
+            condiciones_base.append(Factura.local_id == local_id)
         
         # Ventas de hoy
         ventas_hoy_query = select(func.coalesce(func.sum(Factura.total_factura), 0)).where(
             and_(
                 func.date(Factura.fecha_emision) == hoy,
-                Factura.estado != EstadoFactura.ANULADA
+                *condiciones_base
             )
         )
         ventas_hoy = self.session.exec(ventas_hoy_query).first() or Decimal('0')
@@ -94,23 +101,33 @@ class SQLDashboardRepository(IDashboardRepository):
             and_(
                 Factura.fecha_emision >= inicio_mes,
                 Factura.fecha_emision <= hoy,
-                Factura.estado != EstadoFactura.ANULADA
+                *condiciones_base
             )
         )
         ventas_mes = self.session.exec(ventas_mes_query).first() or Decimal('0')
 
         # Facturas pendientes de pago
+        condiciones_pendientes = [Factura.estado == EstadoFactura.EMITIDA]
+        if local_id:
+            condiciones_pendientes.append(Factura.local_id == local_id)
+        
         facturas_pendientes_query = select(func.count(Factura.id)).where(
-            Factura.estado == EstadoFactura.EMITIDA
+            and_(*condiciones_pendientes)
         )
         facturas_pendientes = self.session.exec(facturas_pendientes_query).first() or 0
 
-        # Productos con stock crítico (menor a 10)
-        stock_critico_query = select(func.count(Product.id)).where(
-            and_(
-                Product.stock < 10,
-                Product.is_active == True
+        # Productos con stock crítico (menor a 10) - ahora usando StockLocal
+        condiciones_stock = [
+            StockLocal.cantidad < 10,
+            StockLocal.producto_id.in_(
+                select(Product.id).where(Product.is_active == True)
             )
+        ]
+        if local_id:
+            condiciones_stock.append(StockLocal.local_id == local_id)
+        
+        stock_critico_query = select(func.count(func.distinct(StockLocal.producto_id))).where(
+            and_(*condiciones_stock)
         )
         stock_critico = self.session.exec(stock_critico_query).first() or 0
 
@@ -136,20 +153,21 @@ class SQLDashboardRepository(IDashboardRepository):
         self, 
         fecha_inicio: date, 
         fecha_fin: date,
-        incluir_comparacion: bool = True
+        incluir_comparacion: bool = True,
+        local_id: Optional[UUID] = None
     ) -> KPIDashboard:
         """Obtiene los KPIs principales del dashboard."""
         # Calcular período anterior para comparaciones
         fecha_inicio_anterior, fecha_fin_anterior = await self.calcular_periodo_anterior(fecha_inicio, fecha_fin)
 
         # 1. Ventas del período
-        ventas_actual = await self._get_ventas_periodo(fecha_inicio, fecha_fin)
-        ventas_anterior = await self._get_ventas_periodo(fecha_inicio_anterior, fecha_fin_anterior) if incluir_comparacion else None
+        ventas_actual = await self._get_ventas_periodo(fecha_inicio, fecha_fin, local_id)
+        ventas_anterior = await self._get_ventas_periodo(fecha_inicio_anterior, fecha_fin_anterior, local_id) if incluir_comparacion else None
         ventas_del_periodo = await self.calcular_metrica_con_comparacion(ventas_actual, ventas_anterior)
 
         # 2. Número de facturas
-        facturas_actual = await self._get_numero_facturas_periodo(fecha_inicio, fecha_fin)
-        facturas_anterior = await self._get_numero_facturas_periodo(fecha_inicio_anterior, fecha_fin_anterior) if incluir_comparacion else None
+        facturas_actual = await self._get_numero_facturas_periodo(fecha_inicio, fecha_fin, local_id)
+        facturas_anterior = await self._get_numero_facturas_periodo(fecha_inicio_anterior, fecha_fin_anterior, local_id) if incluir_comparacion else None
         numero_facturas = await self.calcular_metrica_con_comparacion(Decimal(facturas_actual), Decimal(facturas_anterior) if facturas_anterior else None)
 
         # 3. Ticket promedio
@@ -158,13 +176,13 @@ class SQLDashboardRepository(IDashboardRepository):
         ticket_promedio = await self.calcular_metrica_con_comparacion(ticket_actual, ticket_anterior)
 
         # 4. Cartera pendiente y vencida
-        cartera_pendiente, cartera_vencida = await self._get_cartera_info()
+        cartera_pendiente, cartera_vencida = await self._get_cartera_info(local_id)
 
         # 5. Inventario
-        valor_inventario = await self._get_valor_inventario()
+        valor_inventario = await self._get_valor_inventario(local_id)
         productos_activos = await self._get_productos_activos()
-        productos_sin_stock = await self._get_productos_sin_stock()
-        productos_stock_bajo = await self._get_productos_stock_bajo()
+        productos_sin_stock = await self._get_productos_sin_stock(local_id)
+        productos_stock_bajo = await self._get_productos_stock_bajo(local_id)
         rotacion_inventario = await self.calcular_rotacion_inventario(fecha_inicio, fecha_fin)
 
         # 6. Clientes
@@ -211,22 +229,28 @@ class SQLDashboardRepository(IDashboardRepository):
         self, 
         fecha_inicio: date, 
         fecha_fin: date,
-        agrupacion: str = "mes"
+        agrupacion: str = "mes",
+        local_id: Optional[UUID] = None
     ) -> List[VentasPorPeriodo]:
         """Obtiene ventas agrupadas por período."""
         if agrupacion == "mes":
             # Agrupar por mes
+            # Construir condiciones de filtro
+            condiciones = [
+                Factura.fecha_emision >= fecha_inicio,
+                Factura.fecha_emision <= fecha_fin,
+                Factura.estado != EstadoFactura.ANULADA
+            ]
+            if local_id:
+                condiciones.append(Factura.local_id == local_id)
+            
             query = select(
                 extract('year', Factura.fecha_emision).label('anio'),
                 extract('month', Factura.fecha_emision).label('mes'),
                 func.sum(Factura.total_factura).label('total_ventas'),
                 func.count(Factura.id).label('numero_facturas')
             ).where(
-                and_(
-                    Factura.fecha_emision >= fecha_inicio,
-                    Factura.fecha_emision <= fecha_fin,
-                    Factura.estado != EstadoFactura.ANULADA
-                )
+                and_(*condiciones)
             ).group_by('anio', 'mes').order_by('anio', 'mes')
 
             results = self.session.exec(query).all()
@@ -262,9 +286,20 @@ class SQLDashboardRepository(IDashboardRepository):
         self, 
         fecha_inicio: date, 
         fecha_fin: date,
-        limite: int = 10
+        limite: int = 10,
+        local_id: Optional[UUID] = None
     ) -> List[ProductoTopVentas]:
         """Obtiene los productos más vendidos."""
+        # Construir condiciones de filtro
+        condiciones = [
+            Factura.fecha_emision >= fecha_inicio,
+            Factura.fecha_emision <= fecha_fin,
+            Factura.estado != EstadoFactura.ANULADA,
+            Product.is_active == True
+        ]
+        if local_id:
+            condiciones.append(Factura.local_id == local_id)
+        
         query = select(
             Product.id,
             Product.sku,
@@ -277,12 +312,7 @@ class SQLDashboardRepository(IDashboardRepository):
         ).join(
             Factura, DetalleFactura.factura_id == Factura.id
         ).where(
-            and_(
-                Factura.fecha_emision >= fecha_inicio,
-                Factura.fecha_emision <= fecha_fin,
-                Factura.estado != EstadoFactura.ANULADA,
-                Product.is_active == True
-            )
+            and_(*condiciones)
         ).group_by(
             Product.id, Product.sku, Product.nombre
         ).order_by(
@@ -314,9 +344,20 @@ class SQLDashboardRepository(IDashboardRepository):
         self, 
         fecha_inicio: date, 
         fecha_fin: date,
-        limite: int = 10
+        limite: int = 10,
+        local_id: Optional[UUID] = None
     ) -> List[ClienteTopVentas]:
         """Obtiene los clientes con más compras."""
+        # Construir condiciones de filtro
+        condiciones = [
+            Factura.fecha_emision >= fecha_inicio,
+            Factura.fecha_emision <= fecha_fin,
+            Factura.estado != EstadoFactura.ANULADA,
+            Cliente.is_active == True
+        ]
+        if local_id:
+            condiciones.append(Factura.local_id == local_id)
+        
         query = select(
             Cliente.id,
             Cliente.numero_documento,
@@ -327,12 +368,7 @@ class SQLDashboardRepository(IDashboardRepository):
         ).join(
             Factura, Cliente.id == Factura.cliente_id
         ).where(
-            and_(
-                Factura.fecha_emision >= fecha_inicio,
-                Factura.fecha_emision <= fecha_fin,
-                Factura.estado != EstadoFactura.ANULADA,
-                Cliente.is_active == True
-            )
+            and_(*condiciones)
         ).group_by(
             Cliente.id, Cliente.numero_documento, Cliente.nombre_completo
         ).order_by(
@@ -534,57 +570,83 @@ class SQLDashboardRepository(IDashboardRepository):
 
     # Métodos privados para obtener datos específicos
 
-    async def _get_ventas_periodo(self, fecha_inicio: date, fecha_fin: date) -> Decimal:
+    async def _get_ventas_periodo(self, fecha_inicio: date, fecha_fin: date, local_id: Optional[UUID] = None) -> Decimal:
         """Obtiene el total de ventas del período."""
+        condiciones = [
+            Factura.fecha_emision >= fecha_inicio,
+            Factura.fecha_emision <= fecha_fin,
+            Factura.estado != EstadoFactura.ANULADA
+        ]
+        if local_id:
+            condiciones.append(Factura.local_id == local_id)
+        
         query = select(func.coalesce(func.sum(Factura.total_factura), 0)).where(
-            and_(
-                Factura.fecha_emision >= fecha_inicio,
-                Factura.fecha_emision <= fecha_fin,
-                Factura.estado != EstadoFactura.ANULADA
-            )
+            and_(*condiciones)
         )
         result = self.session.exec(query).first()
         return Decimal(str(result)) if result else Decimal('0')
 
-    async def _get_numero_facturas_periodo(self, fecha_inicio: date, fecha_fin: date) -> int:
+    async def _get_numero_facturas_periodo(self, fecha_inicio: date, fecha_fin: date, local_id: Optional[UUID] = None) -> int:
         """Obtiene el número de facturas del período."""
+        condiciones = [
+            Factura.fecha_emision >= fecha_inicio,
+            Factura.fecha_emision <= fecha_fin,
+            Factura.estado != EstadoFactura.ANULADA
+        ]
+        if local_id:
+            condiciones.append(Factura.local_id == local_id)
+        
         query = select(func.count(Factura.id)).where(
-            and_(
-                Factura.fecha_emision >= fecha_inicio,
-                Factura.fecha_emision <= fecha_fin,
-                Factura.estado != EstadoFactura.ANULADA
-            )
+            and_(*condiciones)
         )
         return self.session.exec(query).first() or 0
 
-    async def _get_cartera_info(self) -> Tuple[Decimal, Decimal]:
+    async def _get_cartera_info(self, local_id: Optional[UUID] = None) -> Tuple[Decimal, Decimal]:
         """Obtiene información de cartera pendiente y vencida."""
         hoy = date.today()
         
+        # Condiciones base para cartera
+        condiciones_pendiente = [Factura.estado == EstadoFactura.EMITIDA]
+        if local_id:
+            condiciones_pendiente.append(Factura.local_id == local_id)
+        
         # Cartera pendiente total
         pendiente_query = select(func.coalesce(func.sum(Factura.total_factura), 0)).where(
-            Factura.estado == EstadoFactura.EMITIDA
+            and_(*condiciones_pendiente)
         )
         cartera_pendiente = Decimal(str(self.session.exec(pendiente_query).first() or 0))
 
         # Cartera vencida
-        vencida_query = select(func.coalesce(func.sum(Factura.total_factura), 0)).where(
-            and_(
-                Factura.estado == EstadoFactura.EMITIDA,
-                or_(
-                    Factura.fecha_vencimiento.is_(None),  # Facturas sin fecha de vencimiento se consideran vencidas después de 30 días
-                    Factura.fecha_vencimiento < hoy
-                )
+        condiciones_vencida = [
+            Factura.estado == EstadoFactura.EMITIDA,
+            or_(
+                Factura.fecha_vencimiento.is_(None),  # Facturas sin fecha de vencimiento se consideran vencidas después de 30 días
+                Factura.fecha_vencimiento < hoy
             )
+        ]
+        if local_id:
+            condiciones_vencida.append(Factura.local_id == local_id)
+        
+        vencida_query = select(func.coalesce(func.sum(Factura.total_factura), 0)).where(
+            and_(*condiciones_vencida)
         )
         cartera_vencida = Decimal(str(self.session.exec(vencida_query).first() or 0))
 
         return cartera_pendiente, cartera_vencida
 
-    async def _get_valor_inventario(self) -> Decimal:
+    async def _get_valor_inventario(self, local_id: Optional[UUID] = None) -> Decimal:
         """Obtiene el valor total del inventario."""
-        query = select(func.coalesce(func.sum(Product.stock * Product.precio_base), 0)).where(
-            Product.is_active == True
+        # Ahora usando StockLocal para calcular valor del inventario
+        condiciones = [
+            StockLocal.producto_id.in_(
+                select(Product.id).where(Product.is_active == True)
+            )
+        ]
+        if local_id:
+            condiciones.append(StockLocal.local_id == local_id)
+        
+        query = select(func.coalesce(func.sum(StockLocal.cantidad * StockLocal.costo_promedio), 0)).where(
+            and_(*condiciones)
         )
         result = self.session.exec(query).first()
         return Decimal(str(result)) if result else Decimal('0')
@@ -594,18 +656,52 @@ class SQLDashboardRepository(IDashboardRepository):
         query = select(func.count(Product.id)).where(Product.is_active == True)
         return self.session.exec(query).first() or 0
 
-    async def _get_productos_sin_stock(self) -> int:
+    async def _get_productos_sin_stock(self, local_id: Optional[UUID] = None) -> int:
         """Obtiene el número de productos sin stock."""
-        query = select(func.count(Product.id)).where(
-            and_(Product.stock == 0, Product.is_active == True)
+        # Productos que no tienen stock en ningún local o tienen 0 stock total
+        condiciones = [
+            StockLocal.cantidad == 0,
+            StockLocal.producto_id.in_(
+                select(Product.id).where(Product.is_active == True)
+            )
+        ]
+        if local_id:
+            condiciones.append(StockLocal.local_id == local_id)
+        
+        query = select(func.count(func.distinct(StockLocal.producto_id))).where(
+            and_(*condiciones)
         )
         return self.session.exec(query).first() or 0
 
-    async def _get_productos_stock_bajo(self) -> int:
+    async def _get_productos_stock_bajo(self, local_id: Optional[UUID] = None) -> int:
         """Obtiene el número de productos con stock bajo."""
-        query = select(func.count(Product.id)).where(
-            and_(Product.stock > 0, Product.stock < 10, Product.is_active == True)
-        )
+        if local_id:
+            # Para un local específico, productos con stock menor a 10 en ese local
+            condiciones = [
+                StockLocal.cantidad > 0,
+                StockLocal.cantidad < 10,
+                StockLocal.local_id == local_id,
+                StockLocal.producto_id.in_(
+                    select(Product.id).where(Product.is_active == True)
+                )
+            ]
+            query = select(func.count(StockLocal.producto_id)).where(and_(*condiciones))
+        else:
+            # Productos con stock total menor a 10 (sumando todos los locales)
+            subquery = select(
+                StockLocal.producto_id,
+                func.sum(StockLocal.cantidad).label('total_stock')
+            ).group_by(StockLocal.producto_id).subquery()
+        
+            query = select(func.count(subquery.c.producto_id)).where(
+                and_(
+                    subquery.c.total_stock > 0,
+                    subquery.c.total_stock < 10,
+                    subquery.c.producto_id.in_(
+                        select(Product.id).where(Product.is_active == True)
+                    )
+                )
+            )
         return self.session.exec(query).first() or 0
 
     async def _get_clientes_activos(self) -> int:

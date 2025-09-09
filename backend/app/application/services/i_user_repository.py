@@ -143,7 +143,8 @@ class IUserRepository(ABC):
         limit: int = 50,
         search: Optional[str] = None,
         role: Optional[str] = None,
-        is_active: Optional[bool] = None
+        is_active: Optional[bool] = None,
+        tienda_id: Optional[UUID] = None
     ) -> List[User]:
         """
         Lista usuarios aplicando filtros y paginación.
@@ -154,6 +155,7 @@ class IUserRepository(ABC):
             search: Texto para buscar en nombre y email
             role: Filtrar por rol específico
             is_active: Filtrar por estado activo
+            tienda_id: Filtrar por tienda específica (para multi-tenant)
             
         Returns:
             List[User]: Lista de usuarios filtrados

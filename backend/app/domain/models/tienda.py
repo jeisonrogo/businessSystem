@@ -54,9 +54,9 @@ class Tienda(SQLModel, table=True):
     locales: List["Local"] = Relationship(back_populates="tienda", cascade_delete=True)
     usuarios: List["User"] = Relationship(back_populates="tienda")
     productos: List["Product"] = Relationship(back_populates="tienda")
-    clientes: List["Cliente"] = Relationship(back_populates="tienda")
-    facturas: List["Factura"] = Relationship(back_populates="tienda")
-    asientos_contables: List["AsientoContable"] = Relationship(back_populates="tienda")
+    # clientes: List["Cliente"] = Relationship(back_populates="tienda") 
+    # facturas: List["Factura"] = Relationship(back_populates="tienda")
+    # asientos_contables: List["AsientoContable"] = Relationship(back_populates="tienda")
     cuentas_contables: List["CuentaContable"] = Relationship(back_populates="tienda")
 
     @field_validator('codigo')
@@ -147,6 +147,9 @@ class TiendaResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime]
+    
+    # Campo calculado (se llenará dinámicamente en el endpoint)
+    total_locales: int = 0
     
     class Config:
         from_attributes = True

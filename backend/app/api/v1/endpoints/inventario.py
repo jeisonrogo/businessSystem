@@ -42,6 +42,8 @@ from app.application.use_cases.inventario_use_cases import (
 from app.infrastructure.database.session import get_session
 from app.infrastructure.repositories.inventario_repository import SQLInventarioRepository
 from app.infrastructure.repositories.product_repository import SQLProductRepository
+from app.infrastructure.middleware.tenant_middleware import get_tenant_context
+from app.domain.models.tenant_context import TenantContext
 
 router = APIRouter()
 
@@ -49,8 +51,10 @@ router = APIRouter()
 # Funciones de dependencia
 def get_inventario_repository(session: Session = Depends(get_session)) -> SQLInventarioRepository:
     """Crear instancia del repositorio de inventario."""
+    from app.infrastructure.repositories.stock_local_repository import StockLocalRepository
     product_repository = SQLProductRepository(session)
-    return SQLInventarioRepository(session, product_repository)
+    stock_local_repository = StockLocalRepository(session)
+    return SQLInventarioRepository(session, product_repository, stock_local_repository)
 
 
 def get_product_repository(session: Session = Depends(get_session)) -> SQLProductRepository:
@@ -135,7 +139,9 @@ async def listar_movimientos(
     fecha_desde: Optional[datetime] = Query(None, description="Fecha desde"),
     fecha_hasta: Optional[datetime] = Query(None, description="Fecha hasta"),
     referencia: Optional[str] = Query(None, description="Filtrar por referencia"),
-    inventario_repo: SQLInventarioRepository = Depends(get_inventario_repository)
+    inventario_repo: SQLInventarioRepository = Depends(get_inventario_repository),
+    product_repo: SQLProductRepository = Depends(get_product_repository),
+    tenant_context: TenantContext = Depends(get_tenant_context)
 ) -> MovimientoInventarioListResponse:
     """
     Listar movimientos de inventario con filtros y paginación.
@@ -149,16 +155,22 @@ async def listar_movimientos(
     - **referencia**: Filtrar por referencia
     """
     try:
+        # Determinar local_id basado en el contexto
+        # Si hay contexto local específico, filtrar por ese local
+        # Si no hay contexto local (opción "Toda la tienda"), no filtrar por local
+        filter_local_id = tenant_context.local_id if tenant_context.tiene_contexto_local else None
+        
         # Construir filtros
         filtros = MovimientoInventarioFilter(
             producto_id=producto_id,
             tipo_movimiento=tipo_movimiento,
             fecha_desde=fecha_desde,
             fecha_hasta=fecha_hasta,
-            referencia=referencia
+            referencia=referencia,
+            local_id=filter_local_id
         )
 
-        use_case = ListarMovimientosUseCase(inventario_repo)
+        use_case = ListarMovimientosUseCase(inventario_repo, product_repo)
         return await use_case.execute(page=page, limit=limit, filtros=filtros)
     except Exception as e:
         raise HTTPException(
@@ -227,7 +239,8 @@ async def consultar_kardex(
     fecha_desde: Optional[datetime] = Query(None, description="Fecha desde"),
     fecha_hasta: Optional[datetime] = Query(None, description="Fecha hasta"),
     inventario_repo: SQLInventarioRepository = Depends(get_inventario_repository),
-    product_repo: SQLProductRepository = Depends(get_product_repository)
+    product_repo: SQLProductRepository = Depends(get_product_repository),
+    tenant_context: TenantContext = Depends(get_tenant_context)
 ) -> KardexResponse:
     """
     Consultar el kardex de un producto.
@@ -246,6 +259,11 @@ async def consultar_kardex(
     - Valor total del inventario
     """
     try:
+        # Determinar local_id basado en el contexto
+        # Si hay contexto local específico, filtrar por ese local
+        # Si no hay contexto local (opción "Toda la tienda"), no filtrar por local
+        filter_local_id = tenant_context.local_id if tenant_context.tiene_contexto_local else None
+        
         use_case = ConsultarKardexUseCase(inventario_repo, product_repo)
         return await use_case.execute(
             producto_id=producto_id,
@@ -253,7 +271,8 @@ async def consultar_kardex(
             limit=limit,
             tipo_movimiento=tipo_movimiento,
             fecha_desde=fecha_desde,
-            fecha_hasta=fecha_hasta
+            fecha_hasta=fecha_hasta,
+            local_id=filter_local_id
         )
     except ProductoNoEncontradoError as e:
         raise HTTPException(
@@ -278,7 +297,8 @@ async def consultar_kardex(
 )
 async def obtener_resumen_inventario(
     inventario_repo: SQLInventarioRepository = Depends(get_inventario_repository),
-    product_repo: SQLProductRepository = Depends(get_product_repository)
+    product_repo: SQLProductRepository = Depends(get_product_repository),
+    tenant_context: TenantContext = Depends(get_tenant_context)
 ) -> InventarioResumenResponse:
     """
     Obtener resumen general del inventario.
@@ -292,7 +312,7 @@ async def obtener_resumen_inventario(
     """
     try:
         use_case = ObtenerResumenInventarioUseCase(inventario_repo, product_repo)
-        return await use_case.execute()
+        return await use_case.execute(tenant_context)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -312,7 +332,8 @@ async def obtener_resumen_inventario(
 async def obtener_estadisticas_inventario(
     fecha_desde: Optional[datetime] = Query(None, description="Fecha desde (default: inicio del mes)"),
     fecha_hasta: Optional[datetime] = Query(None, description="Fecha hasta (default: ahora)"),
-    inventario_repo: SQLInventarioRepository = Depends(get_inventario_repository)
+    inventario_repo: SQLInventarioRepository = Depends(get_inventario_repository),
+    tenant_context: TenantContext = Depends(get_tenant_context)
 ) -> EstadisticasInventarioResponse:
     """
     Obtener estadísticas detalladas del inventario.
@@ -326,8 +347,11 @@ async def obtener_estadisticas_inventario(
     - Productos más movidos en el período
     """
     try:
+        # Determinar local_id basado en el contexto
+        filter_local_id = tenant_context.local_id if tenant_context.tiene_contexto_local else None
+        
         use_case = ObtenerEstadisticasInventarioUseCase(inventario_repo)
-        return await use_case.execute(fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)
+        return await use_case.execute(fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, local_id=filter_local_id)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

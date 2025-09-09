@@ -17,6 +17,7 @@ import {
   InputAdornment,
 } from '@mui/material';
 import { Product, ProductCreate, ProductUpdate } from '../../types';
+import { useTenant } from '../../context/TenantContext';
 
 interface ProductFormProps {
   open: boolean;
@@ -35,14 +36,17 @@ const ProductForm: React.FC<ProductFormProps> = ({
   loading = false,
   error,
 }) => {
-  const [formData, setFormData] = useState<ProductCreate>({
+  const { currentContext } = useTenant();
+  
+  const [formData, setFormData] = useState({
     sku: '',
     nombre: '',
     descripcion: '',
     url_foto: '',
     precio_base: 0,
     precio_publico: 0,
-    stock: 0,
+    stock_inicial: 0,
+    tienda_id: '',
   });
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -59,7 +63,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
         url_foto: product.url_foto || '',
         precio_base: product.precio_base,
         precio_publico: product.precio_publico,
-        stock: product.stock,
+        stock_inicial: product.stock_local_actual ?? 0,
+        tienda_id: product.tienda_id,
       });
     } else if (open && !product) {
       // Modo creación - resetear formulario
@@ -70,18 +75,19 @@ const ProductForm: React.FC<ProductFormProps> = ({
         url_foto: '',
         precio_base: 0,
         precio_publico: 0,
-        stock: 0,
+        stock_inicial: 0,
+        tienda_id: currentContext?.tienda_id || '',
       });
     }
     setValidationErrors({});
-  }, [open, product]);
+  }, [open, product, currentContext?.tienda_id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     
     // Convertir valores numéricos
     let processedValue: string | number = value;
-    if (['precio_base', 'precio_publico', 'stock'].includes(name)) {
+    if (['precio_base', 'precio_publico', 'stock_inicial'].includes(name)) {
       processedValue = value === '' ? 0 : Number(value);
     }
 
@@ -118,8 +124,8 @@ const ProductForm: React.FC<ProductFormProps> = ({
       errors.precio_publico = 'El precio público debe ser mayor a 0';
     }
 
-    if (typeof formData.stock === 'number' && formData.stock < 0) {
-      errors.stock = 'El stock no puede ser negativo';
+    if (typeof formData.stock_inicial === 'number' && formData.stock_inicial < 0) {
+      errors.stock_inicial = 'El stock no puede ser negativo';
     }
 
     setValidationErrors(errors);
@@ -136,11 +142,11 @@ const ProductForm: React.FC<ProductFormProps> = ({
     try {
       if (isEditing) {
         // En modo edición, no enviamos SKU ya que es inmutable
-        const { sku, stock, ...updateData } = formData;
+        const { sku, stock_inicial, tienda_id, ...updateData } = formData;
         await onSave(updateData as ProductUpdate);
       } else {
         // En modo creación, enviamos todo
-        await onSave(formData);
+        await onSave(formData as ProductCreate);
       }
     } catch (error: any) {
       // Los errores ya se manejan en el componente padre
@@ -270,14 +276,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
 
           <Grid item xs={12} md={4}>
             <TextField
-              name="stock"
+              name="stock_inicial"
               label="Stock Inicial"
               type="number"
               fullWidth
-              value={formData.stock}
+              value={formData.stock_inicial}
               onChange={handleChange}
-              error={!!validationErrors.stock}
-              helperText={validationErrors.stock || (isEditing ? 'Use la gestión de inventario para modificar stock' : '')}
+              error={!!validationErrors.stock_inicial}
+              helperText={validationErrors.stock_inicial || (isEditing ? 'Use la gestión de inventario para modificar stock' : '')}
               disabled={isEditing || loading}
               inputProps={{ min: 0 }}
             />

@@ -14,13 +14,30 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Interceptor para requests - agregar token JWT
+// Interceptor para requests - agregar token JWT y contexto local
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Agregar header de contexto local si está disponible
+    const tenantContext = localStorage.getItem('tenant_context');
+    if (tenantContext) {
+      try {
+        const context = JSON.parse(tenantContext);
+        if (context.local_id) {
+          config.headers['X-Local-ID'] = context.local_id;
+        }
+        if (context.tienda_id) {
+          config.headers['X-Tienda-ID'] = context.tienda_id;
+        }
+      } catch (e) {
+        console.warn('Error al parsear contexto de tenant desde localStorage:', e);
+      }
+    }
+    
     return config;
   },
   (error) => {

@@ -6,6 +6,7 @@ Orquesta la lógica de negocio para generar métricas consolidadas.
 from typing import List, Optional
 from datetime import date
 from decimal import Decimal
+from uuid import UUID
 
 from app.application.services.i_dashboard_repository import IDashboardRepository
 from app.domain.models.dashboard import (
@@ -103,15 +104,18 @@ class GetMetricasRapidasUseCase:
     def __init__(self, dashboard_repository: IDashboardRepository):
         self.dashboard_repository = dashboard_repository
 
-    async def execute(self) -> MetricasRapidas:
+    async def execute(self, local_id: Optional[UUID] = None) -> MetricasRapidas:
         """
         Obtiene las métricas rápidas para widgets pequeños.
+        
+        Args:
+            local_id: ID del local para filtrar métricas (opcional)
         
         Returns:
             MetricasRapidas: Métricas básicas del sistema
         """
         try:
-            metricas = await self.dashboard_repository.get_metricas_rapidas()
+            metricas = await self.dashboard_repository.get_metricas_rapidas(local_id)
             return metricas
         except Exception as e:
             raise DashboardError(f"Error obteniendo métricas rápidas: {str(e)}")
@@ -127,7 +131,8 @@ class GetKPIsPrincipalesUseCase:
         self, 
         fecha_inicio: date, 
         fecha_fin: date,
-        incluir_comparacion: bool = True
+        incluir_comparacion: bool = True,
+        local_id: Optional[UUID] = None
     ) -> KPIDashboard:
         """
         Obtiene los KPIs principales del dashboard.
@@ -146,7 +151,7 @@ class GetKPIsPrincipalesUseCase:
                 raise PeriodoInvalidoError("La fecha de inicio debe ser anterior a la fecha de fin")
             
             kpis = await self.dashboard_repository.get_kpis_principales(
-                fecha_inicio, fecha_fin, incluir_comparacion
+                fecha_inicio, fecha_fin, incluir_comparacion, local_id
             )
             
             return kpis
@@ -167,7 +172,8 @@ class GetVentasPorPeriodoUseCase:
         self, 
         fecha_inicio: date, 
         fecha_fin: date,
-        agrupacion: str = "mes"
+        agrupacion: str = "mes",
+        local_id: Optional[UUID] = None
     ) -> List[VentasPorPeriodo]:
         """
         Obtiene ventas agrupadas por período.
@@ -191,7 +197,7 @@ class GetVentasPorPeriodoUseCase:
                 raise FiltrosInvalidosError(f"Agrupación debe ser una de: {', '.join(agrupaciones_validas)}")
             
             ventas = await self.dashboard_repository.get_ventas_por_periodo(
-                fecha_inicio, fecha_fin, agrupacion
+                fecha_inicio, fecha_fin, agrupacion, local_id
             )
             
             return ventas
@@ -212,7 +218,8 @@ class GetProductosTopVentasUseCase:
         self, 
         fecha_inicio: date, 
         fecha_fin: date,
-        limite: int = 10
+        limite: int = 10,
+        local_id: Optional[UUID] = None
     ) -> List[ProductoTopVentas]:
         """
         Obtiene los productos más vendidos.
@@ -235,7 +242,7 @@ class GetProductosTopVentasUseCase:
                 raise FiltrosInvalidosError("El límite debe ser mayor a 0")
             
             productos = await self.dashboard_repository.get_productos_top_ventas(
-                fecha_inicio, fecha_fin, limite
+                fecha_inicio, fecha_fin, limite, local_id
             )
             
             return productos
@@ -256,7 +263,8 @@ class GetClientesTopVentasUseCase:
         self, 
         fecha_inicio: date, 
         fecha_fin: date,
-        limite: int = 10
+        limite: int = 10,
+        local_id: Optional[UUID] = None
     ) -> List[ClienteTopVentas]:
         """
         Obtiene los clientes con más compras.
@@ -279,7 +287,7 @@ class GetClientesTopVentasUseCase:
                 raise FiltrosInvalidosError("El límite debe ser mayor a 0")
             
             clientes = await self.dashboard_repository.get_clientes_top_ventas(
-                fecha_inicio, fecha_fin, limite
+                fecha_inicio, fecha_fin, limite, local_id
             )
             
             return clientes

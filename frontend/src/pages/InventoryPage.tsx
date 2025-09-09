@@ -108,9 +108,8 @@ const InventoryPage: React.FC = () => {
       setSummary(summaryResponse);
       setStats(statsResponse);
 
-      // Calcular total de stock de todos los productos
-      const totalStockCalculated = productsResponse.items.reduce((sum, product) => sum + product.stock, 0);
-      setTotalStock(totalStockCalculated);
+      // Usar el stock total del resumen que ya viene filtrado por local
+      setTotalStock(summaryResponse.stock_total);
 
       // Contar movimientos de hoy
       setMovimientosHoy(movementsResponse.total);

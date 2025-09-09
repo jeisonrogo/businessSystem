@@ -38,6 +38,9 @@ class Product(SQLModel, table=True):
     created_at: datetime = SQLField(default_factory=lambda: datetime.now(UTC))
     updated_at: Optional[datetime] = SQLField(default=None)
     
+    # Campos calculados multi-tenant (no se persisten en DB, se calculan dinámicamente)
+    # Estos campos se agregan dinámicamente en los endpoints según el contexto del usuario
+    
     # Relaciones
     tienda: "Tienda" = Relationship(back_populates="productos")
     stock_locales: List["StockLocal"] = Relationship(back_populates="producto", cascade_delete=True)
@@ -187,9 +190,16 @@ class ProductResponse(BaseModel):
     updated_at: Optional[datetime]
     
     # Campos calculados (se llenan desde los métodos del modelo)
+    stock_local_actual: int = 0  # Stock en el local actual del usuario
     stock_total_tienda: int = 0
     valor_total_inventario: Decimal = Decimal("0.00")
     locales_con_stock: List[UUID] = []
+    
+    # Campos adicionales para contexto local-específico
+    costo_promedio_local: Optional[Decimal] = Decimal("0.00")
+    local_id: Optional[str] = None
+    local_nombre: Optional[str] = None
+    locales_stock: List[dict] = []  # Para vista de todos los locales
     
     class Config:
         from_attributes = True

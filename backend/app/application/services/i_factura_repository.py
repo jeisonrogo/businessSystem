@@ -82,7 +82,8 @@ class IFacturaRepository(ABC):
         tipo_factura: Optional[TipoFactura] = None,
         fecha_desde: Optional[date] = None,
         fecha_hasta: Optional[date] = None,
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        local_id: Optional[UUID] = None
     ) -> List[Factura]:
         """
         Obtener lista paginada de facturas con filtros opcionales.
@@ -103,7 +104,7 @@ class IFacturaRepository(ABC):
         pass
 
     @abstractmethod
-    async def update(self, factura_id: UUID, factura_data: FacturaUpdate) -> Optional[Factura]:
+    async def update(self, factura_id: UUID, factura_data: FacturaUpdate, local_id: Optional[UUID] = None, updated_by: Optional[UUID] = None) -> Optional[Factura]:
         """
         Actualizar una factura existente.
         
@@ -117,7 +118,7 @@ class IFacturaRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete(self, factura_id: UUID) -> bool:
+    async def delete(self, factura_id: UUID, local_id: Optional[UUID] = None, usuario_id: Optional[UUID] = None) -> bool:
         """
         Anular una factura.
         
@@ -139,7 +140,8 @@ class IFacturaRepository(ABC):
         tipo_factura: Optional[TipoFactura] = None,
         fecha_desde: Optional[date] = None,
         fecha_hasta: Optional[date] = None,
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        local_id: Optional[UUID] = None
     ) -> int:
         """
         Contar el número total de facturas que cumplen los criterios.
@@ -151,6 +153,7 @@ class IFacturaRepository(ABC):
             fecha_desde: Filtrar desde fecha
             fecha_hasta: Filtrar hasta fecha
             search: Término de búsqueda
+            local_id: Filtrar por local específico
             
         Returns:
             int: Número total de facturas

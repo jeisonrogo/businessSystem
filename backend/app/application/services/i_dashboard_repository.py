@@ -5,6 +5,7 @@ Define los contratos para acceso a datos consolidados de múltiples módulos.
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple
+from uuid import UUID
 from datetime import date
 from decimal import Decimal
 
@@ -44,9 +45,9 @@ class IDashboardRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_metricas_rapidas(self) -> MetricasRapidas:
+    async def get_metricas_rapidas(self, local_id: Optional[UUID] = None) -> MetricasRapidas:
         """
-        Obtiene métricas rápidas para widgets pequeños.
+        Obtiene métricas rápidas para widgets pequeños filtradas por local.
         
         Returns:
             MetricasRapidas: Métricas básicas del sistema
@@ -58,7 +59,8 @@ class IDashboardRepository(ABC):
         self, 
         fecha_inicio: date, 
         fecha_fin: date,
-        incluir_comparacion: bool = True
+        incluir_comparacion: bool = True,
+        local_id: Optional[UUID] = None
     ) -> KPIDashboard:
         """
         Obtiene los KPIs principales del dashboard.
@@ -78,7 +80,8 @@ class IDashboardRepository(ABC):
         self, 
         fecha_inicio: date, 
         fecha_fin: date,
-        agrupacion: str = "mes"
+        agrupacion: str = "mes",
+        local_id: Optional[UUID] = None
     ) -> List[VentasPorPeriodo]:
         """
         Obtiene ventas agrupadas por período.
@@ -98,7 +101,8 @@ class IDashboardRepository(ABC):
         self, 
         fecha_inicio: date, 
         fecha_fin: date,
-        limite: int = 10
+        limite: int = 10,
+        local_id: Optional[UUID] = None
     ) -> List[ProductoTopVentas]:
         """
         Obtiene los productos más vendidos.
@@ -118,7 +122,8 @@ class IDashboardRepository(ABC):
         self, 
         fecha_inicio: date, 
         fecha_fin: date,
-        limite: int = 10
+        limite: int = 10,
+        local_id: Optional[UUID] = None
     ) -> List[ClienteTopVentas]:
         """
         Obtiene los clientes con más compras.

@@ -106,7 +106,7 @@ class TestSQLUserRepository:
         created_user = await user_repository.create(sample_user_data)
         
         # Act
-        found_user = await user_repository.get_by_id(created_user.id)
+        found_user = await user_repository.get_by_id_async(created_user.id)
         
         # Assert
         assert found_user is not None
@@ -119,7 +119,7 @@ class TestSQLUserRepository:
         Prueba que retorna None cuando no se encuentra un usuario por ID.
         """
         # Act
-        found_user = await user_repository.get_by_id(uuid4())
+        found_user = await user_repository.get_by_id_async(uuid4())
         
         # Assert
         assert found_user is None
@@ -271,7 +271,7 @@ class TestSQLUserRepository:
         assert result is True
         
         # Verificar que el usuario ya no es encontrado en búsquedas normales
-        found_user = await user_repository.get_by_id(created_user.id)
+        found_user = await user_repository.get_by_id_async(created_user.id)
         assert found_user is None
     
     @pytest.mark.asyncio

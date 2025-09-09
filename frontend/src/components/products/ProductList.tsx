@@ -156,18 +156,21 @@ const ProductList: React.FC<ProductListProps> = ({
       ),
     },
     {
-      field: 'stock',
+      field: 'stock_local_actual',
       headerName: 'Stock',
       width: 100,
       type: 'number',
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          color={getStockColor(params.value)}
-          size="small"
-          icon={params.value === 0 ? <Warning /> : undefined}
-        />
-      ),
+      renderCell: (params) => {
+        const stockValue = params.value ?? 0;
+        return (
+          <Chip
+            label={stockValue}
+            color={getStockColor(stockValue)}
+            size="small"
+            icon={stockValue === 0 ? <Warning /> : undefined}
+          />
+        );
+      },
     },
     {
       field: 'is_active',

@@ -121,9 +121,9 @@ const MovementForm: React.FC<MovementFormProps> = ({
     if (
       formData.tipo_movimiento === MovementType.SALIDA &&
       selectedProduct &&
-      formData.cantidad > selectedProduct.stock
+      formData.cantidad > (selectedProduct.stock_local_actual ?? 0)
     ) {
-      errors.cantidad = `Stock insuficiente. Disponible: ${selectedProduct.stock}`;
+      errors.cantidad = `Stock insuficiente. Disponible: ${selectedProduct.stock_local_actual ?? 0}`;
     }
 
     setFormErrors(errors);
@@ -312,7 +312,7 @@ const MovementForm: React.FC<MovementFormProps> = ({
                         <strong>{option.sku}</strong> - {option.nombre}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Stock actual: {option.stock} | Precio: {formatCurrency(option.precio_publico)}
+                        Stock actual: {option.stock_local_actual ?? 0} | Precio: {formatCurrency(option.precio_publico)}
                       </Typography>
                     </Box>
                   </li>
@@ -333,7 +333,7 @@ const MovementForm: React.FC<MovementFormProps> = ({
                   }}
                 >
                   <Typography variant="body2" color="text.secondary">
-                    <strong>Stock Actual:</strong> {selectedProduct.stock} unidades |
+                    <strong>Stock Actual:</strong> {selectedProduct.stock_local_actual ?? 0} unidades |
                     <strong> Precio Base:</strong> {formatCurrency(selectedProduct.precio_base)} |
                     <strong> Precio Público:</strong> {formatCurrency(selectedProduct.precio_publico)}
                   </Typography>

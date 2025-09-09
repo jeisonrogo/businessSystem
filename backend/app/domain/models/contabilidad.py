@@ -54,6 +54,15 @@ class CuentaContable(SQLModel, table=True):
                                      description="Tipo de cuenta contable")
     cuenta_padre_id: Optional[UUID] = SQLField(default=None, foreign_key="cuentas_contables.id",
                                               description="ID de la cuenta padre (subcuentas)")
+    
+    # Multi-tenant: cada cuenta pertenece a una tienda
+    tienda_id: Optional[UUID] = SQLField(
+        default=None,
+        foreign_key="tiendas.id",
+        index=True,
+        description="ID de la tienda a la que pertenece la cuenta"
+    )
+    
     is_active: bool = SQLField(default=True, description="Estado activo de la cuenta")
     created_at: datetime = SQLField(default_factory=lambda: datetime.now(UTC))
     
@@ -63,6 +72,7 @@ class CuentaContable(SQLModel, table=True):
         back_populates="subcuentas",
         sa_relationship_kwargs={"remote_side": "CuentaContable.id"}
     )
+    tienda: Optional["Tienda"] = Relationship(back_populates="cuentas_contables")
 
 
 class AsientoContable(SQLModel, table=True):
@@ -87,10 +97,20 @@ class AsientoContable(SQLModel, table=True):
     total_credito: Decimal = SQLField(sa_column=Column(DECIMAL(15, 2)), default=Decimal("0.00"))
     is_balanced: bool = SQLField(default=False, description="Si el asiento está balanceado")
     created_by: Optional[UUID] = SQLField(foreign_key="users.id", description="Usuario que creó el asiento")
+    
+    # Multi-tenant: cada asiento pertenece a una tienda
+    tienda_id: Optional[UUID] = SQLField(
+        default=None,
+        foreign_key="tiendas.id",
+        index=True,
+        description="ID de la tienda a la que pertenece el asiento"
+    )
+    
     created_at: datetime = SQLField(default_factory=lambda: datetime.now(UTC))
     
     # Relaciones
     detalles: List["DetalleAsiento"] = Relationship(back_populates="asiento", cascade_delete=True)
+    tienda: Optional["Tienda"] = Relationship()
 
 
 class DetalleAsiento(SQLModel, table=True):

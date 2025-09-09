@@ -44,6 +44,8 @@ from app.domain.models.dashboard import (
 
 from app.infrastructure.database.session import get_session
 from app.infrastructure.repositories.dashboard_repository import SQLDashboardRepository
+from app.infrastructure.middleware.tenant_middleware import get_tenant_context
+from app.domain.models.tenant_context import TenantContext
 
 
 router = APIRouter()
@@ -122,23 +124,28 @@ async def get_dashboard_completo(
     response_model=MetricasRapidas,
     status_code=status.HTTP_200_OK,
     summary="Obtener métricas rápidas",
-    description="Obtiene métricas rápidas para widgets pequeños del dashboard."
+    description="Obtiene métricas rápidas para widgets pequeños del dashboard filtradas por local."
 )
 async def get_metricas_rapidas(
-    dashboard_repository: SQLDashboardRepository = Depends(get_dashboard_repository)
+    dashboard_repository: SQLDashboardRepository = Depends(get_dashboard_repository),
+    tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
-    Obtiene métricas rápidas para widgets pequeños.
+    Obtiene métricas rápidas para widgets pequeños filtradas por el local seleccionado.
     
     Incluye:
-    - Ventas de hoy y del mes
-    - Facturas pendientes de pago
-    - Productos con stock crítico
-    - Nuevos clientes del mes
+    - Ventas de hoy y del mes del local
+    - Facturas pendientes de pago del local
+    - Productos con stock crítico del local
+    - Nuevos clientes del mes (a nivel global)
+    
+    NOTA: Requiere contexto de local seleccionado para mostrar métricas específicas.
     """
     try:
         use_case = GetMetricasRapidasUseCase(dashboard_repository)
-        metricas = await use_case.execute()
+        # Pasar local_id si hay contexto de local específico
+        local_id = tenant_context.local_id if tenant_context.tiene_contexto_local else None
+        metricas = await use_case.execute(local_id)
         return metricas
         
     except DashboardError as e:
@@ -156,7 +163,8 @@ async def get_kpis_principales(
     fecha_inicio: date = Query(description="Fecha de inicio del período"),
     fecha_fin: date = Query(description="Fecha de fin del período"),
     incluir_comparacion: bool = Query(True, description="Incluir comparación con período anterior"),
-    dashboard_repository: SQLDashboardRepository = Depends(get_dashboard_repository)
+    dashboard_repository: SQLDashboardRepository = Depends(get_dashboard_repository),
+    tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
     Obtiene los KPIs principales del dashboard.
@@ -168,8 +176,11 @@ async def get_kpis_principales(
     - Contabilidad y finanzas
     """
     try:
+        # Determinar local_id basado en el contexto
+        filter_local_id = tenant_context.local_id if tenant_context.tiene_contexto_local else None
+        
         use_case = GetKPIsPrincipalesUseCase(dashboard_repository)
-        kpis = await use_case.execute(fecha_inicio, fecha_fin, incluir_comparacion)
+        kpis = await use_case.execute(fecha_inicio, fecha_fin, incluir_comparacion, filter_local_id)
         return kpis
         
     except PeriodoInvalidoError as e:
@@ -189,7 +200,8 @@ async def get_ventas_por_periodo(
     fecha_inicio: date = Query(description="Fecha de inicio del período"),
     fecha_fin: date = Query(description="Fecha de fin del período"),
     agrupacion: str = Query("mes", pattern="^(dia|semana|mes|trimestre)$", description="Tipo de agrupación"),
-    dashboard_repository: SQLDashboardRepository = Depends(get_dashboard_repository)
+    dashboard_repository: SQLDashboardRepository = Depends(get_dashboard_repository),
+    tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
     Obtiene ventas agrupadas por período.
@@ -198,8 +210,11 @@ async def get_ventas_por_periodo(
     - Útil para generar gráficos de líneas de tendencias de ventas
     """
     try:
+        # Determinar local_id basado en el contexto
+        filter_local_id = tenant_context.local_id if tenant_context.tiene_contexto_local else None
+        
         use_case = GetVentasPorPeriodoUseCase(dashboard_repository)
-        ventas = await use_case.execute(fecha_inicio, fecha_fin, agrupacion)
+        ventas = await use_case.execute(fecha_inicio, fecha_fin, agrupacion, filter_local_id)
         return ventas
         
     except PeriodoInvalidoError as e:
@@ -221,7 +236,8 @@ async def get_productos_top_ventas(
     fecha_inicio: date = Query(description="Fecha de inicio del período"),
     fecha_fin: date = Query(description="Fecha de fin del período"),
     limite: int = Query(10, ge=1, le=50, description="Número máximo de productos (1-50)"),
-    dashboard_repository: SQLDashboardRepository = Depends(get_dashboard_repository)
+    dashboard_repository: SQLDashboardRepository = Depends(get_dashboard_repository),
+    tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
     Obtiene el ranking de productos más vendidos.
@@ -231,8 +247,11 @@ async def get_productos_top_ventas(
     - Útil para análisis de productos y decisiones de inventario
     """
     try:
+        # Determinar local_id basado en el contexto
+        filter_local_id = tenant_context.local_id if tenant_context.tiene_contexto_local else None
+        
         use_case = GetProductosTopVentasUseCase(dashboard_repository)
-        productos = await use_case.execute(fecha_inicio, fecha_fin, limite)
+        productos = await use_case.execute(fecha_inicio, fecha_fin, limite, filter_local_id)
         return productos
         
     except PeriodoInvalidoError as e:
@@ -254,7 +273,8 @@ async def get_clientes_top_ventas(
     fecha_inicio: date = Query(description="Fecha de inicio del período"),
     fecha_fin: date = Query(description="Fecha de fin del período"),
     limite: int = Query(10, ge=1, le=50, description="Número máximo de clientes (1-50)"),
-    dashboard_repository: SQLDashboardRepository = Depends(get_dashboard_repository)
+    dashboard_repository: SQLDashboardRepository = Depends(get_dashboard_repository),
+    tenant_context: TenantContext = Depends(get_tenant_context)
 ):
     """
     Obtiene el ranking de mejores clientes.
@@ -264,8 +284,11 @@ async def get_clientes_top_ventas(
     - Útil para estrategias de fidelización y marketing
     """
     try:
+        # Determinar local_id basado en el contexto
+        filter_local_id = tenant_context.local_id if tenant_context.tiene_contexto_local else None
+        
         use_case = GetClientesTopVentasUseCase(dashboard_repository)
-        clientes = await use_case.execute(fecha_inicio, fecha_fin, limite)
+        clientes = await use_case.execute(fecha_inicio, fecha_fin, limite, filter_local_id)
         return clientes
         
     except PeriodoInvalidoError as e:

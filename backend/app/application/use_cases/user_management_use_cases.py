@@ -44,7 +44,8 @@ class ListUsersUseCase:
         limit: int = 50,
         search: Optional[str] = None,
         role: Optional[str] = None,
-        is_active: Optional[bool] = None
+        is_active: Optional[bool] = None,
+        tienda_id: Optional[UUID] = None
     ) -> List[UserRead]:
         """
         Listar usuarios con filtros aplicados.
@@ -55,6 +56,7 @@ class ListUsersUseCase:
             search: Texto para buscar en nombre y email
             role: Filtrar por rol específico
             is_active: Filtrar por estado activo
+            tienda_id: Filtrar por tienda específica (para multi-tenant)
             
         Returns:
             List[UserRead]: Lista de usuarios filtrados
@@ -65,7 +67,8 @@ class ListUsersUseCase:
                 limit=limit,
                 search=search,
                 role=role,
-                is_active=is_active
+                is_active=is_active,
+                tienda_id=tienda_id
             )
             
             return [
@@ -74,6 +77,8 @@ class ListUsersUseCase:
                     email=user.email,
                     nombre=user.nombre,
                     rol=user.rol,
+                    tienda_id=user.tienda_id,
+                    local_principal_id=user.local_principal_id,
                     created_at=user.created_at,
                     is_active=user.is_active
                 )
@@ -83,15 +88,26 @@ class ListUsersUseCase:
         except Exception as e:
             raise Exception(f"Error al listar usuarios: {str(e)}")
     
-    async def get_user_statistics(self) -> Dict[str, Any]:
+    async def get_user_statistics(self, tienda_id: Optional[UUID] = None) -> Dict[str, Any]:
         """
         Obtener estadísticas generales de usuarios.
         
+        Args:
+            tienda_id: Filtrar estadísticas por tienda específica
+            
         Returns:
             Dict con estadísticas de usuarios
         """
         try:
-            all_users = await self.user_repository.get_all()
+            if tienda_id:
+                # Obtener usuarios filtrados por tienda
+                all_users = await self.user_repository.list_with_filters(
+                    page=1,
+                    limit=1000,  # Obtener todos los usuarios de la tienda
+                    tienda_id=tienda_id
+                )
+            else:
+                all_users = await self.user_repository.get_all()
             
             total_users = len(all_users)
             active_users = len([u for u in all_users if u.is_active])
@@ -130,7 +146,7 @@ class GetUserByIdUseCase:
             UserNotFoundError: Si el usuario no existe
         """
         try:
-            user = await self.user_repository.get_by_id(user_id)
+            user = await self.user_repository.get_by_id_async(user_id)
             if not user:
                 raise UserNotFoundError(f"Usuario con ID {user_id} no encontrado")
             
@@ -139,6 +155,8 @@ class GetUserByIdUseCase:
                 email=user.email,
                 nombre=user.nombre,
                 rol=user.rol,
+                tienda_id=user.tienda_id,
+                local_principal_id=user.local_principal_id,
                 created_at=user.created_at,
                 is_active=user.is_active
             )
@@ -187,6 +205,8 @@ class CreateUserUseCase:
                 email=user.email,
                 nombre=user.nombre,
                 rol=user.rol,
+                tienda_id=user.tienda_id,
+                local_principal_id=user.local_principal_id,
                 created_at=user.created_at,
                 is_active=user.is_active
             )
@@ -221,7 +241,7 @@ class UpdateUserUseCase:
         """
         try:
             # Verificar que el usuario existe
-            existing_user = await self.user_repository.get_by_id(user_id)
+            existing_user = await self.user_repository.get_by_id_async(user_id)
             if not existing_user:
                 raise UserNotFoundError(f"Usuario con ID {user_id} no encontrado")
             
@@ -243,6 +263,8 @@ class UpdateUserUseCase:
                 email=updated_user.email,
                 nombre=updated_user.nombre,
                 rol=updated_user.rol,
+                tienda_id=updated_user.tienda_id,
+                local_principal_id=updated_user.local_principal_id,
                 created_at=updated_user.created_at,
                 is_active=updated_user.is_active
             )
@@ -276,7 +298,7 @@ class DeleteUserUseCase:
         """
         try:
             # Verificar que el usuario existe
-            user = await self.user_repository.get_by_id(user_id)
+            user = await self.user_repository.get_by_id_async(user_id)
             if not user:
                 raise UserNotFoundError(f"Usuario con ID {user_id} no encontrado")
             
@@ -318,7 +340,7 @@ class ChangeUserPasswordUseCase:
         """
         try:
             # Verificar que el usuario existe
-            user = await self.user_repository.get_by_id(user_id)
+            user = await self.user_repository.get_by_id_async(user_id)
             if not user:
                 raise UserNotFoundError(f"Usuario con ID {user_id} no encontrado")
             

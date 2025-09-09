@@ -32,16 +32,17 @@ import {
 } from '@mui/material';
 import {
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Search as SearchIcon,
   PersonOff as PersonOffIcon,
   PersonAdd as PersonAddIcon,
   VpnKey as VpnKeyIcon,
-  FilterList as FilterIcon
+  FilterList as FilterIcon,
+  Store as StoreIcon
 } from '@mui/icons-material';
 
 import { User, usersService, USER_ROLES } from '../../services/usersService';
 import ChangePasswordDialog from './ChangePasswordDialog';
+import LocalAssignmentDialog from './LocalAssignmentDialog';
 
 interface UsersListProps {
   users: User[];
@@ -63,6 +64,8 @@ const UsersList: React.FC<UsersListProps> = ({
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [changePasswordDialogOpen, setChangePasswordDialogOpen] = useState(false);
   const [userToChangePassword, setUserToChangePassword] = useState<User | null>(null);
+  const [localAssignmentDialogOpen, setLocalAssignmentDialogOpen] = useState(false);
+  const [userToManageLocals, setUserToManageLocals] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,6 +126,17 @@ const UsersList: React.FC<UsersListProps> = ({
   const handlePasswordChanged = () => {
     setChangePasswordDialogOpen(false);
     setUserToChangePassword(null);
+    onRefresh();
+  };
+
+  const handleManageLocalsClick = (user: User) => {
+    setUserToManageLocals(user);
+    setLocalAssignmentDialogOpen(true);
+  };
+
+  const handleLocalAssignmentSaved = () => {
+    setLocalAssignmentDialogOpen(false);
+    setUserToManageLocals(null);
     onRefresh();
   };
 
@@ -207,6 +221,7 @@ const UsersList: React.FC<UsersListProps> = ({
               <TableCell>Usuario</TableCell>
               <TableCell>Email</TableCell>
               <TableCell>Rol</TableCell>
+              <TableCell>Locales Asignados</TableCell>
               <TableCell>Estado</TableCell>
               <TableCell>Fecha Creación</TableCell>
               <TableCell align="center">Acciones</TableCell>
@@ -251,6 +266,23 @@ const UsersList: React.FC<UsersListProps> = ({
                 </TableCell>
 
                 <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <StoreIcon fontSize="small" color="action" />
+                    <Typography variant="body2">
+                      {user.total_locales_asignados || 0} local(es)
+                    </Typography>
+                    {user.total_locales_asignados && user.total_locales_asignados > 0 && (
+                      <Chip
+                        label="Asignado"
+                        color="success"
+                        size="small"
+                        variant="outlined"
+                      />
+                    )}
+                  </Box>
+                </TableCell>
+
+                <TableCell>
                   <Chip
                     label={user.is_active ? 'Activo' : 'Inactivo'}
                     color={user.is_active ? 'success' : 'error'}
@@ -287,6 +319,17 @@ const UsersList: React.FC<UsersListProps> = ({
                       </IconButton>
                     </Tooltip>
 
+                    <Tooltip title="Gestionar locales">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleManageLocalsClick(user)}
+                        disabled={loading}
+                        color="info"
+                      >
+                        <StoreIcon />
+                      </IconButton>
+                    </Tooltip>
+
                     {user.is_active ? (
                       <Tooltip title="Desactivar usuario">
                         <IconButton
@@ -317,7 +360,7 @@ const UsersList: React.FC<UsersListProps> = ({
 
             {filteredUsers.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} sx={{ textAlign: 'center', py: 4 }}>
+                <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
                   <Typography variant="body1" color="text.secondary">
                     No se encontraron usuarios que coincidan con los filtros aplicados
                   </Typography>
@@ -370,6 +413,14 @@ const UsersList: React.FC<UsersListProps> = ({
           user={userToChangePassword}
         />
       )}
+
+      {/* Dialog de gestión de locales */}
+      <LocalAssignmentDialog
+        open={localAssignmentDialogOpen}
+        onClose={() => setLocalAssignmentDialogOpen(false)}
+        onSave={handleLocalAssignmentSaved}
+        user={userToManageLocals}
+      />
     </Box>
   );
 };

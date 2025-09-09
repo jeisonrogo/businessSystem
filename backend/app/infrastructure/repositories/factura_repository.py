@@ -34,14 +34,14 @@ class SQLFacturaRepository(IFacturaRepository):
     def __init__(self, session: Session):
         self.session = session
 
-    async def create(self, factura_data: FacturaCreate, created_by: Optional[UUID] = None) -> Factura:
+    async def create(self, factura_data: FacturaCreate, created_by: Optional[UUID] = None, local_id: Optional[UUID] = None) -> Factura:
         """Crear una nueva factura con sus detalles."""
         try:
             # Generar número consecutivo
             numero_factura = await self.generar_numero_consecutivo()
             
             # Validar stock disponible para todos los productos
-            await self._validar_stock_productos(factura_data.detalles)
+            await self._validar_stock_productos(factura_data.detalles, local_id)
             
             # Calcular totales de la factura
             totales = calcular_totales_factura(factura_data.detalles)
@@ -57,7 +57,8 @@ class SQLFacturaRepository(IFacturaRepository):
                 'total_factura': totales['total_factura'],
                 'estado': EstadoFactura.EMITIDA,  # Las facturas se crean emitidas
                 'created_by': created_by,
-                'created_at': datetime.now(UTC)
+                'created_at': datetime.now(UTC),
+                'local_id': local_id  # Asignar el local_id a la factura
             })
             
             factura = Factura(**factura_dict)
@@ -89,7 +90,7 @@ class SQLFacturaRepository(IFacturaRepository):
                 detalles_creados.append(detalle)
                 
                 # Actualizar stock del producto
-                await self._actualizar_stock_producto(producto.id, detalle_data.cantidad)
+                await self._actualizar_stock_producto(producto.id, detalle_data.cantidad, local_id, created_by, factura.numero_factura)
             
             self.session.commit()
             
@@ -135,7 +136,8 @@ class SQLFacturaRepository(IFacturaRepository):
         tipo_factura: Optional[TipoFactura] = None,
         fecha_desde: Optional[date] = None,
         fecha_hasta: Optional[date] = None,
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        local_id: Optional[UUID] = None
     ) -> List[Factura]:
         """Obtener lista paginada de facturas con filtros opcionales."""
         statement = (
@@ -167,6 +169,9 @@ class SQLFacturaRepository(IFacturaRepository):
         if fecha_hasta:
             conditions.append(Factura.fecha_emision <= fecha_hasta)
         
+        if local_id:
+            conditions.append(Factura.local_id == local_id)
+        
         if search:
             # Buscar en número de factura y datos del cliente
             from app.domain.models.facturacion import Cliente
@@ -185,7 +190,7 @@ class SQLFacturaRepository(IFacturaRepository):
         result = self.session.exec(statement)
         return list(result.all())
 
-    async def update(self, factura_id: UUID, factura_data: FacturaUpdate) -> Optional[Factura]:
+    async def update(self, factura_id: UUID, factura_data: FacturaUpdate, local_id: Optional[UUID] = None, updated_by: Optional[UUID] = None) -> Optional[Factura]:
         """Actualizar una factura existente."""
         try:
             # Verificar que la factura existe y se puede actualizar
@@ -208,10 +213,10 @@ class SQLFacturaRepository(IFacturaRepository):
                 
                 # 2. Revertir stock usando solo los datos (no los objetos ORM)
                 for producto_id, cantidad in detalles_old_data:
-                    await self._revertir_stock_producto(producto_id, cantidad)
+                    await self._revertir_stock_producto(producto_id, cantidad, local_id)
                 
                 # 3. Validar stock disponible para todos los nuevos productos
-                await self._validar_stock_productos(factura_data.detalles)
+                await self._validar_stock_productos(factura_data.detalles, local_id)
                 
                 # 4. Eliminar detalles antiguos usando SQL directo
                 from sqlmodel import delete
@@ -270,7 +275,7 @@ class SQLFacturaRepository(IFacturaRepository):
                         nuevos_detalles.append(detalle)
                         
                         # Actualizar stock del producto
-                        await self._actualizar_stock_producto(producto.id, detalle_data.cantidad)
+                        await self._actualizar_stock_producto(producto.id, detalle_data.cantidad, local_id, updated_by, factura.numero_factura)
                         
                     except Exception as detalle_error:
                         # Si falla la creación de cualquier detalle, hacer rollback completo
@@ -330,7 +335,7 @@ class SQLFacturaRepository(IFacturaRepository):
             self.session.rollback()
             raise ValueError(f"Error al actualizar la factura: {str(e)}")
 
-    async def delete(self, factura_id: UUID) -> bool:
+    async def delete(self, factura_id: UUID, local_id: Optional[UUID] = None, usuario_id: Optional[UUID] = None) -> bool:
         """Anular una factura."""
         try:
             factura = await self.get_by_id(factura_id)
@@ -340,9 +345,15 @@ class SQLFacturaRepository(IFacturaRepository):
             if factura.estado == EstadoFactura.ANULADA:
                 raise ValueError("La factura ya está anulada")
             
-            # Revertir stock de los productos
+            # Revertir stock de los productos usando el local_id de la factura
             for detalle in factura.detalles:
-                await self._revertir_stock_producto(detalle.producto_id, detalle.cantidad)
+                await self._revertir_stock_producto(
+                    detalle.producto_id, 
+                    detalle.cantidad, 
+                    factura.local_id, 
+                    usuario_id, 
+                    factura.numero_factura
+                )
             
             # Cambiar estado a anulada
             factura.estado = EstadoFactura.ANULADA
@@ -364,7 +375,8 @@ class SQLFacturaRepository(IFacturaRepository):
         tipo_factura: Optional[TipoFactura] = None,
         fecha_desde: Optional[date] = None,
         fecha_hasta: Optional[date] = None,
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        local_id: Optional[UUID] = None
     ) -> int:
         """Contar el número total de facturas que cumplen los criterios."""
         statement = select(func.count(Factura.id))
@@ -386,6 +398,9 @@ class SQLFacturaRepository(IFacturaRepository):
         
         if fecha_hasta:
             conditions.append(Factura.fecha_emision <= fecha_hasta)
+        
+        if local_id:
+            conditions.append(Factura.local_id == local_id)
         
         if search:
             from app.domain.models.facturacion import Cliente
@@ -723,17 +738,28 @@ class SQLFacturaRepository(IFacturaRepository):
 
     # Métodos auxiliares privados
     
-    async def _validar_stock_productos(self, detalles: List[DetalleFacturaCreate]) -> None:
-        """Validar que hay suficiente stock para todos los productos."""
+    async def _validar_stock_productos(self, detalles: List[DetalleFacturaCreate], local_id: Optional[UUID] = None) -> None:
+        """Validar que hay suficiente stock para todos los productos en el local especificado."""
+        if not local_id:
+            # CRÍTICO: La validación de stock requiere un local específico
+            raise ValueError("Se requiere seleccionar un local para validar el stock de los productos")
+            
+        from app.infrastructure.repositories.stock_local_repository import StockLocalRepository
+        stock_repo = StockLocalRepository(self.session)
+        
         for detalle in detalles:
             producto = await self._get_producto(detalle.producto_id)
             if not producto:
                 raise ValueError(f"Producto {detalle.producto_id} no encontrado")
             
-            if producto.stock < detalle.cantidad:
+            # Verificar stock en el local específico
+            stock_local = stock_repo.get_by_producto_and_local(detalle.producto_id, local_id)
+            stock_disponible = stock_local.cantidad if stock_local else 0
+            
+            if stock_disponible < detalle.cantidad:
                 raise ValueError(
-                    f"Stock insuficiente para {producto.nombre}. "
-                    f"Disponible: {producto.stock}, Solicitado: {detalle.cantidad}"
+                    f"Stock insuficiente para {producto.nombre} en este local. "
+                    f"Disponible: {stock_disponible}, Solicitado: {detalle.cantidad}"
                 )
 
     async def _get_producto(self, producto_id: UUID) -> Optional[Product]:
@@ -742,19 +768,136 @@ class SQLFacturaRepository(IFacturaRepository):
         result = self.session.exec(statement)
         return result.first()
 
-    async def _actualizar_stock_producto(self, producto_id: UUID, cantidad_vendida: int) -> None:
-        """Actualizar el stock de un producto después de una venta."""
+    async def _actualizar_stock_producto(self, producto_id: UUID, cantidad_vendida: int, local_id: Optional[UUID] = None, usuario_id: Optional[UUID] = None, numero_factura: Optional[str] = None) -> None:
+        """Actualizar el stock de un producto después de una venta en el local especificado."""
+        if not local_id:
+            # CRÍTICO: La actualización de stock requiere un local específico
+            raise ValueError("Se requiere seleccionar un local para actualizar el stock del producto")
+            
+        from app.infrastructure.repositories.stock_local_repository import StockLocalRepository
+        from app.infrastructure.repositories.inventario_repository import SQLInventarioRepository
+        from app.infrastructure.repositories.product_repository import SQLProductRepository
+        from app.domain.models.stock_local import StockLocalCreate
+        from app.domain.models.movimiento_inventario import TipoMovimiento, MovimientoInventarioCreate
+        
+        stock_repo = StockLocalRepository(self.session)
+        product_repo = SQLProductRepository(self.session)
+        inventario_repo = SQLInventarioRepository(self.session, product_repo, stock_repo)
+        
+        # Obtener información del producto para el movimiento
         producto = await self._get_producto(producto_id)
-        if producto:
-            producto.stock -= cantidad_vendida
-            self.session.add(producto)
+        if not producto:
+            raise ValueError(f"Producto {producto_id} no encontrado")
+            
+        stock_local = stock_repo.get_by_producto_and_local(producto_id, local_id)
+        stock_anterior = stock_local.cantidad if stock_local else 0
+        
+        if stock_local:
+            # Reducir el stock existente
+            nueva_cantidad = stock_local.cantidad - cantidad_vendida
+            if nueva_cantidad < 0:
+                raise ValueError(f"No se puede reducir el stock por debajo de 0. Stock actual: {stock_local.cantidad}, Cantidad solicitada: {cantidad_vendida}")
+            stock_repo.actualizar_stock(
+                producto_id, 
+                local_id, 
+                nueva_cantidad,
+                usuario_id=usuario_id
+            )
+        else:
+            # No hay stock en este local, crear un registro con stock negativo para auditoría
+            # En un sistema real, esto podría no permitirse
+            stock_create = StockLocalCreate(
+                local_id=local_id,
+                producto_id=producto_id,
+                cantidad=-cantidad_vendida,  # Negativo porque no había stock inicial
+                stock_minimo=0,
+                stock_maximo=None,
+                costo_promedio=producto.precio_base if producto else 0
+            )
+            stock_repo.create(stock_create)
+        
+        # CRÍTICO: Crear el movimiento de inventario para el kardex
+        stock_posterior = stock_anterior - cantidad_vendida
+        movimiento_data = MovimientoInventarioCreate(
+            producto_id=producto_id,
+            local_id=local_id,
+            tipo_movimiento=TipoMovimiento.SALIDA,
+            cantidad=cantidad_vendida,
+            precio_unitario=producto.precio_publico,
+            costo_unitario=producto.precio_base,
+            stock_anterior=stock_anterior,
+            stock_posterior=stock_posterior,
+            referencia=f"Venta - Factura {numero_factura}" if numero_factura else "Venta - Factura en proceso",
+            observaciones=f"Venta de producto según factura {numero_factura}" if numero_factura else "Venta de producto según factura",
+            created_by=usuario_id
+        )
+        
+        # Crear el movimiento de inventario (skip_stock_update=True porque ya actualizamos el stock arriba)
+        await inventario_repo.create_movimiento(movimiento_data, created_by=usuario_id, skip_stock_update=True)
 
-    async def _revertir_stock_producto(self, producto_id: UUID, cantidad_devolver: int) -> None:
-        """Revertir el stock de un producto (usado en anulaciones)."""
+    async def _revertir_stock_producto(self, producto_id: UUID, cantidad_devolver: int, local_id: Optional[UUID] = None, usuario_id: Optional[UUID] = None, numero_factura: Optional[str] = None) -> None:
+        """Revertir el stock de un producto (usado en anulaciones) en el local especificado."""
+        if not local_id:
+            # CRÍTICO: La reversión de stock requiere un local específico
+            raise ValueError("Se requiere seleccionar un local para revertir el stock del producto")
+            
+        from app.infrastructure.repositories.stock_local_repository import StockLocalRepository
+        from app.infrastructure.repositories.inventario_repository import SQLInventarioRepository
+        from app.infrastructure.repositories.product_repository import SQLProductRepository
+        from app.domain.models.stock_local import StockLocalCreate
+        from app.domain.models.movimiento_inventario import TipoMovimiento, MovimientoInventarioCreate
+        
+        stock_repo = StockLocalRepository(self.session)
+        product_repo = SQLProductRepository(self.session)
+        inventario_repo = SQLInventarioRepository(self.session, product_repo, stock_repo)
+        
+        # Obtener información del producto
         producto = await self._get_producto(producto_id)
-        if producto:
-            producto.stock += cantidad_devolver
-            self.session.add(producto)
+        if not producto:
+            raise ValueError(f"Producto {producto_id} no encontrado")
+        
+        stock_local = stock_repo.get_by_producto_and_local(producto_id, local_id)
+        stock_anterior = stock_local.cantidad if stock_local else 0
+        
+        if stock_local:
+            # Aumentar el stock existente
+            nueva_cantidad = stock_local.cantidad + cantidad_devolver
+            stock_repo.actualizar_stock(
+                producto_id, 
+                local_id, 
+                nueva_cantidad,
+                usuario_id=usuario_id
+            )
+        else:
+            # No existe stock en este local, crear un nuevo registro con la cantidad devuelta
+            stock_create = StockLocalCreate(
+                local_id=local_id,
+                producto_id=producto_id,
+                cantidad=cantidad_devolver,
+                stock_minimo=0,
+                stock_maximo=None,
+                costo_promedio=producto.precio_base if producto else 0
+            )
+            stock_repo.create(stock_create)
+        
+        # CRÍTICO: Crear el movimiento de inventario para el kardex (reversión = entrada)
+        stock_posterior = stock_anterior + cantidad_devolver
+        movimiento_data = MovimientoInventarioCreate(
+            producto_id=producto_id,
+            local_id=local_id,
+            tipo_movimiento=TipoMovimiento.ENTRADA,  # Reversión es una entrada
+            cantidad=cantidad_devolver,
+            precio_unitario=producto.precio_publico,
+            costo_unitario=producto.precio_base,
+            stock_anterior=stock_anterior,
+            stock_posterior=stock_posterior,
+            referencia=f"Anulación - Factura {numero_factura}" if numero_factura else "Anulación - Factura",
+            observaciones=f"Reversión por anulación de factura {numero_factura}" if numero_factura else "Reversión por anulación de factura",
+            created_by=usuario_id
+        )
+        
+        # Crear el movimiento de inventario (skip_stock_update=True porque ya actualizamos el stock arriba)
+        await inventario_repo.create_movimiento(movimiento_data, created_by=usuario_id, skip_stock_update=True)
 
     def _calcular_totales_detalle(self, detalle: DetalleFacturaCreate) -> dict:
         """Calcular los totales de un detalle de factura."""

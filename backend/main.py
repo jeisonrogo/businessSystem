@@ -50,48 +50,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Crear una instancia singleton del servicio de contexto de tenant
-# que será inicializada durante el startup de la aplicación
-_tenant_service_instance = None
-
-def get_tenant_service() -> TenantContextService:
-    """Obtiene la instancia del servicio de contexto de tenant."""
-    global _tenant_service_instance
-    if _tenant_service_instance is None:
-        # Crear una sesión temporal para inicializar los repositorios
-        for session in get_session():
-            tienda_repo = TiendaRepository(session)
-            local_repo = LocalRepository(session)
-            usuario_local_repo = UsuarioLocalRepository(session)
-            
-            _tenant_service_instance = TenantContextService(
-                tienda_repository=tienda_repo,
-                local_repository=local_repo,
-                usuario_local_repository=usuario_local_repo
-            )
-            break
+def create_tenant_service_for_session(session) -> TenantContextService:
+    """Crea una instancia del servicio de contexto de tenant para una sesión específica."""
+    tienda_repo = TiendaRepository(session)
+    local_repo = LocalRepository(session)
+    usuario_local_repo = UsuarioLocalRepository(session)
     
-    return _tenant_service_instance
-
-# Configurar middleware con servicio lazy-loaded
-class LazyTenantContextMiddleware(TenantContextMiddleware):
-    """Middleware que carga el servicio de contexto de forma lazy."""
-    
-    def __init__(self, app, exclude_paths=None):
-        # No pasamos tenant_context_service en __init__
-        super().__init__(app, None, exclude_paths)
-    
-    async def dispatch(self, request, call_next):
-        # Obtener el servicio de forma lazy al procesar la primera request
-        if self.tenant_context_service is None:
-            self.tenant_context_service = get_tenant_service()
-        
-        return await super().dispatch(request, call_next)
+    return TenantContextService(
+        tienda_repository=tienda_repo,
+        local_repository=local_repo,
+        usuario_local_repository=usuario_local_repo
+    )
 
 # Configuración del middleware de contexto multi-tenant
-# Se ejecuta después de CORS pero antes de los endpoints  
 app.add_middleware(
-    LazyTenantContextMiddleware,
+    TenantContextMiddleware,
+    tenant_context_service=None,  # Se creará dinámicamente por request
     exclude_paths=[
         "/docs",
         "/redoc", 

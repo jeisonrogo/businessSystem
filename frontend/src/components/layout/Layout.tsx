@@ -36,6 +36,9 @@ import {
   SupervisorAccount,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { TenantIndicator } from '../tenant/TenantIndicator';
+import { TenantSwitcher } from '../tenant/TenantSwitcher';
+import { useTenant } from '../../context/TenantContext';
 
 const drawerWidth = 280;
 
@@ -91,8 +94,10 @@ const navigationItems: NavigationItem[] = [
 const Layout: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [showTenantSwitcher, setShowTenantSwitcher] = useState(false);
   
   const { user, logout } = useAuth();
+  const { showStoreSwitcher, setShowStoreSwitcher } = useTenant();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -176,6 +181,14 @@ const Layout: React.FC = () => {
             Sistema de Gestión Empresarial
           </Typography>
           
+          {/* Indicador de contexto multi-tenant */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mr: 2 }}>
+            <TenantIndicator 
+              variant="compact"
+              onSwitchClick={() => setShowTenantSwitcher(true)}
+            />
+          </Box>
+          
           {/* Información del usuario */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant="body2">
@@ -218,6 +231,15 @@ const Layout: React.FC = () => {
           </Menu>
         </Toolbar>
       </AppBar>
+      
+      {/* Selector de contexto multi-tenant */}
+      <TenantSwitcher 
+        open={showTenantSwitcher || showStoreSwitcher}
+        onClose={() => {
+          setShowTenantSwitcher(false);
+          setShowStoreSwitcher(false);
+        }}
+      />
 
       {/* Drawer */}
       <Box

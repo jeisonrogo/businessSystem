@@ -56,7 +56,7 @@ class TenantContext(BaseModel):
     )
     
     class Config:
-        use_enum_values = True
+        pass
 
     @property
     def tiene_contexto_local(self) -> bool:

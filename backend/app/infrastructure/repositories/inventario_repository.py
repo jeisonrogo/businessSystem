@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.application.services.i_inventario_repository import IInventarioRepository
 from app.application.services.i_product_repository import IProductRepository
+from app.application.services.i_stock_local_repository import IStockLocalRepository
 from app.domain.models.movimiento_inventario import (
     MovimientoInventario,
     MovimientoInventarioCreate,
@@ -35,14 +36,16 @@ class SQLInventarioRepository(IInventarioRepository):
     en IInventarioRepository, aplicando las reglas de negocio correspondientes.
     """
 
-    def __init__(self, session: Session, product_repository: IProductRepository):
+    def __init__(self, session: Session, product_repository: IProductRepository, stock_local_repository: Optional[IStockLocalRepository] = None):
         self.session = session
         self.product_repository = product_repository
+        self.stock_local_repository = stock_local_repository
 
     async def create_movimiento(
         self, 
         movimiento_data: MovimientoInventarioCreate,
-        created_by: Optional[UUID] = None
+        created_by: Optional[UUID] = None,
+        skip_stock_update: bool = False
     ) -> MovimientoInventario:
         """
         Crear un nuevo movimiento de inventario.
@@ -56,17 +59,25 @@ class SQLInventarioRepository(IInventarioRepository):
             if not producto:
                 raise ValueError(f"Producto con ID {movimiento_data.producto_id} no encontrado")
 
-            # Obtener stock actual
-            stock_anterior = await self.get_stock_actual(movimiento_data.producto_id)
+            # Usar valores de stock proporcionados si están disponibles (más preciso para multi-tenant)
+            # Si no se proporcionan, calcular desde movimientos
+            if movimiento_data.stock_anterior is not None:
+                stock_anterior = movimiento_data.stock_anterior
+            else:
+                stock_anterior = await self.get_stock_actual(movimiento_data.producto_id)
             
-            # Calcular stock posterior según tipo de movimiento
-            if movimiento_data.tipo_movimiento in [TipoMovimiento.ENTRADA, TipoMovimiento.AJUSTE]:
-                stock_posterior = stock_anterior + movimiento_data.cantidad
-            else:  # SALIDA, MERMA
-                stock_posterior = stock_anterior - movimiento_data.cantidad
-                
-                # Validar BR-01: Stock no puede ser negativo
-                if stock_posterior < 0:
+            if movimiento_data.stock_posterior is not None:
+                stock_posterior = movimiento_data.stock_posterior
+            else:
+                # Calcular stock posterior según tipo de movimiento
+                if movimiento_data.tipo_movimiento in [TipoMovimiento.ENTRADA, TipoMovimiento.AJUSTE]:
+                    stock_posterior = stock_anterior + movimiento_data.cantidad
+                else:  # SALIDA, MERMA
+                    stock_posterior = stock_anterior - movimiento_data.cantidad
+            
+            # Validar BR-01: Stock no puede ser negativo (solo si calculamos nosotros)
+            if movimiento_data.stock_posterior is None:
+                if movimiento_data.tipo_movimiento in [TipoMovimiento.SALIDA, TipoMovimiento.MERMA] and stock_posterior < 0:
                     raise ValueError(
                         f"Stock insuficiente. Stock actual: {stock_anterior}, "
                         f"cantidad solicitada: {movimiento_data.cantidad}"
@@ -95,23 +106,51 @@ class SQLInventarioRepository(IInventarioRepository):
                     costo_unitario = producto.precio_base
 
             # Crear el movimiento
-            movimiento = MovimientoInventario(
-                **movimiento_data.model_dump(),
-                stock_anterior=stock_anterior,
-                stock_posterior=stock_posterior,
-                costo_unitario=costo_unitario,
-                created_by=created_by
-            )
+            movimiento_dict = movimiento_data.model_dump()
+            # Usar el costo_unitario calculado si no se proporcionó uno en los datos
+            if movimiento_dict.get('costo_unitario') is None:
+                movimiento_dict['costo_unitario'] = costo_unitario
+            
+            # Usar los valores de stock calculados (pueden venir de los datos o calculados aquí)
+            movimiento_dict['stock_anterior'] = stock_anterior
+            movimiento_dict['stock_posterior'] = stock_posterior
+            movimiento_dict['created_by'] = created_by
+            
+            movimiento = MovimientoInventario(**movimiento_dict)
 
             self.session.add(movimiento)
             self.session.commit()
             self.session.refresh(movimiento)
 
-            # Actualizar stock del producto
-            await self.product_repository.update_stock(
-                movimiento_data.producto_id, 
-                stock_posterior
-            )
+            # Actualizar stock por local solo si no se solicita saltarlo
+            if not skip_stock_update and self.stock_local_repository and movimiento_data.local_id:
+                if movimiento_data.tipo_movimiento in [TipoMovimiento.ENTRADA, TipoMovimiento.AJUSTE]:
+                    # Para entradas, incrementar stock
+                    self.stock_local_repository.incrementar_stock(
+                        movimiento_data.producto_id,
+                        movimiento_data.local_id,
+                        movimiento_data.cantidad,
+                        costo_unitario,
+                        created_by
+                    )
+                elif movimiento_data.tipo_movimiento in [TipoMovimiento.SALIDA, TipoMovimiento.MERMA]:
+                    # Para salidas, decrementar stock
+                    self.stock_local_repository.decrementar_stock(
+                        movimiento_data.producto_id,
+                        movimiento_data.local_id,
+                        movimiento_data.cantidad,
+                        created_by
+                    )
+            elif not skip_stock_update:
+                # Si no hay repositorio de stock local, usar método legacy (solo para compatibilidad)
+                try:
+                    await self.product_repository.update_stock(
+                        movimiento_data.producto_id, 
+                        stock_posterior
+                    )
+                except Exception:
+                    # El stock global está obsoleto, continuar sin actualizar
+                    pass
 
             return movimiento
 
@@ -143,7 +182,8 @@ class SQLInventarioRepository(IInventarioRepository):
         limit: int = 100,
         tipo_movimiento: Optional[TipoMovimiento] = None,
         fecha_desde: Optional[datetime] = None,
-        fecha_hasta: Optional[datetime] = None
+        fecha_hasta: Optional[datetime] = None,
+        local_id: Optional[UUID] = None
     ) -> List[MovimientoInventario]:
         """Obtener movimientos de un producto específico (Kardex)."""
         try:
@@ -160,6 +200,9 @@ class SQLInventarioRepository(IInventarioRepository):
             
             if fecha_hasta:
                 statement = statement.where(MovimientoInventario.created_at <= fecha_hasta)
+            
+            if local_id:
+                statement = statement.where(MovimientoInventario.local_id == local_id)
 
             # Ordenar por fecha descendente (más recientes primero)
             statement = statement.order_by(desc(MovimientoInventario.created_at))
@@ -199,6 +242,9 @@ class SQLInventarioRepository(IInventarioRepository):
                 
                 if filtros.created_by:
                     statement = statement.where(MovimientoInventario.created_by == filtros.created_by)
+                
+                if filtros.local_id:
+                    statement = statement.where(MovimientoInventario.local_id == filtros.local_id)
 
             # Ordenar por fecha descendente
             statement = statement.order_by(desc(MovimientoInventario.created_at))
@@ -236,6 +282,9 @@ class SQLInventarioRepository(IInventarioRepository):
                 
                 if filtros.created_by:
                     statement = statement.where(MovimientoInventario.created_by == filtros.created_by)
+                
+                if filtros.local_id:
+                    statement = statement.where(MovimientoInventario.local_id == filtros.local_id)
 
             result = self.session.exec(statement)
             return result.one()
@@ -337,6 +386,9 @@ class SQLInventarioRepository(IInventarioRepository):
             
             return ultimo_movimiento.costo_unitario
             
+        except ValueError:
+            # Re-lanzar ValueError sin wrappear para manejo específico en use case
+            raise
         except Exception as e:
             raise Exception(f"Error al obtener costo promedio actual: {str(e)}")
 
@@ -391,7 +443,8 @@ class SQLInventarioRepository(IInventarioRepository):
     async def get_estadisticas_inventario(
         self,
         fecha_desde: Optional[datetime] = None,
-        fecha_hasta: Optional[datetime] = None
+        fecha_hasta: Optional[datetime] = None,
+        local_id: Optional[UUID] = None
     ) -> EstadisticasInventario:
         """Obtener estadísticas generales de inventario."""
         try:
@@ -404,79 +457,57 @@ class SQLInventarioRepository(IInventarioRepository):
                 fecha_hasta = datetime.now(UTC)
 
             # Estadísticas de movimientos por tipo
-            base_query = select(MovimientoInventario).where(
-                and_(
-                    MovimientoInventario.created_at >= fecha_desde,
-                    MovimientoInventario.created_at <= fecha_hasta
-                )
-            )
+            # Construir condiciones base
+            conditions = [
+                MovimientoInventario.created_at >= fecha_desde,
+                MovimientoInventario.created_at <= fecha_hasta
+            ]
+            
+            # Agregar filtro por local si se especifica
+            if local_id:
+                conditions.append(MovimientoInventario.local_id == local_id)
+            
+            base_conditions = and_(*conditions)
 
             # Contar movimientos por tipo
+            entrada_conditions = list(conditions) + [MovimientoInventario.tipo_movimiento == TipoMovimiento.ENTRADA]
             entradas = self.session.exec(
-                select(func.count(MovimientoInventario.id)).where(
-                    and_(
-                        MovimientoInventario.created_at >= fecha_desde,
-                        MovimientoInventario.created_at <= fecha_hasta,
-                        MovimientoInventario.tipo_movimiento == TipoMovimiento.ENTRADA
-                    )
-                )
+                select(func.count(MovimientoInventario.id)).where(and_(*entrada_conditions))
             ).one()
 
+            salida_conditions = list(conditions) + [MovimientoInventario.tipo_movimiento == TipoMovimiento.SALIDA]
             salidas = self.session.exec(
-                select(func.count(MovimientoInventario.id)).where(
-                    and_(
-                        MovimientoInventario.created_at >= fecha_desde,
-                        MovimientoInventario.created_at <= fecha_hasta,
-                        MovimientoInventario.tipo_movimiento == TipoMovimiento.SALIDA
-                    )
-                )
+                select(func.count(MovimientoInventario.id)).where(and_(*salida_conditions))
             ).one()
 
+            merma_conditions = list(conditions) + [MovimientoInventario.tipo_movimiento == TipoMovimiento.MERMA]
             mermas = self.session.exec(
-                select(func.count(MovimientoInventario.id)).where(
-                    and_(
-                        MovimientoInventario.created_at >= fecha_desde,
-                        MovimientoInventario.created_at <= fecha_hasta,
-                        MovimientoInventario.tipo_movimiento == TipoMovimiento.MERMA
-                    )
-                )
+                select(func.count(MovimientoInventario.id)).where(and_(*merma_conditions))
             ).one()
 
             # Calcular valores por tipo
             valor_entradas = self.session.exec(
                 select(func.coalesce(func.sum(MovimientoInventario.cantidad * MovimientoInventario.precio_unitario), 0)).where(
-                    and_(
-                        MovimientoInventario.created_at >= fecha_desde,
-                        MovimientoInventario.created_at <= fecha_hasta,
-                        MovimientoInventario.tipo_movimiento == TipoMovimiento.ENTRADA
-                    )
+                    and_(*entrada_conditions)
                 )
             ).one()
 
             valor_salidas = self.session.exec(
                 select(func.coalesce(func.sum(MovimientoInventario.cantidad * MovimientoInventario.precio_unitario), 0)).where(
-                    and_(
-                        MovimientoInventario.created_at >= fecha_desde,
-                        MovimientoInventario.created_at <= fecha_hasta,
-                        MovimientoInventario.tipo_movimiento == TipoMovimiento.SALIDA
-                    )
+                    and_(*salida_conditions)
                 )
             ).one()
 
+            merma_value_conditions = list(merma_conditions) + [MovimientoInventario.costo_unitario.is_not(None)]
             valor_mermas = self.session.exec(
                 select(func.coalesce(func.sum(MovimientoInventario.cantidad * MovimientoInventario.costo_unitario), 0)).where(
-                    and_(
-                        MovimientoInventario.created_at >= fecha_desde,
-                        MovimientoInventario.created_at <= fecha_hasta,
-                        MovimientoInventario.tipo_movimiento == TipoMovimiento.MERMA,
-                        MovimientoInventario.costo_unitario.is_not(None)
-                    )
+                    and_(*merma_value_conditions)
                 )
             ).one()
 
             # Productos más movidos
             productos_mas_movidos = await self.get_productos_mas_movidos(
-                limit=5, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta
+                limit=5, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta, local_id=local_id
             )
 
             return EstadisticasInventario(
@@ -496,7 +527,8 @@ class SQLInventarioRepository(IInventarioRepository):
         self,
         limit: int = 10,
         fecha_desde: Optional[datetime] = None,
-        fecha_hasta: Optional[datetime] = None
+        fecha_hasta: Optional[datetime] = None,
+        local_id: Optional[UUID] = None
     ) -> List[dict]:
         """Obtener los productos con más movimientos."""
         try:
@@ -505,11 +537,15 @@ class SQLInventarioRepository(IInventarioRepository):
                 func.count(MovimientoInventario.id).label('total_movimientos')
             )
 
+            # Aplicar filtros
             if fecha_desde:
                 statement = statement.where(MovimientoInventario.created_at >= fecha_desde)
             
             if fecha_hasta:
                 statement = statement.where(MovimientoInventario.created_at <= fecha_hasta)
+            
+            if local_id:
+                statement = statement.where(MovimientoInventario.local_id == local_id)
 
             statement = statement.group_by(MovimientoInventario.producto_id)
             statement = statement.order_by(desc('total_movimientos'))

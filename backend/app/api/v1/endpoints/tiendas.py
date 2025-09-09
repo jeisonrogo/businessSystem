@@ -16,7 +16,9 @@ from app.infrastructure.middleware.tenant_middleware import (
     get_tenant_context,
     require_permission
 )
+from app.infrastructure.auth.auth_dependency import get_current_user
 from app.domain.models.tenant_context import TenantContext
+from app.domain.models.user import User
 from app.api.v1.schemas_multi_tenant import (
     TiendaCreate,
     TiendaUpdate, 
@@ -81,25 +83,55 @@ def listar_tiendas(
     limit: int = Query(100, ge=1, le=500, description="Número máximo de registros a retornar"),
     include_inactive: bool = Query(False, description="Incluir tiendas inactivas"),
     session: Session = Depends(get_session),
-    tenant_context: TenantContext = Depends(require_permission("admin"))
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Obtiene la lista de tiendas con paginación.
+    Obtiene la lista de tiendas del usuario actual.
     
-    Solo los administradores pueden ver todas las tiendas del sistema.
+    Los usuarios solo pueden ver su tienda asignada.
     """
     try:
         tienda_repo = TiendaRepository(session)
-        tiendas = tienda_repo.get_all(
-            skip=skip,
-            limit=limit,
-            include_inactive=include_inactive
-        )
-        return tiendas
+        
+        # Si el usuario no tiene tienda asignada, devolver lista vacía
+        if not current_user.tienda_id:
+            return []
+        
+        # Obtener solo la tienda del usuario actual
+        tienda = tienda_repo.get_by_id(current_user.tienda_id)
+        if not tienda or (not include_inactive and not tienda.is_active):
+            return []
+        
+        tiendas = [tienda]
+        
+        # Convertir a TiendaResponse con total_locales calculado
+        tiendas_response = []
+        try:
+            from app.infrastructure.repositories.local_repository import LocalRepository
+            local_repo = LocalRepository(session)
+            
+            for tienda in tiendas:
+                tienda_data = tienda.model_dump()
+                try:
+                    # Calcular total de locales reales
+                    locales_count = local_repo.count_by_tienda(tienda.id)
+                    tienda_data['total_locales'] = locales_count
+                except Exception as e:
+                    # Si falla el conteo, asignar 0
+                    tienda_data['total_locales'] = 0
+                tiendas_response.append(TiendaResponse(**tienda_data))
+        except Exception as e:
+            # Si falla completamente, asignar 0 a todas
+            for tienda in tiendas:
+                tienda_data = tienda.model_dump()
+                tienda_data['total_locales'] = 0
+                tiendas_response.append(TiendaResponse(**tienda_data))
+        
+        return tiendas_response
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error interno al obtener las tiendas"
+            detail=f"Error interno al obtener las tiendas: {str(e)}"
         )
 
 

@@ -30,8 +30,12 @@ import ProductList from '../components/products/ProductList';
 import ProductForm from '../components/products/ProductForm';
 import ProductDetailDialog from '../components/products/ProductDetailDialog';
 import ProductStockDialog from '../components/products/ProductStockDialog';
+import { useTenant } from '../context/TenantContext';
 
 const ProductsPage: React.FC = () => {
+  // Contexto de tenant
+  const { selectedLocal, selectedStore, isStoreManager } = useTenant();
+  
   // Estados principales
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -64,28 +68,52 @@ const ProductsPage: React.FC = () => {
     severity: 'success',
   });
 
-  // Cargar productos
+  // Cargar productos con filtrado por contexto local
   const loadProducts = useCallback(async () => {
     setLoading(true);
     setError('');
     
     try {
-      const response = await ProductService.getProducts({
+      // Determinar parámetros basados en el contexto de tenant
+      const params: any = {
         page: paginationModel.page + 1, // Backend usa páginas 1-based
         limit: paginationModel.pageSize,
         search: searchTerm || undefined,
         only_active: true,
-      });
+      };
+
+      // Implementar la lógica propuesta:
+      // - Si hay local seleccionado, mostrar solo productos de ese local
+      // - Si es administrador/gerente y no hay local específico, puede ver todos
+      // - Si no hay contexto local válido, no mostrar productos
+      if (selectedLocal) {
+        params.local_id = selectedLocal.id;
+      } else if (isStoreManager() && selectedStore) {
+        // Permitir ver todos los locales si es administrador/gerente
+        params.todos_los_locales = true;
+      } else {
+        // Sin contexto local válido, no cargar productos
+        setProducts([]);
+        setTotalCount(0);
+        setError('Seleccione un local para ver los productos disponibles');
+        return;
+      }
+
+      const response = await ProductService.getProducts(params);
       
       setProducts(response.items);
       setTotalCount(response.total);
+      setError(''); // Limpiar cualquier error previo
     } catch (err: any) {
       console.error('Error al cargar productos:', err);
-      setError(err.response?.data?.detail || 'Error al cargar productos');
+      const errorMessage = err.response?.data?.detail || err.message || 'Error al cargar productos';
+      setError(errorMessage);
+      setProducts([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
-  }, [paginationModel, searchTerm]);
+  }, [paginationModel, searchTerm, selectedLocal, selectedStore, isStoreManager]);
 
   // Efectos
   useEffect(() => {
@@ -188,8 +216,14 @@ const ProductsPage: React.FC = () => {
   const handleSaveStock = async (newStock: number) => {
     if (!selectedProduct) return;
 
+    // Verificar que hay un local seleccionado
+    if (!selectedLocal) {
+      showSnackbar('Se requiere seleccionar un local para actualizar stock', 'error');
+      return;
+    }
+
     try {
-      await ProductService.updateStock(selectedProduct.id, newStock);
+      await ProductService.updateStock(selectedProduct.id, newStock, selectedLocal.id);
       showSnackbar('Stock actualizado exitosamente', 'success');
       setStockOpen(false);
       loadProducts();
@@ -214,9 +248,9 @@ const ProductsPage: React.FC = () => {
   };
 
   // Calcular estadísticas
-  const lowStockCount = products.filter(p => p.stock <= 10).length;
-  const totalValue = products.reduce((sum, p) => sum + (p.precio_publico * p.stock), 0);
-  const outOfStockCount = products.filter(p => p.stock === 0).length;
+  const lowStockCount = products.filter(p => (p.stock_local_actual ?? 0) <= 10).length;
+  const totalValue = products.reduce((sum, p) => sum + (p.precio_publico * (p.stock_local_actual ?? 0)), 0);
+  const outOfStockCount = products.filter(p => (p.stock_local_actual ?? 0) === 0).length;
 
   return (
     <Box>
@@ -229,12 +263,25 @@ const ProductsPage: React.FC = () => {
           <Typography variant="subtitle1" color="text.secondary">
             Administra tu catálogo de productos
           </Typography>
+          {/* Indicador de contexto local */}
+          <Box sx={{ mt: 1, p: 1, bgcolor: 'info.main', borderRadius: 1, color: 'info.contrastText', display: 'inline-block' }}>
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+              {selectedLocal ? (
+                `📍 Local: ${selectedLocal.nombre} (${selectedLocal.codigo})`
+              ) : isStoreManager() && selectedStore ? (
+                `🏢 Todos los locales de ${selectedStore.nombre}`
+              ) : (
+                '⚠️ Sin contexto local seleccionado'
+              )}
+            </Typography>
+          </Box>
         </Box>
         <Button
           variant="contained"
           startIcon={<Add />}
           size="large"
           onClick={handleNewProduct}
+          disabled={!selectedLocal && !(isStoreManager() && selectedStore)}
         >
           Nuevo Producto
         </Button>

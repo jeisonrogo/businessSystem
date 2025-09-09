@@ -35,7 +35,8 @@ class IInventarioRepository(ABC):
     async def create_movimiento(
         self, 
         movimiento_data: MovimientoInventarioCreate,
-        created_by: Optional[UUID] = None
+        created_by: Optional[UUID] = None,
+        skip_stock_update: bool = False
     ) -> MovimientoInventario:
         """
         Crear un nuevo movimiento de inventario.

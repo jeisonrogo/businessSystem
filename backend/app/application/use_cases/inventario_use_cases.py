@@ -9,6 +9,7 @@ como el costo promedio ponderado (BR-11) y validación de stock (BR-01).
 from datetime import datetime, UTC
 from typing import Optional, List
 from uuid import UUID
+from decimal import Decimal
 
 from app.application.services.i_inventario_repository import IInventarioRepository
 from app.application.services.i_product_repository import IProductRepository
@@ -140,7 +141,8 @@ class ConsultarKardexUseCase:
         limit: int = 100,
         tipo_movimiento: Optional[TipoMovimiento] = None,
         fecha_desde: Optional[datetime] = None,
-        fecha_hasta: Optional[datetime] = None
+        fecha_hasta: Optional[datetime] = None,
+        local_id: Optional[UUID] = None
     ) -> KardexResponse:
         """
         Consultar el kardex (historial de movimientos) de un producto.
@@ -166,9 +168,40 @@ class ConsultarKardexUseCase:
                 raise ProductoNoEncontradoError(f"Producto con ID {producto_id} no encontrado")
 
             # Obtener movimientos del producto
-            movimientos = await self.inventario_repository.get_movimientos_by_producto(
-                producto_id, skip, limit, tipo_movimiento, fecha_desde, fecha_hasta
+            movimientos_raw = await self.inventario_repository.get_movimientos_by_producto(
+                producto_id, skip, limit, tipo_movimiento, fecha_desde, fecha_hasta, local_id
             )
+            
+            # Enriquecer movimientos con información del producto
+            from app.domain.models.movimiento_inventario import MovimientoInventarioResponse, ProductoInfo
+            
+            movimientos = []
+            for movimiento in movimientos_raw:
+                movimiento_dict = {
+                    "id": movimiento.id,
+                    "producto_id": movimiento.producto_id,
+                    "tipo_movimiento": movimiento.tipo_movimiento,
+                    "cantidad": movimiento.cantidad,
+                    "precio_unitario": movimiento.precio_unitario,
+                    "costo_unitario": movimiento.costo_unitario,
+                    "stock_anterior": movimiento.stock_anterior,
+                    "stock_posterior": movimiento.stock_posterior,
+                    "referencia": movimiento.referencia,
+                    "observaciones": movimiento.observaciones,
+                    "created_at": movimiento.created_at,
+                    "created_by": movimiento.created_by,
+                    "local_id": movimiento.local_id
+                }
+                
+                # Agregar información del producto
+                movimiento_dict["producto"] = ProductoInfo(
+                    id=producto.id,
+                    sku=producto.sku,
+                    nombre=producto.nombre,
+                    precio_publico=producto.precio_publico
+                )
+                
+                movimientos.append(MovimientoInventarioResponse(**movimiento_dict))
 
             # Obtener información agregada
             stock_actual = await self.inventario_repository.get_stock_actual(producto_id)
@@ -177,14 +210,16 @@ class ConsultarKardexUseCase:
                 costo_promedio_actual = await self.inventario_repository.get_costo_promedio_actual(producto_id)
                 valor_inventario = await self.inventario_repository.get_valor_inventario_producto(producto_id)
             except ValueError:
-                # Si no hay movimientos de entrada, usar valores por defecto
-                costo_promedio_actual = producto.precio_base
-                valor_inventario = costo_promedio_actual * stock_actual
+                # Si no hay movimientos de entrada, usar precio base del producto
+                costo_promedio_actual = producto.precio_base if producto.precio_base else Decimal('0')
+                valor_inventario = costo_promedio_actual * Decimal(str(stock_actual))
 
             # Contar total de movimientos para paginación
-            total_movimientos = await self.inventario_repository.count_movimientos(
-                MovimientoInventarioFilter(producto_id=producto_id)
+            filtros_count = MovimientoInventarioFilter(
+                producto_id=producto_id,
+                local_id=local_id
             )
+            total_movimientos = await self.inventario_repository.count_movimientos(filtros_count)
 
             return KardexResponse(
                 producto_id=producto_id,
@@ -204,8 +239,13 @@ class ConsultarKardexUseCase:
 class ListarMovimientosUseCase:
     """Caso de uso para listar movimientos con filtros y paginación."""
 
-    def __init__(self, inventario_repository: IInventarioRepository):
+    def __init__(
+        self, 
+        inventario_repository: IInventarioRepository,
+        product_repository: IProductRepository
+    ):
         self.inventario_repository = inventario_repository
+        self.product_repository = product_repository
 
     async def execute(
         self,
@@ -241,13 +281,49 @@ class ListarMovimientosUseCase:
             )
             total = await self.inventario_repository.count_movimientos(filtros)
 
+            # Enriquecer movimientos con información del producto
+            movimientos_enriquecidos = []
+            for movimiento in movimientos:
+                # Obtener información del producto
+                producto = await self.product_repository.get_by_id(movimiento.producto_id)
+                
+                # Convertir a MovimientoInventarioResponse con información del producto
+                from app.domain.models.movimiento_inventario import MovimientoInventarioResponse, ProductoInfo
+                
+                movimiento_dict = {
+                    "id": movimiento.id,
+                    "producto_id": movimiento.producto_id,
+                    "tipo_movimiento": movimiento.tipo_movimiento,
+                    "cantidad": movimiento.cantidad,
+                    "precio_unitario": movimiento.precio_unitario,
+                    "costo_unitario": movimiento.costo_unitario,
+                    "stock_anterior": movimiento.stock_anterior,
+                    "stock_posterior": movimiento.stock_posterior,
+                    "referencia": movimiento.referencia,
+                    "observaciones": movimiento.observaciones,
+                    "created_at": movimiento.created_at,
+                    "created_by": movimiento.created_by,
+                    "local_id": movimiento.local_id
+                }
+                
+                # Agregar información del producto si existe
+                if producto:
+                    movimiento_dict["producto"] = ProductoInfo(
+                        id=producto.id,
+                        sku=producto.sku,
+                        nombre=producto.nombre,
+                        precio_publico=producto.precio_publico
+                    )
+                
+                movimientos_enriquecidos.append(MovimientoInventarioResponse(**movimiento_dict))
+
             # Calcular metadatos de paginación
             total_pages = (total + limit - 1) // limit  # Ceiling division
             has_next = page < total_pages
             has_prev = page > 1
 
             return MovimientoInventarioListResponse(
-                movimientos=movimientos,
+                movimientos=movimientos_enriquecidos,
                 total=total,
                 page=page,
                 limit=limit,
@@ -270,47 +346,77 @@ class ObtenerResumenInventarioUseCase:
         self.inventario_repository = inventario_repository
         self.product_repository = product_repository
 
-    async def execute(self) -> InventarioResumenResponse:
+    async def execute(self, tenant_context=None) -> InventarioResumenResponse:
         """
-        Obtener resumen general del inventario.
+        Obtener resumen general del inventario (multi-tenant compatible).
 
         Returns:
             InventarioResumenResponse: Resumen con estadísticas generales
         """
         try:
-            # Obtener todos los productos activos
-            productos = await self.product_repository.get_all(only_active=True)
-            total_productos = len(productos)
-
-            # Calcular valor total del inventario
-            valor_total_inventario = 0
-            productos_sin_stock = 0
-            productos_stock_bajo = 0
-
-            for producto in productos:
-                try:
-                    valor_producto = await self.inventario_repository.get_valor_inventario_producto(
-                        producto.id
-                    )
-                    valor_total_inventario += valor_producto
+            # Determinar local_id basado en el contexto
+            filter_local_id = tenant_context.local_id if tenant_context and tenant_context.tiene_contexto_local else None
+            
+            stock_total = 0
+            if filter_local_id:
+                # Contexto local específico - calcular estadísticas para ese local
+                if hasattr(self.inventario_repository, 'stock_local_repository') and self.inventario_repository.stock_local_repository:
+                    stock_repo = self.inventario_repository.stock_local_repository
                     
-                    if producto.stock == 0:
-                        productos_sin_stock += 1
-                    elif producto.stock <= 10:  # Umbral de stock bajo
-                        productos_stock_bajo += 1
+                    # Obtener estadísticas del local
+                    stats = stock_repo.get_statistics_by_local(filter_local_id)
+                    total_productos = stats['total_productos']
+                    valor_total_inventario = float(stats['valor_inventario'])
+                    productos_sin_stock = stats['productos_sin_stock']
+                    productos_stock_bajo = 0  # TODO: implementar lógica de stock bajo
+                    stock_total = stats.get('stock_total', 0)
+                else:
+                    # Fallback si no hay acceso al repositorio de stock local
+                    productos = await self.product_repository.get_all(only_active=True)
+                    total_productos = len(productos)
+                    valor_total_inventario = 0
+                    productos_sin_stock = 0
+                    productos_stock_bajo = 0
+                    stock_total = 0
+            else:
+                # Contexto tienda completa - calcular estadísticas generales
+                productos = await self.product_repository.get_all(only_active=True)
+                total_productos = len(productos)
+                
+                valor_total_inventario = 0
+                productos_sin_stock = 0
+                productos_stock_bajo = 0
+                
+                # Si tenemos acceso al repositorio de stock local, sumar todos los locales
+                if hasattr(self.inventario_repository, 'stock_local_repository') and self.inventario_repository.stock_local_repository:
+                    stock_repo = self.inventario_repository.stock_local_repository
+                    
+                    # Obtener estadísticas de todos los locales disponibles para el usuario
+                    if tenant_context and hasattr(tenant_context, 'tienda_id'):
+                        # Aquí podríamos obtener estadísticas por tienda completa
+                        # Por ahora, usamos el método básico
+                        pass
+                
+                # Método fallback usando movimientos de inventario
+                for producto in productos:
+                    try:
+                        valor_producto = await self.inventario_repository.get_valor_inventario_producto(
+                            producto.id
+                        )
+                        valor_total_inventario += float(valor_producto)
                         
-                except ValueError:
-                    # Producto sin movimientos, no contribuye al valor
-                    if producto.stock == 0:
-                        productos_sin_stock += 1
-                    elif producto.stock <= 10:
-                        productos_stock_bajo += 1
+                        # Calcular stock total
+                        stock_producto = await self.inventario_repository.get_stock_actual(producto.id)
+                        stock_total += stock_producto
+                    except (ValueError, AttributeError, Exception):
+                        pass
 
-            # Obtener último movimiento general
+            # Obtener último movimiento (filtrado por local si aplica)
             ultimo_movimiento = None
             try:
+                filtros = MovimientoInventarioFilter(local_id=filter_local_id) if filter_local_id else None
                 movimientos_recientes = await self.inventario_repository.get_all_movimientos(
-                    skip=0, limit=1
+                    skip=0, limit=1, filtros=filtros
                 )
                 if movimientos_recientes:
                     ultimo_movimiento = movimientos_recientes[0].created_at
@@ -322,7 +428,8 @@ class ObtenerResumenInventarioUseCase:
                 valor_total_inventario=valor_total_inventario,
                 productos_sin_stock=productos_sin_stock,
                 productos_stock_bajo=productos_stock_bajo,
-                ultimo_movimiento=ultimo_movimiento
+                ultimo_movimiento=ultimo_movimiento,
+                stock_total=stock_total
             )
 
         except Exception as e:
@@ -338,7 +445,8 @@ class ObtenerEstadisticasInventarioUseCase:
     async def execute(
         self,
         fecha_desde: Optional[datetime] = None,
-        fecha_hasta: Optional[datetime] = None
+        fecha_hasta: Optional[datetime] = None,
+        local_id: Optional[UUID] = None
     ) -> EstadisticasInventario:
         """
         Obtener estadísticas detalladas del inventario.
@@ -352,7 +460,7 @@ class ObtenerEstadisticasInventarioUseCase:
         """
         try:
             return await self.inventario_repository.get_estadisticas_inventario(
-                fecha_desde, fecha_hasta
+                fecha_desde, fecha_hasta, local_id
             )
         except Exception as e:
             raise InventarioError(f"Error al obtener estadísticas: {str(e)}")

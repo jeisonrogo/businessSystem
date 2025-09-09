@@ -89,6 +89,14 @@ class Cliente(SQLModel, table=True):
     regimen_tributario: Optional[str] = SQLField(max_length=50, 
                                                 description="Régimen tributario")
     
+    # Multi-tenant: cada cliente pertenece a una tienda
+    tienda_id: Optional[UUID] = SQLField(
+        default=None,
+        foreign_key="tiendas.id",
+        index=True,
+        description="ID de la tienda a la que pertenece el cliente"
+    )
+    
     # Control
     is_active: bool = SQLField(default=True, description="Estado activo del cliente")
     created_at: datetime = SQLField(default_factory=lambda: datetime.now(UTC))
@@ -96,6 +104,7 @@ class Cliente(SQLModel, table=True):
     
     # Relaciones
     facturas: List["Factura"] = Relationship(back_populates="cliente")
+    tienda: Optional["Tienda"] = Relationship()
 
 
 class Factura(SQLModel, table=True):
@@ -152,10 +161,26 @@ class Factura(SQLModel, table=True):
     asiento_contable_id: Optional[UUID] = SQLField(foreign_key="asientos_contables.id",
                                                   description="Asiento contable generado")
     
+    # Multi-tenant: cada factura pertenece a una tienda y un local
+    tienda_id: Optional[UUID] = SQLField(
+        default=None,
+        foreign_key="tiendas.id",
+        index=True,
+        description="ID de la tienda donde se emite la factura"
+    )
+    local_id: Optional[UUID] = SQLField(
+        default=None,
+        foreign_key="locales.id",
+        index=True,
+        description="ID del local donde se emite la factura"
+    )
+    
     # Relaciones
     cliente: Cliente = Relationship(back_populates="facturas")
     detalles: List["DetalleFactura"] = Relationship(back_populates="factura", 
                                                    cascade_delete=True)
+    tienda: Optional["Tienda"] = Relationship()
+    local: Optional["Local"] = Relationship(back_populates="facturas")
 
 
 class DetalleFactura(SQLModel, table=True):
