@@ -77,6 +77,7 @@ def get_product_repository(session: Session = Depends(get_session)) -> SQLProduc
 )
 async def registrar_movimiento(
     movimiento_data: MovimientoInventarioCreateRequest,
+    tenant_context: TenantContext = Depends(get_tenant_context),
     inventario_repo: SQLInventarioRepository = Depends(get_inventario_repository),
     product_repo: SQLProductRepository = Depends(get_product_repository)
 ) -> MovimientoInventarioResponse:
@@ -95,6 +96,29 @@ async def registrar_movimiento(
     - BR-11: Cálculo de costo promedio ponderado
     """
     try:
+        # Verificar que se tenga un contexto de local seleccionado
+        if not tenant_context.tiene_contexto_local:
+            raise HTTPException(
+                status_code=400, 
+                detail="Debe seleccionar un local para registrar movimientos de inventario. Use el selector de contexto local."
+            )
+        
+        # Asegurar que el movimiento tenga el local_id del contexto seleccionado
+        if not movimiento_data.local_id:
+            movimiento_data.local_id = tenant_context.local_id
+        elif movimiento_data.local_id != tenant_context.local_id:
+            raise HTTPException(
+                status_code=400,
+                detail="El local del movimiento debe coincidir con el local seleccionado en el contexto."
+            )
+        
+        # Validación final: asegurar que el movimiento tenga un local_id válido
+        if not movimiento_data.local_id:
+            raise HTTPException(
+                status_code=400,
+                detail="No se pudo determinar el local para el movimiento. Verifique el contexto de local seleccionado."
+            )
+        
         use_case = RegistrarMovimientoUseCase(inventario_repo, product_repo)
         # TODO: Obtener created_by del usuario autenticado
         movimiento = await use_case.execute(movimiento_data, created_by=None)

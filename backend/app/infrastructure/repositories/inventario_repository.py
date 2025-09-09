@@ -60,11 +60,20 @@ class SQLInventarioRepository(IInventarioRepository):
                 raise ValueError(f"Producto con ID {movimiento_data.producto_id} no encontrado")
 
             # Usar valores de stock proporcionados si están disponibles (más preciso para multi-tenant)
-            # Si no se proporcionan, calcular desde movimientos
+            # Si no se proporcionan, obtener desde StockLocal para el local específico
             if movimiento_data.stock_anterior is not None:
                 stock_anterior = movimiento_data.stock_anterior
             else:
-                stock_anterior = await self.get_stock_actual(movimiento_data.producto_id)
+                # Para sistema multi-tenant, obtener stock desde StockLocal por local específico
+                if self.stock_local_repository and movimiento_data.local_id:
+                    stock_local = self.stock_local_repository.get_by_producto_and_local(
+                        movimiento_data.producto_id, 
+                        movimiento_data.local_id
+                    )
+                    stock_anterior = stock_local.cantidad if stock_local else 0
+                else:
+                    # Fallback: calcular desde movimientos (solo para compatibilidad con sistema legacy)
+                    stock_anterior = await self.get_stock_actual(movimiento_data.producto_id)
             
             if movimiento_data.stock_posterior is not None:
                 stock_posterior = movimiento_data.stock_posterior
