@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlmodel import Session
 
 from app.api.v1.schemas import (
@@ -156,6 +156,7 @@ async def registrar_movimiento(
     }
 )
 async def listar_movimientos(
+    request: Request,
     page: int = Query(1, ge=1, description="Número de página"),
     limit: int = Query(50, ge=1, le=100, description="Movimientos por página"),
     producto_id: Optional[UUID] = Query(None, description="Filtrar por producto"),
@@ -216,6 +217,7 @@ async def listar_movimientos(
 )
 async def obtener_movimiento(
     movimiento_id: UUID,
+    request: Request,
     inventario_repo: SQLInventarioRepository = Depends(get_inventario_repository)
 ) -> MovimientoInventarioResponse:
     """
@@ -257,6 +259,7 @@ async def obtener_movimiento(
 )
 async def consultar_kardex(
     producto_id: UUID,
+    request: Request,
     skip: int = Query(0, ge=0, description="Número de movimientos a omitir"),
     limit: int = Query(100, ge=1, le=500, description="Número máximo de movimientos"),
     tipo_movimiento: Optional[TipoMovimiento] = Query(None, description="Filtrar por tipo"),

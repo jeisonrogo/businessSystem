@@ -185,7 +185,7 @@ async def obtener_factura(
         use_case = GetFacturaUseCase(factura_repo)
         factura = await use_case.execute(factura_id)
         return FacturaResponse.from_factura(factura)
-    
+
     except FacturaNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

@@ -418,40 +418,38 @@ export class InvoicePrintUtils {
    * Genera la información del cliente
    */
   private static generateClientInfo(invoice: Invoice): string {
-    const client = invoice.cliente;
-    
     return `
       <div class="client-info">
         <div class="section-title">Información del Cliente</div>
-        
+
         <div class="info-row">
           <span class="info-label">Cliente:</span>
-          <span class="info-value">${client?.nombre_completo || 'N/A'}</span>
+          <span class="info-value">${invoice.cliente_nombre || 'N/A'}</span>
         </div>
-        
+
         <div class="info-row">
           <span class="info-label">Documento:</span>
-          <span class="info-value">${client?.numero_documento || 'N/A'}</span>
+          <span class="info-value">${invoice.cliente_documento || 'N/A'}</span>
         </div>
-        
-        ${client?.email ? `
+
+        ${invoice.cliente_email ? `
           <div class="info-row">
             <span class="info-label">Email:</span>
-            <span class="info-value">${client.email}</span>
+            <span class="info-value">${invoice.cliente_email}</span>
           </div>
         ` : ''}
-        
-        ${client?.telefono ? `
+
+        ${invoice.cliente_telefono ? `
           <div class="info-row">
             <span class="info-label">Teléfono:</span>
-            <span class="info-value">${client.telefono}</span>
+            <span class="info-value">${invoice.cliente_telefono}</span>
           </div>
         ` : ''}
-        
-        ${client?.direccion ? `
+
+        ${invoice.cliente_direccion ? `
           <div class="info-row">
             <span class="info-label">Dirección:</span>
-            <span class="info-value">${client.direccion}</span>
+            <span class="info-value">${invoice.cliente_direccion}</span>
           </div>
         ` : ''}
       </div>

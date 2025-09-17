@@ -23,7 +23,7 @@ class Product(SQLModel, table=True):
     sku: str = SQLField(sa_column=Column(String(50), unique=True, nullable=False))
     nombre: str = SQLField(max_length=255)
     descripcion: Optional[str] = SQLField(default=None)
-    url_foto: Optional[str] = SQLField(default=None, max_length=512)
+    imagen_path: Optional[str] = SQLField(default=None, max_length=512, description="Ruta relativa a la imagen del producto")
     precio_base: Decimal = SQLField(sa_column=Column(DECIMAL(10, 2), nullable=False))  # Costo para el negocio
     precio_publico: Decimal = SQLField(sa_column=Column(DECIMAL(10, 2), nullable=False))  # Precio de venta
     
@@ -125,6 +125,20 @@ class Product(SQLModel, table=True):
         """
         return sum(stock.valor_total_inventario for stock in self.stock_locales)
     
+    def get_imagen_url(self, base_url: str = "") -> Optional[str]:
+        """
+        Obtiene la URL completa para acceder a la imagen del producto.
+        
+        Args:
+            base_url: URL base del servidor
+            
+        Returns:
+            URL completa de la imagen o None si no tiene imagen
+        """
+        if not self.imagen_path:
+            return None
+        return f"{base_url.rstrip('/')}/uploads/{self.imagen_path}"
+    
     def actualizar_timestamp(self) -> None:
         """Actualiza el timestamp de modificación."""
         self.updated_at = datetime.now(UTC)
@@ -136,7 +150,7 @@ class ProductBase(BaseModel):
     sku: str = Field(..., min_length=1, max_length=50, description="Código único del producto (SKU)")
     nombre: str = Field(..., min_length=1, max_length=255, description="Nombre del producto")
     descripcion: Optional[str] = Field(None, description="Descripción detallada del producto")
-    url_foto: Optional[str] = Field(None, max_length=512, description="URL de la imagen del producto")
+    imagen_path: Optional[str] = Field(None, max_length=512, description="Ruta relativa a la imagen del producto")
     precio_base: Decimal = Field(..., gt=0, description="Costo del producto para el negocio")
     precio_publico: Decimal = Field(..., gt=0, description="Precio de venta al público")
 
@@ -159,7 +173,7 @@ class ProductUpdate(BaseModel):
     """Esquema para actualizar un producto existente."""
     nombre: Optional[str] = Field(None, min_length=1, max_length=255)
     descripcion: Optional[str] = Field(None)
-    url_foto: Optional[str] = Field(None, max_length=512)
+    imagen_path: Optional[str] = Field(None, max_length=512)
     precio_base: Optional[Decimal] = Field(None, gt=0)
     precio_publico: Optional[Decimal] = Field(None, gt=0)
     # Nota: SKU no se puede modificar (BR-02)
@@ -181,7 +195,8 @@ class ProductResponse(BaseModel):
     sku: str
     nombre: str
     descripcion: Optional[str]
-    url_foto: Optional[str]
+    imagen_path: Optional[str]
+    imagen_url: Optional[str] = None  # URL completa calculada dinámicamente
     precio_base: Decimal
     precio_publico: Decimal
     tienda_id: UUID

@@ -99,7 +99,7 @@ const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
           <Grid item xs={12} md={4}>
             <Box sx={{ textAlign: 'center', mb: 2 }}>
               <Avatar
-                src={product.url_foto || undefined}
+                src={product.imagen_url || undefined}
                 alt={product.nombre}
                 variant="rounded"
                 sx={{ 
@@ -157,7 +157,7 @@ const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
               </Box>
             )}
 
-            {product.url_foto && (
+            {product.imagen_url && (
               <Box sx={{ mb: 2 }}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   <Image sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
@@ -170,7 +170,7 @@ const ProductDetailDialog: React.FC<ProductDetailDialogProps> = ({
                     fontSize: '0.875rem',
                   }}
                 >
-                  {product.url_foto}
+                  {product.imagen_url}
                 </Typography>
               </Box>
             )}

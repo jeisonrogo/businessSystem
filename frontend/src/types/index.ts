@@ -39,7 +39,8 @@ export interface Product extends BaseEntity {
   sku: string;
   nombre: string;
   descripcion?: string;
-  url_foto?: string;
+  imagen_path?: string;
+  imagen_url?: string; // URL completa calculada dinámicamente
   precio_base: number;
   precio_publico: number;
   tienda_id: string;
@@ -69,7 +70,7 @@ export interface ProductCreate {
   sku: string;
   nombre: string;
   descripcion?: string;
-  url_foto?: string;
+  imagen_path?: string;
   precio_base: number;
   precio_publico: number;
   tienda_id: string;
@@ -79,7 +80,7 @@ export interface ProductCreate {
 export interface ProductUpdate {
   nombre?: string;
   descripcion?: string;
-  url_foto?: string;
+  imagen_path?: string;
   precio_base?: number;
   precio_publico?: number;
 }

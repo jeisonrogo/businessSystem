@@ -3,7 +3,7 @@
  */
 
 import { Product, ProductCreate, ProductUpdate, ProductListResponse, QueryParams } from '../types';
-import { ENDPOINTS } from '../config/api';
+import { ENDPOINTS, API_CONFIG } from '../config/api';
 import { apiRequest } from './api';
 
 export class ProductService {
@@ -208,6 +208,41 @@ export class ProductService {
       
       default:
         return new Error(data?.detail || defaultMessage);
+    }
+  }
+
+  /**
+   * Subir imagen de producto
+   */
+  static async uploadProductImage(productId: string, file: File): Promise<string> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const token = localStorage.getItem('access_token');
+      const uploadUrl = `${API_CONFIG.BASE_URL}${API_CONFIG.API_VERSION}${ENDPOINTS.UPLOAD.PRODUCT_IMAGE(productId)}`;
+      
+      console.log('📤 Uploading to:', uploadUrl);
+      console.log('🔐 Token exists:', !!token);
+      
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Error ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      return result.image_path;
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      throw new Error(`Error al subir la imagen: ${error.message}`);
     }
   }
 }

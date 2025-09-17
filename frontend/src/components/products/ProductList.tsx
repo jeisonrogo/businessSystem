@@ -89,7 +89,7 @@ const ProductList: React.FC<ProductListProps> = ({
 
   const columns: GridColDef[] = [
     {
-      field: 'url_foto',
+      field: 'imagen_url',
       headerName: '',
       width: 60,
       sortable: false,

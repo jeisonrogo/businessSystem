@@ -11,4 +11,5 @@ pytest-cov
 pytest-asyncio
 python-multipart
 email-validator
-httpx 
+httpx
+aiofiles 

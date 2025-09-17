@@ -40,6 +40,7 @@ from app.infrastructure.auth.auth_dependency import get_current_user_sync
 from app.domain.models.user import User, UserRole
 from app.infrastructure.middleware.tenant_middleware import get_tenant_context
 from app.domain.models.tenant_context import TenantContext
+from fastapi import Request
 
 router = APIRouter()
 
@@ -48,6 +49,51 @@ router = APIRouter()
 def get_product_repository(session: Session = Depends(get_session)) -> SQLProductRepository:
     """Crear instancia del repositorio de productos."""
     return SQLProductRepository(session)
+
+
+def populate_image_url(product_response: ProductResponse, request: Request = None) -> ProductResponse:
+    """
+    Popula la URL completa de la imagen del producto.
+
+    Args:
+        product_response: Response del producto
+        request: FastAPI request object para obtener base URL (opcional)
+
+    Returns:
+        ProductResponse con imagen_url poblada
+    """
+    print(f"🔍 POPULATE_IMAGE_URL INICIO:")
+    print(f"🔍   product_response.id: {product_response.id}")
+    print(f"🔍   product_response.sku: {product_response.sku}")
+    print(f"🔍   product_response.imagen_path: {product_response.imagen_path}")
+    print(f"🔍   request is None: {request is None}")
+
+    try:
+        if product_response.imagen_path:
+            # Si tenemos request, usar su base_url
+            if request is not None:
+                print(f"🔍   usando request.base_url")
+                base_url = str(request.base_url).rstrip('/')
+                print(f"🔍   base_url from request: {base_url}")
+            else:
+                # Fallback: usar URL estática por defecto
+                print(f"🔍   usando fallback URL")
+                base_url = "http://localhost:8000"
+
+            final_url = f"{base_url}/uploads/{product_response.imagen_path}"
+            print(f"🔍   imagen_url generada: {final_url}")
+            product_response.imagen_url = final_url
+        else:
+            print(f"🔍   No hay imagen_path, no se genera URL")
+
+        print(f"🔍 POPULATE_IMAGE_URL EXITOSO")
+        return product_response
+
+    except Exception as e:
+        print(f"🔍 POPULATE_IMAGE_URL ERROR: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 @router.post(
@@ -64,6 +110,7 @@ def get_product_repository(session: Session = Depends(get_session)) -> SQLProduc
 )
 async def create_product(
     product_data: ProductCreateRequest,
+    request: Request,
     product_repo: SQLProductRepository = Depends(get_product_repository),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user_sync),
@@ -75,7 +122,7 @@ async def create_product(
     - **sku**: Código único del producto (requerido)
     - **nombre**: Nombre del producto (requerido)
     - **descripcion**: Descripción detallada (opcional)
-    - **url_foto**: URL de la imagen del producto (opcional)
+    - **imagen_path**: Ruta a la imagen del producto (se obtiene al subir archivo via /api/v1/upload/product-image/) (opcional)
     - **precio_base**: Costo del producto para el negocio (requerido)
     - **precio_publico**: Precio de venta al público (requerido)
     - **stock**: Cantidad inicial en inventario (default: 0)
@@ -95,7 +142,7 @@ async def create_product(
             sku=product_data.sku,
             nombre=product_data.nombre,
             descripcion=product_data.descripcion,
-            url_foto=product_data.url_foto,
+            imagen_path=product_data.imagen_path,
             precio_base=product_data.precio_base,
             precio_publico=product_data.precio_publico,
             tienda_id=tenant_context.tienda_id,
@@ -127,7 +174,8 @@ async def create_product(
         
         print(f"✅ Stock inicial creado para producto {product.sku} en local {tenant_context.local_id}")
         
-        return ProductResponse.model_validate(product)
+        product_response = ProductResponse.model_validate(product)
+        return populate_image_url(product_response, request)
     except DuplicateSKUError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -157,6 +205,7 @@ async def create_product(
     }
 )
 async def list_products(
+    request: Request,
     page: int = Query(1, ge=1, description="Número de página"),
     limit: int = Query(10, ge=1, le=100, description="Productos por página"),
     search: Optional[str] = Query(None, description="Buscar por nombre o SKU"),
@@ -211,12 +260,12 @@ async def list_products(
         if todos_los_locales:
             # Mostrar productos de todos los locales de la tienda
             products_with_stock = await _get_products_all_locals(
-                stock_repo, current_user.tienda_id, page, limit, search, only_active
+                stock_repo, current_user.tienda_id, page, limit, search, only_active, request
             )
         else:
             # Mostrar solo productos del local específico
             products_with_stock = await _get_products_by_local(
-                stock_repo, local_id, page, limit, search, only_active
+                stock_repo, local_id, page, limit, search, only_active, request
             )
         
         # Construir respuesta con paginación correcta
@@ -251,31 +300,51 @@ async def list_products(
 )
 async def get_product(
     product_id: UUID,
+    request: Request,
     product_repo: SQLProductRepository = Depends(get_product_repository),
     session: Session = Depends(get_session),
     tenant_context: TenantContext = Depends(get_tenant_context)
 ) -> ProductResponse:
     """
     Obtener un producto por su ID con información de stock local.
-    
+
     - **product_id**: UUID único del producto
     """
+
     try:
+        print(f"🔍 GET_PRODUCT: Creando use_case...")
         use_case = GetProductUseCase(product_repo)
+        print(f"🔍 GET_PRODUCT: Ejecutando use_case...")
         product = await use_case.execute(product_id)
-        
+        print(f"🔍 GET_PRODUCT: Producto obtenido: {product.sku}")
+
         # Calcular información de stock usando el contexto local del usuario
+        print(f"🔍 GET_PRODUCT: Creando stock_repo...")
         from app.infrastructure.repositories.stock_local_repository import StockLocalRepository
         stock_repo = StockLocalRepository(session)
-        
+
         # Verificar que hay contexto de local
+        print(f"🔍 GET_PRODUCT: Verificando contexto local...")
+        print(f"🔍 GET_PRODUCT: tiene_contexto_local={tenant_context.tiene_contexto_local}")
         if not tenant_context.tiene_contexto_local:
-            raise HTTPException(
-                status_code=400, 
-                detail="Debe seleccionar un local para ver información de stock del producto"
-            )
-        
-        local_id = tenant_context.local_id
+            print(f"🔍 GET_PRODUCT: ADVERTENCIA - No hay contexto local, usando primer local disponible")
+            # En lugar de fallar, vamos a usar un local por defecto para debug
+            from app.infrastructure.repositories.local_repository import LocalRepository
+            local_repo = LocalRepository(session)
+            locales_tienda = local_repo.get_locales_activos_by_tienda(tenant_context.tienda_id)
+            if locales_tienda:
+                local_id = locales_tienda[0].id
+                print(f"🔍 GET_PRODUCT: Usando local por defecto: {local_id}")
+            else:
+                print(f"🔍 GET_PRODUCT: ERROR - No hay locales disponibles")
+                raise HTTPException(
+                    status_code=400,
+                    detail="No hay locales disponibles para la tienda"
+                )
+        else:
+            local_id = tenant_context.local_id
+
+        print(f"🔍 GET_PRODUCT: local_id={local_id}")
         
         # Obtener stock local
         stock_local = stock_repo.get_by_producto_and_local(product_id, local_id)
@@ -286,7 +355,7 @@ async def get_product(
             sku=product.sku,
             nombre=product.nombre,
             descripcion=product.descripcion,
-            url_foto=product.url_foto,
+            imagen_path=product.imagen_path,
             precio_base=product.precio_base,
             precio_publico=product.precio_publico,
             tienda_id=product.tienda_id,
@@ -302,15 +371,34 @@ async def get_product(
             local_id=str(local_id),
             local_nombre=tenant_context.local_nombre
         )
-        
-        return product_response
-        
+
+        print(f"🔍 GET_PRODUCT: === ANTES DE POPULATE_IMAGE_URL ===")
+        print(f"🔍 GET_PRODUCT: product_response.imagen_path={product_response.imagen_path}")
+        print(f"🔍 GET_PRODUCT: request disponible: {request is not None}")
+        print(f"🔍 GET_PRODUCT: type(request): {type(request)}")
+
+        try:
+            result = populate_image_url(product_response, request)
+            print(f"🔍 GET_PRODUCT: === DESPUÉS DE POPULATE_IMAGE_URL ===")
+            print(f"🔍 GET_PRODUCT: resultado.imagen_url={result.imagen_url}")
+            return result
+        except Exception as e:
+            print(f"🔍 GET_PRODUCT: ERROR EN POPULATE_IMAGE_URL: {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise
+
     except ProductNotFoundError as e:
+        print(f"🔍 GET_PRODUCT: ProductNotFoundError: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e)
         )
     except Exception as e:
+        import traceback
+        print(f"🔍 GET_PRODUCT ERROR: {type(e).__name__}: {str(e)}")
+        print(f"🔍 GET_PRODUCT TRACEBACK:")
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error interno del servidor: {str(e)}"
@@ -329,6 +417,7 @@ async def get_product(
 )
 async def get_product_by_sku(
     sku: str,
+    request: Request,
     product_repo: SQLProductRepository = Depends(get_product_repository)
 ) -> ProductResponse:
     """
@@ -339,7 +428,8 @@ async def get_product_by_sku(
     try:
         use_case = GetProductBySKUUseCase(product_repo)
         product = await use_case.execute(sku)
-        return ProductResponse.model_validate(product)
+        product_response = ProductResponse.model_validate(product)
+        return populate_image_url(product_response, request)
     except ProductNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -367,6 +457,7 @@ async def get_product_by_sku(
 async def update_product(
     product_id: UUID,
     product_data: ProductUpdateRequest,
+    request: Request,
     product_repo: SQLProductRepository = Depends(get_product_repository)
 ) -> ProductResponse:
     """
@@ -379,7 +470,8 @@ async def update_product(
     try:
         use_case = UpdateProductUseCase(product_repo)
         product = await use_case.execute(product_id, product_data)
-        return ProductResponse.model_validate(product)
+        product_response = ProductResponse.model_validate(product)
+        return populate_image_url(product_response, request)
     except ProductNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -584,6 +676,8 @@ async def update_product_stock(
         )
 
 
+
+
 @router.get(
     "/low-stock/",
     response_model=List[ProductResponse],
@@ -594,6 +688,7 @@ async def update_product_stock(
     }
 )
 async def get_low_stock_products(
+    request: Request,
     threshold: int = Query(10, ge=0, description="Umbral mínimo de stock"),
     product_repo: SQLProductRepository = Depends(get_product_repository)
 ) -> List[ProductResponse]:
@@ -605,7 +700,8 @@ async def get_low_stock_products(
     try:
         use_case = GetLowStockProductsUseCase(product_repo)
         products = await use_case.execute(threshold)
-        return [ProductResponse.model_validate(product) for product in products]
+        product_responses = [ProductResponse.model_validate(product) for product in products]
+        return [populate_image_url(response, request) for response in product_responses]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -623,7 +719,8 @@ async def _get_products_by_local(
     page: int,
     limit: int,
     search: Optional[str],
-    only_active: bool
+    only_active: bool,
+    request: Request
 ) -> dict:
     """
     Obtiene productos que tienen stock registrado en un local específico.
@@ -710,7 +807,7 @@ async def _get_products_by_local(
             sku=product.sku,
             nombre=product.nombre,
             descripcion=product.descripcion,
-            url_foto=product.url_foto,
+            imagen_path=product.imagen_path,
             precio_base=product.precio_base,
             precio_publico=product.precio_publico,
             tienda_id=product.tienda_id,
@@ -727,9 +824,132 @@ async def _get_products_by_local(
             local_nombre=local_nombre,
             locales_stock=[]
         )
-        
+
+        # Agregar URL completa de imagen
+        product_response = populate_image_url(product_response, request)
+
         enriched_products.append(product_response)
     
+    return {
+        'products': enriched_products,
+        'total': total
+    }
+
+
+async def _get_products_all_locals(
+    stock_repo,
+    tienda_id: UUID,
+    page: int,
+    limit: int,
+    search: Optional[str],
+    only_active: bool,
+    request: Request
+) -> dict:
+    """
+    Obtiene productos de todos los locales de una tienda.
+    Útil para usuarios administradores que quieren ver inventario completo.
+    """
+    from sqlmodel import select, and_, or_
+    from sqlalchemy import func, distinct
+    from app.domain.models.stock_local import StockLocal
+    from app.domain.models.product import Product
+
+    # Base query para productos que tienen stock en cualquier local de la tienda
+    query = (
+        select(Product)
+        .join(StockLocal, Product.id == StockLocal.producto_id)
+        .where(Product.tienda_id == tienda_id)
+        .distinct()
+    )
+
+    if only_active:
+        query = query.where(Product.is_active == True)
+
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.where(
+            or_(
+                Product.nombre.ilike(search_pattern),
+                Product.sku.ilike(search_pattern)
+            )
+        )
+
+    # Contar total de productos únicos
+    count_query = (
+        select(func.count(distinct(Product.id)))
+        .join(StockLocal, Product.id == StockLocal.producto_id)
+        .where(Product.tienda_id == tienda_id)
+    )
+
+    if only_active:
+        count_query = count_query.where(Product.is_active == True)
+
+    if search:
+        search_pattern = f"%{search}%"
+        count_query = count_query.where(
+            or_(
+                Product.nombre.ilike(search_pattern),
+                Product.sku.ilike(search_pattern)
+            )
+        )
+
+    # Ejecutar query de conteo
+    total = stock_repo.session.exec(count_query).first() or 0
+
+    # Aplicar paginación
+    offset = (page - 1) * limit
+    query = query.offset(offset).limit(limit)
+
+    # Ejecutar query principal
+    products = stock_repo.session.exec(query).all()
+
+    # Enriquecer productos con información agregada de stock
+    enriched_products = []
+    for product in products:
+        # Obtener stock total del producto en todos los locales
+        stock_total = 0
+        valor_total = 0
+        locales_con_stock = []
+
+        # Consultar stock en todos los locales
+        stock_query = select(StockLocal).where(StockLocal.producto_id == product.id)
+        stock_records = stock_repo.session.exec(stock_query).all()
+
+        for stock_record in stock_records:
+            stock_total += stock_record.cantidad
+            valor_total += stock_record.valor_total_inventario
+            if stock_record.cantidad > 0:
+                locales_con_stock.append(stock_record.local_id)
+
+        # Crear ProductResponse con información agregada
+        product_response = ProductResponse(
+            id=product.id,
+            sku=product.sku,
+            nombre=product.nombre,
+            descripcion=product.descripcion,
+            imagen_path=product.imagen_path,
+            precio_base=product.precio_base,
+            precio_publico=product.precio_publico,
+            tienda_id=product.tienda_id,
+            is_active=product.is_active,
+            created_at=product.created_at,
+            updated_at=product.updated_at,
+            # Campos de stock agregados de todos los locales
+            stock_local_actual=0,  # No aplica para vista agregada
+            stock_total_tienda=stock_total,
+            valor_total_inventario=valor_total,
+            locales_con_stock=locales_con_stock,
+            costo_promedio_local=0,  # No aplica para vista agregada
+            local_id=None,  # Vista de todos los locales
+            local_nombre="Todos los locales",
+            locales_stock=[]
+        )
+
+        # Agregar URL completa de imagen
+        product_response = populate_image_url(product_response, request)
+
+        enriched_products.append(product_response)
+
     return {
         'products': enriched_products,
         'total': total
@@ -772,7 +992,7 @@ async def _get_basic_product_list(
                 sku=product.sku,
                 nombre=product.nombre,
                 descripcion=product.descripcion,
-                url_foto=product.url_foto,
+                imagen_path=product.imagen_path,
                 precio_base=product.precio_base,
                 precio_publico=product.precio_publico,
                 tienda_id=product.tienda_id,

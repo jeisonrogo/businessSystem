@@ -5,6 +5,7 @@ Este archivo inicializa la aplicación FastAPI siguiendo los principios de Clean
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,6 +35,7 @@ from app.api.v1.endpoints.stock_local import router as stock_local_router
 from app.api.v1.endpoints.transferencias import router as transferencias_router
 from app.api.v1.endpoints.usuario_locales import router as usuario_locales_router
 from app.api.v1.endpoints.tenant_context import router as tenant_context_router
+from app.api.v1.endpoints.upload import router as upload_router
 
 app = FastAPI(
     title="Sistema de Gestión Empresarial Multi-Tenant",
@@ -95,6 +97,15 @@ app.include_router(stock_local_router, prefix="/api/v1")
 app.include_router(transferencias_router, prefix="/api/v1")
 app.include_router(usuario_locales_router, prefix="/api/v1")
 app.include_router(tenant_context_router, prefix="/api/v1")
+app.include_router(upload_router, prefix="/api/v1/upload", tags=["upload"])
+
+# Static files serving for uploads
+import os
+uploads_path = "uploads"
+if not os.path.exists(uploads_path):
+    os.makedirs(uploads_path)
+    
+app.mount("/uploads", StaticFiles(directory=uploads_path), name="uploads")
 
 
 @app.get("/")

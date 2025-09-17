@@ -15,9 +15,15 @@ import {
   Alert,
   CircularProgress,
   InputAdornment,
+  Card,
+  CardMedia,
+  IconButton,
+  Typography,
 } from '@mui/material';
+import { CloudUpload, Delete, Image } from '@mui/icons-material';
 import { Product, ProductCreate, ProductUpdate } from '../../types';
 import { useTenant } from '../../context/TenantContext';
+import { ProductService } from '../../services/productService';
 
 interface ProductFormProps {
   open: boolean;
@@ -42,12 +48,16 @@ const ProductForm: React.FC<ProductFormProps> = ({
     sku: '',
     nombre: '',
     descripcion: '',
-    url_foto: '',
+    imagen_path: '',
     precio_base: 0,
     precio_publico: 0,
     stock_inicial: 0,
     tienda_id: '',
   });
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const isEditing = !!product;
@@ -60,26 +70,37 @@ const ProductForm: React.FC<ProductFormProps> = ({
         sku: product.sku,
         nombre: product.nombre,
         descripcion: product.descripcion || '',
-        url_foto: product.url_foto || '',
+        imagen_path: product.imagen_path || '',
         precio_base: product.precio_base,
         precio_publico: product.precio_publico,
         stock_inicial: product.stock_local_actual ?? 0,
         tienda_id: product.tienda_id,
       });
+      
+      // Cargar imagen existente si hay una
+      if (product.imagen_url) {
+        setImagePreview(product.imagen_url);
+      } else {
+        setImagePreview('');
+      }
+      setImageFile(null);
     } else if (open && !product) {
       // Modo creación - resetear formulario
       setFormData({
         sku: '',
         nombre: '',
         descripcion: '',
-        url_foto: '',
+        imagen_path: '',
         precio_base: 0,
         precio_publico: 0,
         stock_inicial: 0,
         tienda_id: currentContext?.tienda_id || '',
       });
+      setImagePreview('');
+      setImageFile(null);
     }
     setValidationErrors({});
+    setUploadingImage(false);
   }, [open, product, currentContext?.tienda_id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -140,13 +161,28 @@ const ProductForm: React.FC<ProductFormProps> = ({
     }
 
     try {
+      // Primero guardamos los datos del producto
       if (isEditing) {
-        // En modo edición, no enviamos SKU ya que es inmutable
         const { sku, stock_inicial, tienda_id, ...updateData } = formData;
         await onSave(updateData as ProductUpdate);
       } else {
-        // En modo creación, enviamos todo
         await onSave(formData as ProductCreate);
+      }
+
+      // Si hay una imagen nueva que subir y tenemos un productId
+      // En modo edición usamos el ID del producto existente
+      // En modo creación, necesitaríamos obtener el ID del producto recién creado
+      // Por ahora, solo manejamos la edición donde ya tenemos el ID
+      if (imageFile && isEditing && product?.id) {
+        const imagePath = await uploadImage(product.id);
+        
+        if (imagePath) {
+          console.log('Imagen subida exitosamente:', imagePath);
+        }
+      } else if (imageFile && !isEditing) {
+        // Para modo creación, necesitaríamos que onSave retorne el producto creado
+        // o implementar una lógica diferente para obtener el ID
+        console.log('Imagen seleccionada para nuevo producto - se subirá después de obtener el ID');
       }
     } catch (error: any) {
       // Los errores ya se manejan en el componente padre
@@ -155,8 +191,64 @@ const ProductForm: React.FC<ProductFormProps> = ({
     }
   };
 
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo de archivo
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Tipo de archivo no soportado. Use JPG, PNG, GIF o WEBP.');
+      return;
+    }
+
+    // Validar tamaño (5MB máximo)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      alert('El archivo es demasiado grande. Tamaño máximo: 5MB');
+      return;
+    }
+
+    setImageFile(file);
+
+    // Crear preview
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setImagePreview(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+    setFormData(prev => ({
+      ...prev,
+      imagen_path: ''
+    }));
+  };
+
+  const uploadImage = async (productId: string): Promise<string | null> => {
+    if (!imageFile) return null;
+
+    setUploadingImage(true);
+    
+    try {
+      const imagePath = await ProductService.uploadProductImage(productId, imageFile);
+      return imagePath;
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      alert(error.message || 'Error al subir la imagen. Inténtelo de nuevo.');
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleClose = () => {
     setValidationErrors({});
+    setImageFile(null);
+    setImagePreview('');
     onClose();
   };
 
@@ -224,16 +316,100 @@ const ProductForm: React.FC<ProductFormProps> = ({
             />
           </Grid>
 
+          {/* Sección de imagen del producto */}
           <Grid item xs={12}>
-            <TextField
-              name="url_foto"
-              label="URL de la Foto"
-              fullWidth
-              value={formData.url_foto}
-              onChange={handleChange}
-              disabled={loading}
-              placeholder="https://ejemplo.com/imagen.jpg"
-            />
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Imagen del Producto
+            </Typography>
+            
+            {/* Área de carga de imagen */}
+            <Box
+              sx={{
+                border: '2px dashed #ccc',
+                borderRadius: 2,
+                p: 3,
+                textAlign: 'center',
+                backgroundColor: imageFile || imagePreview ? '#f9f9f9' : 'transparent',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  borderColor: '#1976d2',
+                  backgroundColor: '#f5f5f5',
+                },
+              }}
+            >
+              {imagePreview ? (
+                <Box>
+                  <Card sx={{ maxWidth: 200, margin: '0 auto', mb: 2 }}>
+                    <CardMedia
+                      component="img"
+                      height="140"
+                      image={imagePreview}
+                      alt="Vista previa"
+                      sx={{ objectFit: 'cover' }}
+                    />
+                  </Card>
+                  
+                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      startIcon={<CloudUpload />}
+                      disabled={loading || uploadingImage}
+                    >
+                      Cambiar Imagen
+                      <input
+                        type="file"
+                        hidden
+                        accept="image/*"
+                        onChange={handleImageChange}
+                      />
+                    </Button>
+                    
+                    <IconButton
+                      color="error"
+                      onClick={handleRemoveImage}
+                      disabled={loading || uploadingImage}
+                    >
+                      <Delete />
+                    </IconButton>
+                  </Box>
+                </Box>
+              ) : (
+                <Box>
+                  <Image sx={{ fontSize: 48, color: '#ccc', mb: 2 }} />
+                  <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                    Arrastra una imagen aquí o haz clic para seleccionar
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    startIcon={<CloudUpload />}
+                    disabled={loading || uploadingImage}
+                  >
+                    Seleccionar Imagen
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={handleImageChange}
+                    />
+                  </Button>
+                </Box>
+              )}
+              
+              {uploadingImage && (
+                <Box sx={{ mt: 2 }}>
+                  <CircularProgress size={24} />
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    Subiendo imagen...
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+            
+            <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+              Formatos soportados: JPG, PNG, GIF, WEBP. Tamaño máximo: 5MB
+            </Typography>
           </Grid>
 
           <Grid item xs={12} md={4}>

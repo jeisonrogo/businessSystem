@@ -138,7 +138,7 @@ class ProductCreateRequest(BaseModel):
     sku: str = Field(..., min_length=1, max_length=50, description="Código único del producto (SKU)")
     nombre: str = Field(..., min_length=1, max_length=255, description="Nombre del producto")
     descripcion: Optional[str] = Field(None, description="Descripción detallada del producto")
-    url_foto: Optional[str] = Field(None, max_length=512, description="URL de la imagen del producto")
+    imagen_path: Optional[str] = Field(None, max_length=512, description="Ruta relativa a la imagen del producto (se asigna automáticamente al subir archivo)")
     precio_base: Decimal = Field(..., gt=0, description="Costo del producto para el negocio")
     precio_publico: Decimal = Field(..., gt=0, description="Precio de venta al público")
     stock_inicial: Optional[int] = Field(0, ge=0, description="Stock inicial para el local actual")

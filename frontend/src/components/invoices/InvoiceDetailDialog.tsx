@@ -262,19 +262,24 @@ const InvoiceDetailDialog: React.FC<InvoiceDetailDialogProps> = ({
             <Card variant="outlined" sx={{ height: 'fit-content' }}>
               <CardContent>
                 <Typography variant="subtitle1" fontWeight="500">
-                  {invoice.cliente?.nombre_completo || 'N/A'}
+                  {invoice.cliente_nombre || 'N/A'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {invoice.cliente?.numero_documento || 'N/A'}
+                  {invoice.cliente_documento || 'N/A'}
                 </Typography>
-                {invoice.cliente?.email && (
+                {invoice.cliente_email && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    {invoice.cliente.email}
+                    {invoice.cliente_email}
                   </Typography>
                 )}
-                {invoice.cliente?.telefono && (
+                {invoice.cliente_telefono && (
                   <Typography variant="body2" color="text.secondary">
-                    {invoice.cliente.telefono}
+                    {invoice.cliente_telefono}
+                  </Typography>
+                )}
+                {invoice.cliente_direccion && (
+                  <Typography variant="body2" color="text.secondary">
+                    {invoice.cliente_direccion}
                   </Typography>
                 )}
               </CardContent>

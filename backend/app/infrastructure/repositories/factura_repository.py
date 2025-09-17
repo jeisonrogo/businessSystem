@@ -9,7 +9,7 @@ from datetime import date, datetime, UTC
 from decimal import Decimal
 from sqlmodel import Session, select, and_, func, or_, desc
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 
 from app.application.services.i_factura_repository import IFacturaRepository
 from app.domain.models.facturacion import (
@@ -102,17 +102,28 @@ class SQLFacturaRepository(IFacturaRepository):
             raise ValueError(f"Error al crear la factura: {str(e)}")
 
     async def get_by_id(self, factura_id: UUID) -> Optional[Factura]:
-        """Obtener una factura por su ID con detalles cargados."""
+        """Obtener una factura por su ID con detalles y cliente cargados."""
         statement = (
             select(Factura)
             .options(
                 selectinload(Factura.detalles),
-                selectinload(Factura.cliente)
+                joinedload(Factura.cliente)  # joinedload asegura que el cliente se carga en la misma consulta
             )
             .where(Factura.id == factura_id)
         )
         result = self.session.exec(statement)
-        return result.first()
+        factura = result.first()
+
+        # Si el cliente no se cargó por alguna razón, intentar cargarlo manualmente
+        if factura and not factura.cliente and factura.cliente_id:
+            from app.domain.models.facturacion import Cliente
+            cliente_stmt = select(Cliente).where(Cliente.id == factura.cliente_id)
+            cliente_result = self.session.exec(cliente_stmt)
+            cliente_manual = cliente_result.first()
+            if cliente_manual:
+                factura.cliente = cliente_manual
+
+        return factura
 
     async def get_by_numero(self, numero_factura: str) -> Optional[Factura]:
         """Obtener una factura por su número."""
@@ -120,7 +131,7 @@ class SQLFacturaRepository(IFacturaRepository):
             select(Factura)
             .options(
                 selectinload(Factura.detalles),
-                selectinload(Factura.cliente)
+                joinedload(Factura.cliente)  # Cambiar a joinedload para cliente
             )
             .where(Factura.numero_factura == numero_factura)
         )
@@ -143,7 +154,7 @@ class SQLFacturaRepository(IFacturaRepository):
         statement = (
             select(Factura)
             .options(
-                selectinload(Factura.cliente),
+                joinedload(Factura.cliente),  # Cambiar a joinedload para cliente
                 selectinload(Factura.detalles)
             )
             .offset(skip)
@@ -319,7 +330,7 @@ class SQLFacturaRepository(IFacturaRepository):
                 select(Factura)
                 .options(
                     selectinload(Factura.detalles),
-                    selectinload(Factura.cliente)
+                    joinedload(Factura.cliente)  # Cambiar a joinedload para cliente
                 )
                 .where(Factura.id == factura.id)
             )
@@ -452,7 +463,7 @@ class SQLFacturaRepository(IFacturaRepository):
         
         statement = (
             select(Factura)
-            .options(selectinload(Factura.cliente))
+            .options(joinedload(Factura.cliente))  # Cambiar a joinedload para cliente
             .where(
                 and_(
                     Factura.estado == EstadoFactura.EMITIDA,

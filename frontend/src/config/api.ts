@@ -80,6 +80,10 @@ export const ENDPOINTS = {
     SALES_CHART: '/dashboard/ventas-por-mes',
     INVENTORY_VALUE: '/dashboard/valor-inventario',
   },
+  // Upload
+  UPLOAD: {
+    PRODUCT_IMAGE: (productId: string) => `/upload/product-image/${productId}`,
+  },
 };
 
 /**
