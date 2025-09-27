@@ -313,7 +313,7 @@ const AccountForm: React.FC<AccountFormProps> = ({
               renderOption={(props, option) => {
                 const { key, ...otherProps } = props;
                 return (
-                  <Box component="li" key={key} {...otherProps}>
+                  <Box component="li" {...otherProps}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                       <Typography variant="body2" fontFamily="monospace" fontWeight="bold">
                         {option.codigo}

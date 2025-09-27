@@ -44,6 +44,8 @@ from app.infrastructure.repositories.inventario_repository import SQLInventarioR
 from app.infrastructure.repositories.product_repository import SQLProductRepository
 from app.infrastructure.middleware.tenant_middleware import get_tenant_context
 from app.domain.models.tenant_context import TenantContext
+from app.infrastructure.auth.auth_dependency import get_current_user
+from app.domain.models.user import User
 
 router = APIRouter()
 
@@ -471,4 +473,201 @@ async def recalcular_costos_producto(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error interno del servidor: {str(e)}"
-        ) 
+        )
+
+
+@router.get(
+    "/movimientos/export/excel",
+    summary="Exportar movimientos a Excel",
+    description="Exporta la lista de movimientos de inventario a formato Excel (.xlsx) con formato profesional.",
+    responses={
+        200: {"description": "Archivo Excel generado", "content": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}}},
+        500: {"model": ErrorResponse, "description": "Error interno del servidor"}
+    }
+)
+async def export_movements_excel(
+    request: Request,
+    limit: int = Query(100, description="Número máximo de movimientos a incluir"),
+    offset: int = Query(0, description="Número de movimientos a omitir"),
+    producto_id: Optional[UUID] = Query(None, description="Filtrar por producto específico"),
+    tipo_movimiento: Optional[TipoMovimiento] = Query(None, description="Filtrar por tipo de movimiento"),
+    fecha_inicio: Optional[datetime] = Query(None, description="Fecha de inicio del filtro"),
+    fecha_fin: Optional[datetime] = Query(None, description="Fecha de fin del filtro"),
+    current_user: User = Depends(get_current_user),
+    tenant_context: TenantContext = Depends(get_tenant_context),
+    inventario_repo: SQLInventarioRepository = Depends(get_inventario_repository)
+):
+    """
+    Exportar movimientos de inventario a Excel.
+
+    - **limit**: Número máximo de movimientos (máximo 1000)
+    - **offset**: Número de movimientos a omitir para paginación
+    - **producto_id**: UUID del producto para filtrar (opcional)
+    - **tipo_movimiento**: Tipo específico de movimiento (opcional)
+    - **fecha_inicio**: Fecha de inicio del período (opcional)
+    - **fecha_fin**: Fecha de fin del período (opcional)
+
+    Genera un archivo Excel con formato profesional que incluye:
+    - Títulos en negrita con colores corporativos
+    - Filas alternadas para mejor legibilidad
+    - Ajuste automático de columnas
+    - Formato de moneda y fechas apropiado
+    """
+    try:
+        from app.utils.excel_export import ExcelExporter, create_excel_response
+
+        # Validar límite
+        if limit > 1000:
+            limit = 1000
+
+        # Determinar filtro de local
+        filter_local_id = tenant_context.local_id if tenant_context.tiene_contexto_local else None
+
+        # Crear filtros
+        filters = MovimientoInventarioFilter(
+            local_id=filter_local_id,
+            producto_id=producto_id,
+            tipo_movimiento=tipo_movimiento,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin
+        )
+
+        # Obtener movimientos
+        use_case = ListarMovimientosUseCase(inventario_repo)
+        result = await use_case.execute(
+            filters=filters,
+            offset=offset,
+            limit=limit
+        )
+
+        # Convertir a diccionarios para el exportador
+        movements_data = []
+        for movement in result.movimientos:
+            movement_dict = {
+                'id': str(movement.id),
+                'created_at': movement.created_at.isoformat(),
+                'tipo_movimiento': movement.tipo_movimiento,
+                'cantidad': movement.cantidad,
+                'precio_unitario': movement.precio_unitario,
+                'costo_unitario': movement.costo_unitario,
+                'stock_anterior': movement.stock_anterior,
+                'stock_posterior': movement.stock_posterior,
+                'referencia': movement.referencia,
+                'observaciones': movement.observaciones,
+                'producto': {
+                    'nombre': movement.producto.nombre if movement.producto else 'N/A',
+                    'sku': movement.producto.sku if movement.producto else 'N/A'
+                }
+            }
+            movements_data.append(movement_dict)
+
+        # Generar Excel
+        exporter = ExcelExporter()
+        excel_file = exporter.export_movements_to_excel(movements_data)
+
+        # Crear nombre de archivo
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"movimientos_inventario_{timestamp}.xlsx"
+
+        return create_excel_response(excel_file, filename)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generando archivo Excel: {str(e)}"
+        )
+
+
+@router.get(
+    "/kardex/{producto_id}/export/excel",
+    summary="Exportar kardex a Excel",
+    description="Exporta el kardex de un producto específico a formato Excel (.xlsx) con formato profesional.",
+    responses={
+        200: {"description": "Archivo Excel generado", "content": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}}},
+        404: {"model": ErrorResponse, "description": "Producto no encontrado"},
+        500: {"model": ErrorResponse, "description": "Error interno del servidor"}
+    }
+)
+async def export_kardex_excel(
+    producto_id: UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    tenant_context: TenantContext = Depends(get_tenant_context),
+    inventario_repo: SQLInventarioRepository = Depends(get_inventario_repository),
+    product_repo: SQLProductRepository = Depends(get_product_repository)
+):
+    """
+    Exportar kardex de producto a Excel.
+
+    - **producto_id**: UUID único del producto
+
+    Genera un archivo Excel con formato profesional que incluye:
+    - Información resumida del producto
+    - Títulos en negrita con colores corporativos
+    - Historial completo de movimientos
+    - Filas alternadas para mejor legibilidad
+    - Ajuste automático de columnas
+    - Formato de moneda y fechas apropiado
+    """
+    try:
+        from app.utils.excel_export import ExcelExporter, create_excel_response
+
+        # Determinar filtro de local
+        filter_local_id = tenant_context.local_id if tenant_context.tiene_contexto_local else None
+
+        # Obtener kardex
+        use_case = ConsultarKardexUseCase(inventario_repo)
+        kardex = await use_case.execute(producto_id, filter_local_id)
+
+        # Obtener información del producto
+        product = await product_repo.get_by_id(producto_id)
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Producto no encontrado"
+            )
+
+        # Convertir kardex a diccionario
+        kardex_data = {
+            'stock_actual': kardex.stock_actual,
+            'costo_promedio_actual': kardex.costo_promedio_actual,
+            'valor_inventario': kardex.valor_inventario,
+            'total_movimientos': kardex.total_movimientos,
+            'movimientos': []
+        }
+
+        # Convertir movimientos
+        for movement in kardex.movimientos:
+            movement_dict = {
+                'created_at': movement.created_at.isoformat(),
+                'tipo_movimiento': movement.tipo_movimiento,
+                'cantidad': movement.cantidad,
+                'precio_unitario': movement.precio_unitario,
+                'costo_unitario': movement.costo_unitario,
+                'stock_anterior': movement.stock_anterior,
+                'stock_posterior': movement.stock_posterior,
+                'referencia': movement.referencia,
+                'observaciones': movement.observaciones
+            }
+            kardex_data['movimientos'].append(movement_dict)
+
+        # Generar Excel
+        exporter = ExcelExporter()
+        excel_file = exporter.export_kardex_to_excel(kardex_data, product)
+
+        # Crear nombre de archivo
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"kardex_{product.sku}_{timestamp}.xlsx"
+
+        return create_excel_response(excel_file, filename)
+
+    except ProductoNoEncontradoError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Producto no encontrado"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generando archivo Excel: {str(e)}"
+        )
