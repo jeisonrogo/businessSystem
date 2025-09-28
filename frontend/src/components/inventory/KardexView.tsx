@@ -45,7 +45,7 @@ import {
   KardexResponse,
   MovementType,
 } from '../../types';
-import { exportKardexToCSV, printKardex } from '../../utils/exportUtils';
+import { exportKardexToExcel, printKardex } from '../../utils/exportUtils';
 
 interface KardexViewProps {
   loading?: boolean;
@@ -187,10 +187,10 @@ const KardexView: React.FC<KardexViewProps> = ({
                 </span>
               </Tooltip>
               
-              <Tooltip title="Exportar a CSV">
+              <Tooltip title="Exportar a Excel">
                 <span>
-                  <IconButton 
-                    onClick={() => exportKardexToCSV(kardex, kardexProduct)}
+                  <IconButton
+                    onClick={() => exportKardexToExcel(kardexProduct)}
                     disabled={loading}
                   >
                     <GetApp />

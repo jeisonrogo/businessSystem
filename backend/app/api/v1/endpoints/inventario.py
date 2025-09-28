@@ -488,24 +488,25 @@ async def recalcular_costos_producto(
 async def export_movements_excel(
     request: Request,
     limit: int = Query(100, description="Número máximo de movimientos a incluir"),
-    offset: int = Query(0, description="Número de movimientos a omitir"),
+    page: int = Query(1, description="Número de página"),
     producto_id: Optional[UUID] = Query(None, description="Filtrar por producto específico"),
     tipo_movimiento: Optional[TipoMovimiento] = Query(None, description="Filtrar por tipo de movimiento"),
-    fecha_inicio: Optional[datetime] = Query(None, description="Fecha de inicio del filtro"),
-    fecha_fin: Optional[datetime] = Query(None, description="Fecha de fin del filtro"),
+    fecha_desde: Optional[datetime] = Query(None, description="Fecha de inicio del filtro"),
+    fecha_hasta: Optional[datetime] = Query(None, description="Fecha de fin del filtro"),
     current_user: User = Depends(get_current_user),
     tenant_context: TenantContext = Depends(get_tenant_context),
-    inventario_repo: SQLInventarioRepository = Depends(get_inventario_repository)
+    inventario_repo: SQLInventarioRepository = Depends(get_inventario_repository),
+    product_repo: SQLProductRepository = Depends(get_product_repository)
 ):
     """
     Exportar movimientos de inventario a Excel.
 
     - **limit**: Número máximo de movimientos (máximo 1000)
-    - **offset**: Número de movimientos a omitir para paginación
+    - **page**: Número de página para paginación
     - **producto_id**: UUID del producto para filtrar (opcional)
     - **tipo_movimiento**: Tipo específico de movimiento (opcional)
-    - **fecha_inicio**: Fecha de inicio del período (opcional)
-    - **fecha_fin**: Fecha de fin del período (opcional)
+    - **fecha_desde**: Fecha de inicio del período (opcional)
+    - **fecha_hasta**: Fecha de fin del período (opcional)
 
     Genera un archivo Excel con formato profesional que incluye:
     - Títulos en negrita con colores corporativos
@@ -528,16 +529,16 @@ async def export_movements_excel(
             local_id=filter_local_id,
             producto_id=producto_id,
             tipo_movimiento=tipo_movimiento,
-            fecha_inicio=fecha_inicio,
-            fecha_fin=fecha_fin
+            fecha_desde=fecha_desde,
+            fecha_hasta=fecha_hasta
         )
 
         # Obtener movimientos
-        use_case = ListarMovimientosUseCase(inventario_repo)
+        use_case = ListarMovimientosUseCase(inventario_repo, product_repo)
         result = await use_case.execute(
-            filters=filters,
-            offset=offset,
-            limit=limit
+            page=page,
+            limit=limit,
+            filtros=filters
         )
 
         # Convertir a diccionarios para el exportador
@@ -616,8 +617,16 @@ async def export_kardex_excel(
         filter_local_id = tenant_context.local_id if tenant_context.tiene_contexto_local else None
 
         # Obtener kardex
-        use_case = ConsultarKardexUseCase(inventario_repo)
-        kardex = await use_case.execute(producto_id, filter_local_id)
+        use_case = ConsultarKardexUseCase(inventario_repo, product_repo)
+        kardex = await use_case.execute(
+            producto_id=producto_id,
+            skip=0,
+            limit=1000,
+            tipo_movimiento=None,
+            fecha_desde=None,
+            fecha_hasta=None,
+            local_id=filter_local_id
+        )
 
         # Obtener información del producto
         product = await product_repo.get_by_id(producto_id)

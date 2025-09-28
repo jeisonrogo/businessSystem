@@ -3,35 +3,45 @@
  * Funciones para exportar a CSV, Excel y generar reportes
  */
 
-import { KardexResponse, InventoryMovement, Product, MovementType } from '../types';
+import { KardexResponse, Product, MovementType } from '../types';
 import { InventoryService } from '../services/inventoryService';
 
 /**
- * Convertir datos a formato CSV
+ * Obtener headers con autenticación y contexto tenant
  */
-export const convertToCSV = (data: any[], headers: string[]): string => {
-  const csvHeaders = headers.join(',');
-  const csvRows = data.map(row => 
-    headers.map(header => {
-      const value = row[header];
-      // Escapar comillas y envolver en comillas si contiene comas o saltos de línea
-      if (typeof value === 'string' && (value.includes(',') || value.includes('\n') || value.includes('"'))) {
-        return `"${value.replace(/"/g, '""')}"`;
+const getHeaders = (): HeadersInit => {
+  const token = localStorage.getItem('access_token');
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  // Agregar contexto tenant si está disponible
+  try {
+    const tenantContext = localStorage.getItem('tenant_context');
+    if (tenantContext) {
+      const context = JSON.parse(tenantContext);
+      if (context.local_id) {
+        headers['X-Local-ID'] = context.local_id;
       }
-      return value || '';
-    }).join(',')
-  );
-  
-  return [csvHeaders, ...csvRows].join('\n');
+    }
+  } catch (error) {
+    console.warn('Error al obtener contexto tenant para exportación:', error);
+  }
+
+  return headers;
 };
 
+
 /**
- * Descargar archivo CSV
+ * Descargar archivo Excel desde blob
  */
-export const downloadCSV = (csvContent: string, filename: string): void => {
-  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+export const downloadExcel = (blob: Blob, filename: string): void => {
   const link = document.createElement('a');
-  
+
   if (link.download !== undefined) {
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -40,102 +50,100 @@ export const downloadCSV = (csvContent: string, filename: string): void => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 };
 
 /**
- * Exportar kardex a CSV
+ * Exportar kardex a Excel
  */
-export const exportKardexToCSV = (kardex: KardexResponse, product: Product): void => {
-  const typeLabels = InventoryService.getMovementTypeLabels();
-  
-  // Preparar datos del kardex
-  const kardexData = kardex.movimientos.map(movement => ({
-    'Fecha': new Date(movement.created_at).toLocaleString('es-CO'),
-    'Tipo de Movimiento': typeLabels[movement.tipo_movimiento],
-    'Cantidad': InventoryService.formatQuantityWithSign(movement.tipo_movimiento, movement.cantidad),
-    'Precio Unitario': movement.precio_unitario ? parseFloat(movement.precio_unitario.toString()) : 0,
-    'Costo Unitario': movement.costo_unitario ? parseFloat(movement.costo_unitario.toString()) : 0,
-    'Stock Anterior': movement.stock_anterior,
-    'Stock Posterior': movement.stock_posterior,
-    'Referencia': movement.referencia || '',
-    'Observaciones': movement.observaciones || '',
-  }));
+export const exportKardexToExcel = async (product: Product): Promise<void> => {
+  try {
+    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-  // Headers para CSV
-  const headers = [
-    'Fecha',
-    'Tipo de Movimiento', 
-    'Cantidad',
-    'Precio Unitario',
-    'Costo Unitario',
-    'Stock Anterior',
-    'Stock Posterior',
-    'Referencia',
-    'Observaciones'
-  ];
+    // Llamar al endpoint de exportación Excel
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/inventario/kardex/${product.id}/export/excel`,
+      {
+        method: 'GET',
+        headers: getHeaders(),
+      }
+    );
 
-  // Generar CSV
-  const csvContent = convertToCSV(kardexData, headers);
-  
-  // Crear nombre de archivo
-  const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
-  const filename = `kardex_${product.sku}_${dateStr}.csv`;
-  
-  downloadCSV(csvContent, filename);
+    if (!response.ok) {
+      throw new Error(`Error al exportar kardex: ${response.statusText}`);
+    }
+
+    // Obtener el blob del archivo Excel
+    const blob = await response.blob();
+
+    // Crear nombre de archivo
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const filename = `kardex_${product.sku}_${dateStr}.xlsx`;
+
+    // Descargar archivo
+    downloadExcel(blob, filename);
+  } catch (error) {
+    console.error('Error exportando kardex:', error);
+    throw new Error('Error al exportar kardex a Excel');
+  }
 };
+
 
 /**
- * Exportar movimientos a CSV
+ * Exportar movimientos a Excel
  */
-export const exportMovementsToCSV = (movements: InventoryMovement[]): void => {
-  const typeLabels = InventoryService.getMovementTypeLabels();
-  
-  // Preparar datos de movimientos
-  const movementsData = movements.map(movement => ({
-    'ID': movement.id,
-    'Fecha': new Date(movement.created_at).toLocaleString('es-CO'),
-    'Producto': movement.producto?.nombre || 'N/A',
-    'SKU': movement.producto?.sku || 'N/A',
-    'Tipo de Movimiento': typeLabels[movement.tipo_movimiento],
-    'Cantidad': InventoryService.formatQuantityWithSign(movement.tipo_movimiento, movement.cantidad),
-    'Precio Unitario': movement.precio_unitario ? parseFloat(movement.precio_unitario.toString()) : 0,
-    'Costo Unitario': movement.costo_unitario ? parseFloat(movement.costo_unitario.toString()) : 0,
-    'Valor Total': InventoryService.calculateMovementValue(movement),
-    'Stock Anterior': movement.stock_anterior,
-    'Stock Posterior': movement.stock_posterior,
-    'Referencia': movement.referencia || '',
-    'Observaciones': movement.observaciones || '',
-  }));
+export const exportMovementsToExcel = async (
+  filters?: {
+    producto_id?: string;
+    tipo_movimiento?: string;
+    fecha_inicio?: string;
+    fecha_fin?: string;
+    limit?: number;
+  }
+): Promise<void> => {
+  try {
+    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-  // Headers para CSV
-  const headers = [
-    'ID',
-    'Fecha',
-    'Producto',
-    'SKU',
-    'Tipo de Movimiento',
-    'Cantidad',
-    'Precio Unitario',
-    'Costo Unitario',
-    'Valor Total',
-    'Stock Anterior',
-    'Stock Posterior',
-    'Referencia',
-    'Observaciones'
-  ];
+    // Construir parámetros de query
+    const queryParams = new URLSearchParams();
+    if (filters?.producto_id) queryParams.append('producto_id', filters.producto_id);
+    if (filters?.tipo_movimiento) queryParams.append('tipo_movimiento', filters.tipo_movimiento);
+    if (filters?.fecha_inicio) queryParams.append('fecha_inicio', filters.fecha_inicio);
+    if (filters?.fecha_fin) queryParams.append('fecha_fin', filters.fecha_fin);
+    if (filters?.limit) queryParams.append('limit', filters.limit.toString());
 
-  // Generar CSV
-  const csvContent = convertToCSV(movementsData, headers);
-  
-  // Crear nombre de archivo
-  const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
-  const filename = `movimientos_inventario_${dateStr}.csv`;
-  
-  downloadCSV(csvContent, filename);
+    const url = `${API_BASE_URL}/api/v1/inventario/movimientos/export/excel${
+      queryParams.toString() ? `?${queryParams.toString()}` : ''
+    }`;
+
+    // Llamar al endpoint de exportación Excel
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error al exportar movimientos: ${response.statusText}`);
+    }
+
+    // Obtener el blob del archivo Excel
+    const blob = await response.blob();
+
+    // Crear nombre de archivo
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const filename = `movimientos_inventario_${dateStr}.xlsx`;
+
+    // Descargar archivo
+    downloadExcel(blob, filename);
+  } catch (error) {
+    console.error('Error exportando movimientos:', error);
+    throw new Error('Error al exportar movimientos a Excel');
+  }
 };
+
 
 /**
  * Generar contenido HTML para impresión del kardex

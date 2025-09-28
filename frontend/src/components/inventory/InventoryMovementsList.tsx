@@ -43,7 +43,7 @@ import {
   InventoryMovementListResponse,
 } from '../../types';
 import MovementDetailsModal from './MovementDetailsModal';
-import { exportMovementsToCSV } from '../../utils/exportUtils';
+import { exportMovementsToExcel } from '../../utils/exportUtils';
 
 interface InventoryMovementsListProps {
   onRefresh?: () => void;
@@ -350,11 +350,11 @@ const InventoryMovementsList: React.FC<InventoryMovementsListProps> = ({
           Movimientos de Inventario
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Tooltip title="Exportar a CSV">
+          <Tooltip title="Exportar a Excel">
             <span>
               <IconButton
-                onClick={() => exportMovementsToCSV(movements)}
-                disabled={loading || externalLoading || movements.length === 0}
+                onClick={() => exportMovementsToExcel()}
+                disabled={loading || externalLoading}
               >
                 <GetApp />
               </IconButton>

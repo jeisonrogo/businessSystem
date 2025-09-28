@@ -12,4 +12,5 @@ pytest-asyncio
 python-multipart
 email-validator
 httpx
-aiofiles 
+aiofiles
+openpyxl 
