@@ -55,9 +55,15 @@ const LocalSelectionDialog: React.FC<LocalSelectionDialogProps> = ({
   const [selectedLocalId, setSelectedLocalId] = useState<string>('');
 
   useEffect(() => {
-    // Auto-seleccionar si solo hay un local
+    // Auto-seleccionar si solo hay un local y auto-confirmar
     if (availableLocals.length === 1) {
       setSelectedLocalId(availableLocals[0].id);
+      // Para locales únicos, confirmar automáticamente después de un breve delay
+      const timer = setTimeout(() => {
+        handleConfirm();
+      }, 1500); // 1.5 segundos para que el usuario vea el mensaje
+
+      return () => clearTimeout(timer);
     } else {
       setSelectedLocalId('');
     }

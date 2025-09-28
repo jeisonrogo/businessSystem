@@ -89,6 +89,46 @@ export class TenantService {
     return response.data;
   }
 
+  /**
+   * Obtiene información de locales para auto-selección
+   */
+  static async getLocalsInfo(): Promise<{
+    total_locales: number;
+    should_auto_select: boolean;
+    auto_select_local_id?: string;
+    auto_select_local_name?: string;
+    requires_manual_selection: boolean;
+    error?: string;
+  }> {
+    const response = await apiRequest.get<{
+      total_locales: number;
+      should_auto_select: boolean;
+      auto_select_local_id?: string;
+      auto_select_local_name?: string;
+      requires_manual_selection: boolean;
+      error?: string;
+    }>('/tenant-context/locales-info');
+    return response.data;
+  }
+
+  /**
+   * Selecciona un local específico (optimizado para auto-selección)
+   */
+  static async selectLocal(localId: string): Promise<TenantContext> {
+    const response = await apiRequest.post<TenantContext>('/tenant-context/select-local', {
+      local_id: localId
+    });
+    return response.data;
+  }
+
+  /**
+   * Limpia el contexto de local (cambiar a vista de toda la tienda)
+   */
+  static async clearLocalContext(): Promise<any> {
+    const response = await apiRequest.delete('/tenant-context/clear');
+    return response.data;
+  }
+
   // ============================================================================
   // GESTIÓN DE TIENDAS
   // ============================================================================

@@ -153,10 +153,8 @@ def obtener_contexto_actual(
         permisos_disponibles = []
         if tenant_context.tiene_contexto_local:
             # Si tiene contexto de local, mostrar permisos específicos del local
-            local_permisos = tenant_context.permisos_locales.get(str(tenant_context.local_id), {})
-            permisos_disponibles = [
-                permiso for permiso, activo in local_permisos.items() if activo
-            ]
+            local_permisos = tenant_context.permisos_locales.get(str(tenant_context.local_id), [])
+            permisos_disponibles = local_permisos if isinstance(local_permisos, list) else []
         else:
             # Si solo tiene contexto de tienda, mostrar permisos generales
             permisos_disponibles = ["consulta_tienda", "cambio_contexto"]
@@ -506,9 +504,126 @@ async def get_my_locals(
             ))
         
         return local_responses
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error interno del servidor"
+        )
+
+
+@router.get("/locales-info", response_model=dict)
+async def get_locals_info(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Obtener información de locales del usuario con conteo para auto-selección.
+    Incluye el número total de locales y si se debe auto-seleccionar.
+    """
+    try:
+        local_repo = LocalRepository(session)
+        usuario_local_repo = UsuarioLocalRepository(session)
+
+        # Si es administrador o gerente, puede ver todos los locales de su tienda
+        if current_user.rol in ["ADMINISTRADOR", "GERENTE"]:
+            locals = local_repo.get_by_tienda(current_user.tienda_id, limit=1000)
+        else:
+            # Para otros roles, solo locales asignados
+            user_assignments = usuario_local_repo.get_by_usuario(current_user.id)
+            if not user_assignments:
+                return {
+                    "total_locales": 0,
+                    "should_auto_select": False,
+                    "auto_select_local_id": None,
+                    "requires_manual_selection": False,
+                    "error": "No tienes locales asignados"
+                }
+
+            local_ids = [assignment.local_id for assignment in user_assignments]
+            locals = []
+            for local_id in local_ids:
+                local = local_repo.get_by_id(local_id)
+                if local and local.is_active:
+                    locals.append(local)
+
+        total_locales = len(locals)
+
+        # Determinar lógica de auto-selección
+        if total_locales == 0:
+            return {
+                "total_locales": 0,
+                "should_auto_select": False,
+                "auto_select_local_id": None,
+                "requires_manual_selection": False,
+                "error": "No hay locales disponibles"
+            }
+        elif total_locales == 1:
+            # Auto-seleccionar cuando hay solo un local
+            return {
+                "total_locales": 1,
+                "should_auto_select": True,
+                "auto_select_local_id": str(locals[0].id),
+                "auto_select_local_name": locals[0].nombre,
+                "requires_manual_selection": False
+            }
+        else:
+            # Requerir selección manual cuando hay múltiples locales
+            return {
+                "total_locales": total_locales,
+                "should_auto_select": False,
+                "auto_select_local_id": None,
+                "requires_manual_selection": True
+            }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno del servidor"
+        )
+
+
+@router.post("/select-local", response_model=TenantContextResponse)
+async def select_local(
+    cambio_request: CambiarContextoRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_sync)
+):
+    """
+    Seleccionar local activo (equivalente a cambiar-contexto pero más específico).
+    Optimizado para auto-selección y navegación fluida.
+    """
+    try:
+        # Reutilizar la lógica existente de cambiar-contexto
+        return cambiar_contexto_local(cambio_request, session, current_user)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al seleccionar local: {str(e)}"
+        )
+
+
+@router.delete("/clear", response_model=dict)
+async def clear_local_context(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user_sync)
+):
+    """
+    Limpiar contexto de local (cambiar a vista de toda la tienda).
+    """
+    try:
+        # Cambiar a contexto solo tienda (sin local específico)
+        cambio_request = CambiarContextoRequest(local_id=None)
+        context = cambiar_contexto_local(cambio_request, session, current_user)
+
+        return {
+            "message": "Contexto limpiado exitosamente",
+            "context": context
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al limpiar contexto: {str(e)}"
         )

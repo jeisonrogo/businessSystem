@@ -21,23 +21,26 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
-    // Agregar header de contexto local si está disponible
+
+    // Agregar header de contexto local si está disponible (mejorado para auto-selección)
     const tenantContext = localStorage.getItem('tenant_context');
     if (tenantContext) {
       try {
         const context = JSON.parse(tenantContext);
         if (context.local_id) {
           config.headers['X-Local-ID'] = context.local_id;
+          console.log('🏪 Enviando request con contexto local:', context.local_id);
         }
         if (context.tienda_id) {
           config.headers['X-Tienda-ID'] = context.tienda_id;
         }
       } catch (e) {
         console.warn('Error al parsear contexto de tenant desde localStorage:', e);
+        // Limpiar contexto corrupto
+        localStorage.removeItem('tenant_context');
       }
     }
-    
+
     return config;
   },
   (error) => {

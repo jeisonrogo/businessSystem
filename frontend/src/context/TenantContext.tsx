@@ -142,30 +142,40 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
     try {
       // Cargar tiendas disponibles primero
       await loadUserStores();
-      
-      // Cargar locales disponibles basados en el rol del usuario
+
+      // Obtener información de locales para auto-selección
+      const localsInfo = await TenantService.getLocalsInfo();
+
+      console.log('🔍 Información de locales para auto-selección:', localsInfo);
+
+      // Cargar locales disponibles para mostrar en la UI
       const userLocals = await TenantService.getAvailableLocals();
       setAvailableLocals(userLocals);
 
-      // Decidir el flujo según el rol y locales disponibles  
-      if (user?.rol === UserRole.ADMINISTRADOR || user?.rol === UserRole.GERENTE_VENTAS) {
-        // Para administradores y gerentes, usar el primer local disponible
-        if (userLocals.length > 0) {
-          await switchToLocal(userLocals[0].id);
-        }
-      } else {
-        // Para usuarios regulares, necesitan selección de local obligatoria
-        if (userLocals.length === 0) {
-          // Usuario sin locales asignados - mostrar mensaje de error
+      // Lógica de auto-selección mejorada
+      if (localsInfo.error) {
+        // Error en la obtención de locales
+        setNeedsLocalSelection(true);
+        setError(localsInfo.error);
+      } else if (localsInfo.should_auto_select && localsInfo.auto_select_local_id) {
+        // Auto-seleccionar cuando hay exactamente un local
+        console.log('🎯 Auto-seleccionando local:', localsInfo.auto_select_local_name);
+        try {
+          await switchToLocal(localsInfo.auto_select_local_id);
+          console.log('✅ Auto-selección exitosa');
+        } catch (autoSelectError: any) {
+          console.error('❌ Error en auto-selección:', autoSelectError);
           setNeedsLocalSelection(true);
-          setError('No tienes locales asignados. Contacta al administrador.');
-        } else if (userLocals.length === 1) {
-          // Usuario con un solo local - auto-seleccionar
-          await switchToLocal(userLocals[0].id);
-        } else {
-          // Usuario con múltiples locales - mostrar selector
-          setNeedsLocalSelection(true);
+          setError('Error al configurar el local automáticamente.');
         }
+      } else if (localsInfo.requires_manual_selection) {
+        // Mostrar selector cuando hay múltiples locales
+        console.log('📋 Requiere selección manual de local');
+        setNeedsLocalSelection(true);
+      } else if (localsInfo.total_locales === 0) {
+        // Sin locales disponibles
+        setNeedsLocalSelection(true);
+        setError('No tienes locales asignados. Contacta al administrador.');
       }
 
       // Intentar cargar contexto actual existente si no se configuró uno nuevo
@@ -173,15 +183,16 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
         try {
           const context = await TenantService.getCurrentContext();
           setCurrentContext(context);
-          
+
           // Persistir contexto en localStorage para los interceptors de API
           localStorage.setItem('tenant_context', JSON.stringify(context));
+          console.log('📥 Contexto existente cargado:', context);
         } catch (contextErr: any) {
-          console.warn('No se pudo cargar el contexto inicial del usuario:', contextErr.message);
+          console.warn('⚠️ No se pudo cargar el contexto inicial del usuario:', contextErr.message);
         }
       }
     } catch (err: any) {
-      console.error('Error al inicializar contexto de tenant:', err);
+      console.error('❌ Error al inicializar contexto de tenant:', err);
       setError(err.message || 'Error al cargar contexto de tenant');
     } finally {
       setIsLoading(false);
