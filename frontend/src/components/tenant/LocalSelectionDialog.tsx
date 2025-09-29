@@ -67,7 +67,7 @@ const LocalSelectionDialog: React.FC<LocalSelectionDialogProps> = ({
     } else {
       setSelectedLocalId('');
     }
-  }, [availableLocals]);
+  }, [availableLocals]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleConfirm = () => {
     if (selectedLocalId) {

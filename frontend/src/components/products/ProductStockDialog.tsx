@@ -15,7 +15,6 @@ import {
   Alert,
   CircularProgress,
   InputAdornment,
-  Chip,
 } from '@mui/material';
 import { Inventory, Store, LocationOn } from '@mui/icons-material';
 import { Product } from '../../types';

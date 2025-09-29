@@ -11,18 +11,15 @@ import {
   Tienda,
   TiendaCreate,
   TiendaUpdate,
-  TiendaListResponse,
   Local,
   LocalCreate,
   LocalUpdate,
-  LocalListResponse,
   StockLocal,
   StockLocalUpdate,
   StockLocalMovimiento,
   StockLocalListResponse,
   TransferenciaInventario,
   TransferenciaCreate,
-  TransferenciaUpdate,
   TransferenciaListResponse,
   UsuarioLocal,
   UsuarioLocalCreate,
@@ -32,7 +29,6 @@ import {
   EstadisticasTienda,
   EstadisticasLocal,
   ResumenTransferencias,
-  FiltroMultiTenant,
   FiltroTransferencias,
   FiltroStockLocal,
   ValidacionStock
@@ -436,7 +432,7 @@ export class TenantService {
   ): Promise<T> {
     // Esto se podría implementar usando interceptors de axios
     // para agregar automáticamente el header X-Local-ID
-    const originalHeaders = apiRequest.get;
+    // const originalHeaders = apiRequest.get; // Unused variable commented out
     
     try {
       // Agregar header temporalmente
@@ -456,16 +452,16 @@ export class TenantService {
  */
 export const configureTenantHeaders = () => {
   // Interceptor que agrega el header X-Local-ID cuando hay contexto de local
-  const addTenantHeaders = (config: any) => {
-    const tenantContext = localStorage.getItem('tenant_context');
-    if (tenantContext) {
-      const context = JSON.parse(tenantContext);
-      if (context.local_id) {
-        config.headers['X-Local-ID'] = context.local_id;
-      }
-    }
-    return config;
-  };
+  // const addTenantHeaders = (config: any) => {
+  //   const tenantContext = localStorage.getItem('tenant_context');
+  //   if (tenantContext) {
+  //     const context = JSON.parse(tenantContext);
+  //     if (context.local_id) {
+  //       config.headers['X-Local-ID'] = context.local_id;
+  //     }
+  //   }
+  //   return config;
+  // };
 
   // Configurar interceptor si es necesario
   // apiClient.interceptors.request.use(addTenantHeaders);

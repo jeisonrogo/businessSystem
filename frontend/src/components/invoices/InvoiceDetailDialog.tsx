@@ -36,13 +36,12 @@ import {
   Receipt as ReceiptIcon,
   Person as PersonIcon,
   CalendarToday as CalendarIcon,
-  AttachMoney as MoneyIcon,
   Payment as PaymentIcon,
   Print as PrintIcon,
   Warning as WarningIcon
 } from '@mui/icons-material';
 import { InvoicesService, PaymentData } from '../../services/invoicesService';
-import { Invoice, InvoiceStatus, InvoiceType } from '../../types';
+import { Invoice, InvoiceStatus } from '../../types';
 
 interface InvoiceDetailDialogProps {
   invoice: Invoice | null;

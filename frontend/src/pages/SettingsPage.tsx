@@ -3,7 +3,7 @@
  * Permite al usuario gestionar su perfil, contraseña y preferencias
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Paper,
@@ -13,7 +13,6 @@ import {
   CardContent,
   CardHeader,
   Alert,
-  Divider,
   Chip,
   Avatar
 } from '@mui/material';

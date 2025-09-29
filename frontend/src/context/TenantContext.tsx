@@ -7,15 +7,13 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { UserRole } from '../types/index';
-import { 
+import {
   TenantContext as ITenantContext,
-  Tienda, 
-  Local, 
+  Tienda,
+  Local,
   UsuarioLocal,
-  TipoContextoTenant,
   CambiarContextoRequest
 } from '../types/multiTenant';
-import { User } from '../types';
 import { useAuth } from './AuthContext';
 import { TenantService } from '../services/tenantService';
 import LocalSelectionDialog from '../components/tenant/LocalSelectionDialog';
@@ -102,7 +100,7 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
     } else {
       resetTenantContext();
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Efecto para restaurar contexto desde localStorage al montar el componente
   useEffect(() => {
@@ -507,12 +505,12 @@ export const useTenant = (): TenantContextType => {
 // ============================================================================
 
 export const useCurrentStore = () => {
-  const { selectedStore, currentContext } = useTenant();
+  const { selectedStore } = useTenant();
   return selectedStore;
 };
 
 export const useCurrentLocal = () => {
-  const { selectedLocal, currentContext } = useTenant();
+  const { selectedLocal } = useTenant();
   return selectedLocal;
 };
 

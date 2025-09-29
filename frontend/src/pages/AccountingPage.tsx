@@ -86,7 +86,7 @@ const AccountingPage: React.FC = () => {
   // Calcular estadísticas cuando cambien las cuentas
   useEffect(() => {
     calculateAccountStats();
-  }, [accounts]);
+  }, [accounts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAccountsData = async () => {
     setLoading(true);

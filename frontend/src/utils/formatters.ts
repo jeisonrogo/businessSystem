@@ -348,7 +348,7 @@ export const isValidEmail = (email: string): boolean => {
  * Valida si un texto es un número de teléfono válido (Colombia)
  */
 export const isValidPhone = (phone: string): boolean => {
-  const phoneRegex = /^[\+]?[(]?[\d\s\-\(\)]{10,}$/;
+  const phoneRegex = /^[+]?[()]?[\d\s\-()]{10,}$/;
   return phoneRegex.test(phone);
 };
 
@@ -364,7 +364,7 @@ export const isValidCode = (code: string): boolean => {
 // EXPORTACIONES POR DEFECTO
 // ============================================================================
 
-export default {
+const formattersDefault = {
   formatCurrency,
   formatNumber,
   formatPercentage,
@@ -386,3 +386,5 @@ export default {
   isValidPhone,
   isValidCode
 };
+
+export default formattersDefault;

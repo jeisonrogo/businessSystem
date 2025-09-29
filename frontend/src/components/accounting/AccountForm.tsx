@@ -92,7 +92,7 @@ const AccountForm: React.FC<AccountFormProps> = ({
       setSubmitError(null);
       loadParentAccounts();
     }
-  }, [open, account]);
+  }, [open, account]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cargar cuentas padre disponibles
   const loadParentAccounts = async () => {

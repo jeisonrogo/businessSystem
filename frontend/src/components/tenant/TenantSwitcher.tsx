@@ -5,7 +5,7 @@
  * según sus permisos. Muestra el contexto actual y opciones disponibles.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -19,17 +19,14 @@ import {
   Box,
   Avatar,
   List,
-  ListItem,
   ListItemAvatar,
   ListItemText,
   ListItemButton,
   Chip,
-  Divider,
   Alert,
   CircularProgress,
   Grid,
   IconButton,
-  Tooltip,
   Badge
 } from '@mui/material';
 import {
@@ -67,7 +64,6 @@ export const TenantSwitcher: React.FC<TenantSwitcherProps> = ({ open, onClose })
     availableStores,
     availableLocals,
     selectedStore,
-    selectedLocal,
     isLoading,
     error,
     switchContext,

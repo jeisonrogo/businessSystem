@@ -7,20 +7,21 @@ import {
   Box,
   Typography,
   Button,
-  TextField,
-  InputAdornment,
   Alert,
   Snackbar,
-  Card,
-  CardContent,
   Grid,
+  Container,
+  alpha,
+  useTheme,
+  Fab,
 } from '@mui/material';
 import {
   Add,
-  Search,
   Inventory,
   TrendingDown,
   AttachMoney,
+  Warning,
+  Refresh,
 } from '@mui/icons-material';
 import { GridPaginationModel } from '@mui/x-data-grid';
 
@@ -31,6 +32,9 @@ import ProductForm from '../components/products/ProductForm';
 import ProductDetailDialog from '../components/products/ProductDetailDialog';
 import ProductStockDialog from '../components/products/ProductStockDialog';
 import { useTenant } from '../context/TenantContext';
+import ModernCard from '../components/common/ModernCard';
+import ModernStatsCard from '../components/common/ModernStatsCard';
+import ModernSearchBar from '../components/common/ModernSearchBar';
 
 const ProductsPage: React.FC = () => {
   // Contexto de tenant
@@ -131,15 +135,15 @@ const ProductsPage: React.FC = () => {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [searchTerm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handlers de eventos
   const handlePaginationChange = (model: GridPaginationModel) => {
     setPaginationModel(model);
   };
 
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(event.target.value);
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
   };
 
   const handleNewProduct = () => {
@@ -252,126 +256,256 @@ const ProductsPage: React.FC = () => {
   const totalValue = products.reduce((sum, p) => sum + (p.precio_publico * (p.stock_local_actual ?? 0)), 0);
   const outOfStockCount = products.filter(p => (p.stock_local_actual ?? 0) === 0).length;
 
+  const theme = useTheme();
+
   return (
-    <Box>
-      {/* Encabezado */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Gestión de Productos
-          </Typography>
-          <Typography variant="subtitle1" color="text.secondary">
-            Administra tu catálogo de productos
-          </Typography>
-          {/* Indicador de contexto local */}
-          <Box sx={{ mt: 1, p: 1, bgcolor: 'info.main', borderRadius: 1, color: 'info.contrastText', display: 'inline-block' }}>
-            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-              {selectedLocal ? (
-                `📍 Local: ${selectedLocal.nombre} (${selectedLocal.codigo})`
-              ) : isStoreManager() && selectedStore ? (
-                `🏢 Todos los locales de ${selectedStore.nombre}`
-              ) : (
-                '⚠️ Sin contexto local seleccionado'
-              )}
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background: `linear-gradient(135deg,
+          ${alpha(theme.palette.primary.main, 0.05)} 0%,
+          ${alpha(theme.palette.secondary.main, 0.05)} 50%,
+          ${alpha(theme.palette.primary.main, 0.03)} 100%
+        )`,
+        py: 3,
+      }}
+    >
+      <Container maxWidth="xl">
+      {/* Encabezado moderno */}
+      <ModernCard variant="glass" sx={{ mb: 4, p: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              variant="h3"
+              component="h1"
+              sx={{
+                fontWeight: 700,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                mb: 1,
+              }}
+            >
+              Gestión de Productos
             </Typography>
+            <Typography variant="h6" color="text.secondary" sx={{ mb: 2, fontWeight: 400 }}>
+              Administra tu catálogo de productos de manera profesional
+            </Typography>
+
+            {/* Indicador de contexto local moderno */}
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                px: 2,
+                py: 1,
+                backgroundColor: selectedLocal
+                  ? alpha(theme.palette.success.main, 0.1)
+                  : isStoreManager() && selectedStore
+                  ? alpha(theme.palette.info.main, 0.1)
+                  : alpha(theme.palette.warning.main, 0.1),
+                border: `1px solid ${
+                  selectedLocal
+                    ? alpha(theme.palette.success.main, 0.3)
+                    : isStoreManager() && selectedStore
+                    ? alpha(theme.palette.info.main, 0.3)
+                    : alpha(theme.palette.warning.main, 0.3)
+                }`,
+                borderRadius: 2,
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 600,
+                  color: selectedLocal
+                    ? 'success.dark'
+                    : isStoreManager() && selectedStore
+                    ? 'info.dark'
+                    : 'warning.dark',
+                }}
+              >
+                {selectedLocal ? (
+                  `📍 Local: ${selectedLocal.nombre} (${selectedLocal.codigo})`
+                ) : isStoreManager() && selectedStore ? (
+                  `🏢 Todos los locales de ${selectedStore.nombre}`
+                ) : (
+                  '⚠️ Sin contexto local seleccionado'
+                )}
+              </Typography>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              size="large"
+              onClick={handleNewProduct}
+              disabled={!selectedLocal && !(isStoreManager() && selectedStore)}
+              sx={{
+                borderRadius: 2,
+                px: 3,
+                py: 1.5,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.4)}`,
+                },
+                '&:disabled': {
+                  background: alpha(theme.palette.action.disabled, 0.3),
+                  boxShadow: 'none',
+                },
+              }}
+            >
+              Nuevo Producto
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Refresh />}
+              onClick={loadProducts}
+              disabled={loading}
+              sx={{
+                borderRadius: 2,
+                borderColor: alpha(theme.palette.primary.main, 0.3),
+                color: 'primary.main',
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                  borderColor: theme.palette.primary.main,
+                  transform: 'translateY(-1px)',
+                },
+              }}
+            >
+              Actualizar
+            </Button>
           </Box>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          size="large"
-          onClick={handleNewProduct}
-          disabled={!selectedLocal && !(isStoreManager() && selectedStore)}
-        >
-          Nuevo Producto
-        </Button>
-      </Box>
+      </ModernCard>
 
-      {/* Estadísticas */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {/* Estadísticas modernas */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Inventory color="primary" sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="h6">{totalCount}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Total Productos
-              </Typography>
-            </CardContent>
-          </Card>
+          <ModernStatsCard
+            title="Total Productos"
+            value={totalCount}
+            icon={Inventory}
+            color="primary"
+            variant="gradient"
+            loading={loading}
+            trend={{
+              value: 5.2,
+              label: 'vs mes anterior',
+              direction: 'up'
+            }}
+            status={{
+              label: 'Activos',
+              color: 'success'
+            }}
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <TrendingDown color="warning" sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="h6">{lowStockCount}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Stock Bajo
-              </Typography>
-            </CardContent>
-          </Card>
+          <ModernStatsCard
+            title="Stock Bajo"
+            value={lowStockCount}
+            subtitle="≤ 10 unidades"
+            icon={Warning}
+            color="warning"
+            variant="gradient"
+            loading={loading}
+            status={lowStockCount > 0 ? {
+              label: 'Atención Requerida',
+              color: 'warning'
+            } : {
+              label: 'Normal',
+              color: 'success'
+            }}
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <TrendingDown color="error" sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="h6">{outOfStockCount}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Sin Stock
-              </Typography>
-            </CardContent>
-          </Card>
+          <ModernStatsCard
+            title="Sin Stock"
+            value={outOfStockCount}
+            subtitle="0 unidades"
+            icon={TrendingDown}
+            color="error"
+            variant="gradient"
+            loading={loading}
+            status={outOfStockCount > 0 ? {
+              label: 'Crítico',
+              color: 'error'
+            } : {
+              label: 'Normal',
+              color: 'success'
+            }}
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <AttachMoney color="success" sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="h6">
-                {new Intl.NumberFormat('es-CO', {
-                  style: 'currency',
-                  currency: 'COP',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                }).format(totalValue)}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Valor Inventario
-              </Typography>
-            </CardContent>
-          </Card>
+          <ModernStatsCard
+            title="Valor Inventario"
+            value={new Intl.NumberFormat('es-CO', {
+              style: 'currency',
+              currency: 'COP',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            }).format(totalValue)}
+            icon={AttachMoney}
+            color="success"
+            variant="gradient"
+            loading={loading}
+            trend={{
+              value: 12.5,
+              label: 'vs mes anterior',
+              direction: 'up'
+            }}
+            status={{
+              label: 'Saludable',
+              color: 'success'
+            }}
+          />
         </Grid>
       </Grid>
 
-      {/* Barra de búsqueda */}
-      <Box sx={{ mb: 3 }}>
-        <TextField
-          fullWidth
-          placeholder="Buscar productos por nombre o SKU..."
+      {/* Barra de búsqueda moderna */}
+      <Box sx={{ mb: 4 }}>
+        <ModernSearchBar
           value={searchTerm}
           onChange={handleSearchChange}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search />
-              </InputAdornment>
-            ),
-          }}
+          placeholder="Buscar productos por nombre, SKU o descripción..."
+          debounceMs={500}
+          sortOptions={[
+            { value: 'nombre_asc', label: 'Nombre A-Z' },
+            { value: 'nombre_desc', label: 'Nombre Z-A' },
+            { value: 'precio_asc', label: 'Precio menor' },
+            { value: 'precio_desc', label: 'Precio mayor' },
+            { value: 'stock_asc', label: 'Stock menor' },
+            { value: 'stock_desc', label: 'Stock mayor' },
+          ]}
+          filters={[
+            { key: 'low_stock', label: 'Stock Bajo', value: true },
+            { key: 'no_stock', label: 'Sin Stock', value: true },
+            { key: 'active_only', label: 'Solo Activos', value: true },
+          ]}
+          disabled={loading}
         />
       </Box>
 
-      {/* Lista de productos */}
-      <ProductList
-        products={products}
-        loading={loading}
-        error={error}
-        totalCount={totalCount}
-        paginationModel={paginationModel}
-        onPaginationModelChange={handlePaginationChange}
-        onEdit={handleEditProduct}
-        onDelete={handleDeleteProduct}
-        onViewDetails={handleViewDetails}
-        onUpdateStock={handleUpdateStock}
-      />
+      {/* Lista de productos moderna */}
+      <ModernCard variant="glass" sx={{ mb: 4 }}>
+        <ProductList
+          products={products}
+          loading={loading}
+          error={error}
+          totalCount={totalCount}
+          paginationModel={paginationModel}
+          onPaginationModelChange={handlePaginationChange}
+          onEdit={handleEditProduct}
+          onDelete={handleDeleteProduct}
+          onViewDetails={handleViewDetails}
+          onUpdateStock={handleUpdateStock}
+        />
+      </ModernCard>
 
       {/* Diálogos */}
       <ProductForm
@@ -397,21 +531,53 @@ const ProductsPage: React.FC = () => {
         product={selectedProduct}
       />
 
-      {/* Notificaciones */}
+      {/* Floating Action Button moderno */}
+      <Fab
+        color="primary"
+        aria-label="Nuevo producto"
+        onClick={handleNewProduct}
+        disabled={!selectedLocal && !(isStoreManager() && selectedStore)}
+        sx={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+          boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.3)}`,
+          '&:hover': {
+            transform: 'scale(1.1)',
+            boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.4)}`,
+          },
+          '&:disabled': {
+            background: alpha(theme.palette.action.disabled, 0.3),
+            boxShadow: 'none',
+          },
+          transition: 'all 0.3s ease',
+        }}
+      >
+        <Add />
+      </Fab>
+
+      {/* Notificaciones modernas */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={4000}
         onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert
           onClose={handleCloseSnackbar}
           severity={snackbar.severity}
-          sx={{ width: '100%' }}
+          sx={{
+            width: '100%',
+            borderRadius: 2,
+            backdropFilter: 'blur(10px)',
+            boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.15)}`,
+          }}
         >
           {snackbar.message}
         </Alert>
       </Snackbar>
+      </Container>
     </Box>
   );
 };

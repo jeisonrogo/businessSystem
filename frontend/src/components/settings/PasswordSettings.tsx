@@ -17,8 +17,7 @@ import {
 import {
   VpnKey as VpnKeyIcon,
   Visibility,
-  VisibilityOff,
-  Save as SaveIcon
+  VisibilityOff
 } from '@mui/icons-material';
 
 import { authService } from '../../services/authService';
