@@ -33,7 +33,8 @@ from app.domain.models.contabilidad import CuentaContable, AsientoContable, Deta
 from app.domain.models.facturacion import Cliente, Factura, DetalleFactura
 
 # Configuración de la base de datos
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql+psycopg://admin:admin@localhost:5432/inventario')
+#DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql+psycopg://admin:admin@localhost:5432/inventario')
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql+psycopg://business_admin:pc5dTLr38WkwkGlhq4F5@business-system-dev-db.cqrk2ecg4sic.us-east-1.rds.amazonaws.com:5432/business_system_dev')
 
 # Configurar contexto de encriptación para contraseñas
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

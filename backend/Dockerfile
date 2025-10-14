@@ -1,6 +1,6 @@
 # Backend Dockerfile para Sistema de Gestión Empresarial
 # Usa Python 3.11 slim para optimizar el tamaño
-FROM python:3.11-slim
+FROM python:3.13.3-slim
 
 # Información del mantenedor
 LABEL maintainer="Sistema de Gestión Empresarial"

@@ -16,7 +16,8 @@ from app.domain.models.facturacion import Cliente, Factura, DetalleFactura  # no
 
 # Configuración de la base de datos desde variables de entorno
 # Usar postgresql+psycopg para especificar el dialecto de psycopg3
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://admin:admin@localhost:5432/inventario")
+#DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://admin:admin@localhost:5432/inventario")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://business_admin:pc5dTLr38WkwkGlhq4F5@business-system-dev-db.cqrk2ecg4sic.us-east-1.rds.amazonaws.com:5432/business_system_dev")
 
 # Crear el engine de SQLAlchemy usando psycopg3
 def create_db_engine():

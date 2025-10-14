@@ -29,7 +29,7 @@ services:
       dockerfile: Dockerfile
     container_name: business-system-api
     environment:
-      - DATABASE_URL=postgresql+psycopg://admin:admin@database:5432/inventario
+      - DATABASE_URL=postgresql+psycopg://business_admin:pc5dTLr38WkwkGlhq4F5@business-system-dev-db.cqrk2ecg4sic.us-east-1.rds.amazonaws.com:5432/business_system_dev
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
       - ALGORITHM=HS256
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
