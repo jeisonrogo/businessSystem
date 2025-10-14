@@ -263,4 +263,19 @@ secrets.*
 .vscode/c_cpp_properties.json
 
 # Cursor IDE
-.cursor/ 
+.cursor/
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars.backup
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc 
