@@ -32,12 +32,11 @@ db_multi_az               = false          # Cost optimization for dev
 # =============================================================================
 # APPLICATION CONFIGURATION
 # =============================================================================
-# Note: Update this with your actual ECR image URI after building
-backend_image_uri = "public.ecr.aws/docker/library/python:3.11-slim"
+# ECR image URI - Updated with actual backend image
+backend_image_uri = "327568102873.dkr.ecr.us-east-1.amazonaws.com/business-system/backend:latest"
 
-# Generate a secure JWT secret key for development
-# You can generate one with: openssl rand -base64 32
-jwt_secret_key = "dev-jwt-secret-key-change-this-in-production-use-openssl-rand-base64-32"
+# Secure JWT secret key generated with openssl rand -hex 32
+jwt_secret_key = "b5ffd302d6d34e19cd24ebf18267730846f137d449ac34ef3d9942c481729287"
 
 # App Runner configuration - minimal for development
 app_runner_cpu            = 256    # 0.25 vCPU - minimum
@@ -106,7 +105,8 @@ enable_route53_health_checks    = false  # Not critical for development
 # DEVELOPMENT SPECIFIC SETTINGS
 # =============================================================================
 create_test_data           = true   # Create sample data for development
-allow_public_rds_access    = false  # Keep secure even in development
+allow_public_rds_access    = true   # Allow access from developer IP
+allowed_cidr_blocks        = ["186.86.32.243/32"]  # Developer IP for RDS access
 skip_final_snapshot        = true   # Allow easy destruction in development
 
 # =============================================================================

@@ -9,7 +9,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 5.70"
     }
     random = {
       source  = "hashicorp/random"
@@ -77,8 +77,13 @@ data "aws_caller_identity" "current" {}
 # =============================================================================
 
 resource "random_password" "db_password" {
-  length  = 16
-  special = true
+  length  = 20
+  special = false  # Sin caracteres especiales para evitar problemas en URL
+  override_special = ""
+
+  lifecycle {
+    ignore_changes = [result]  # No regenerar la contraseña en cambios
+  }
 }
 
 # =============================================================================
@@ -111,15 +116,15 @@ module "rds" {
 
   name_prefix               = local.name_prefix
   vpc_id                   = module.vpc.vpc_id
-  subnet_ids               = module.vpc.private_subnet_ids
+  subnet_ids               = module.vpc.public_subnet_ids  # Usando subnets públicas para acceso desde PC
   allowed_security_group_ids = [module.app_runner.security_group_id]
 
   # Database configuration
   engine         = "postgres"
-  engine_version = "15.7"
+  engine_version = "15.12"  # Updated to match current RDS version
   instance_class = "db.t3.micro"  # Free Tier eligible
 
-  allocated_storage     = 10
+  allocated_storage     = 20
   max_allocated_storage = 100
   storage_encrypted     = true
 
@@ -137,8 +142,60 @@ module "rds" {
   monitoring_interval = 60
   enabled_cloudwatch_logs_exports = ["postgresql"]
 
+  # Public access configuration (development only)
+  allow_public_access  = var.allow_public_rds_access
+  allowed_cidr_blocks  = var.allowed_cidr_blocks
+
   tags = local.common_tags
 }
+
+# =============================================================================
+# APPLICATION LOAD BALANCER MODULE (COMENTADO - usando App Runner)
+# =============================================================================
+
+# module "alb" {
+#   source = "./modules/alb"
+#
+#   name_prefix        = local.name_prefix
+#   vpc_id             = module.vpc.vpc_id
+#   public_subnet_ids  = module.vpc.public_subnet_ids
+#   backend_port       = 8000
+#   certificate_arn    = var.ssl_certificate_arn
+#
+#   tags = local.common_tags
+# }
+
+# =============================================================================
+# ECS FARGATE MODULE (COMENTADO - usando App Runner)
+# =============================================================================
+
+# module "ecs" {
+#   source = "./modules/ecs"
+#
+#   name_prefix           = local.name_prefix
+#   vpc_id                = module.vpc.vpc_id
+#   private_subnet_ids    = module.vpc.private_subnet_ids
+#   alb_security_group_id = module.alb.security_group_id
+#   target_group_arn      = module.alb.target_group_arn
+#
+#   # Container configuration
+#   container_image_uri = var.backend_image_uri
+#   container_port      = 8000
+#   aws_region          = var.aws_region
+#
+#   # Environment variables
+#   environment_variables = {
+#     DATABASE_URL    = "postgresql+psycopg://${var.db_username}:${random_password.db_password.result}@${module.rds.address}:5432/${var.db_name}"
+#     AWS_REGION      = var.aws_region
+#     AWS_S3_BUCKET   = module.s3_files.bucket_name
+#     ENVIRONMENT     = var.environment
+#     JWT_SECRET_KEY  = var.jwt_secret_key
+#     ALLOWED_ORIGINS = "https://${var.domain_name}"
+#     UPLOADS_PATH    = "/tmp/uploads"
+#   }
+#
+#   tags = local.common_tags
+# }
 
 # =============================================================================
 # APP RUNNER MODULE
@@ -147,34 +204,27 @@ module "rds" {
 module "app_runner" {
   source = "./modules/app-runner"
 
-  name_prefix = local.name_prefix
-  vpc_id      = module.vpc.vpc_id
-  subnet_ids  = module.vpc.private_subnet_ids
-
-  # Container configuration
+  name_prefix        = local.name_prefix
+  vpc_id             = module.vpc.vpc_id
+  subnet_ids         = module.vpc.private_subnet_ids
   container_image_uri = var.backend_image_uri
-  container_port     = 8000
+  container_port      = 8000
 
   # Environment variables
   environment_variables = {
-    DATABASE_URL = "postgresql://${var.db_username}:${random_password.db_password.result}@${module.rds.endpoint}:5432/${var.db_name}"
-    AWS_REGION   = var.aws_region
-    AWS_S3_BUCKET = module.s3_files.bucket_name
-    ENVIRONMENT  = var.environment
-    JWT_SECRET_KEY = var.jwt_secret_key
-    ALLOWED_ORIGINS = "https://${var.domain_name}"
+    DATABASE_URL    = "postgresql+psycopg://${var.db_username}:${random_password.db_password.result}@${module.rds.address}:5432/${var.db_name}"
+    AWS_REGION      = var.aws_region
+    AWS_S3_BUCKET   = module.s3_files.bucket_name
+    ENVIRONMENT     = var.environment
+    JWT_SECRET_KEY  = var.jwt_secret_key
+    ALLOWED_ORIGINS = "*"  # Permitir todos los orígenes en desarrollo
+    UPLOADS_PATH    = "/tmp/uploads"
   }
 
-  # Scaling configuration
-  max_concurrency = 100
-  max_size        = 10
-  min_size        = 1
-
-  # Auto scaling
-  auto_scaling_enabled          = true
-  auto_scaling_max_concurrency  = 100
-  auto_scaling_min_size         = 1
-  auto_scaling_max_size         = 10
+  # Auto-scaling configuration
+  auto_scaling_min_size        = var.app_runner_min_size
+  auto_scaling_max_size        = var.app_runner_max_size
+  auto_scaling_max_concurrency = var.app_runner_max_concurrency
 
   tags = local.common_tags
 }
@@ -206,7 +256,7 @@ module "s3_files" {
   source = "./modules/s3-frontend"  # Reuse module but for files
 
   name_prefix   = "${local.name_prefix}-files"
-  domain_name   = "files.${var.domain_name}"
+  domain_name   = ""  # No custom domain for files bucket
 
   # Different configuration for files
   price_class = "PriceClass_100"
@@ -237,28 +287,13 @@ module "s3_files" {
 }
 
 # =============================================================================
-# MONITORING MODULE
+# MONITORING MODULE (COMENTADO TEMPORALMENTE)
 # =============================================================================
 
-module "monitoring" {
-  source = "./modules/monitoring"
-
-  name_prefix = local.name_prefix
-
-  # Resources to monitor
-  app_runner_service_arn = module.app_runner.service_arn
-  rds_instance_id       = module.rds.instance_id
-  s3_bucket_name        = module.s3_frontend.bucket_name
-  cloudfront_distribution_id = module.s3_frontend.cloudfront_distribution_id
-
-  # Alert configuration
-  alert_email = var.alert_email
-
-  # Cost alerts
-  billing_alert_threshold = var.billing_alert_threshold
-
-  tags = local.common_tags
-}
+# module "monitoring" {
+#   source = "./modules/monitoring"
+#   ...
+# }
 
 # =============================================================================
 # ROUTE 53 (DNS)
@@ -282,12 +317,14 @@ resource "aws_route53_record" "main" {
   }
 }
 
+# Route53 for backend - App Runner service URL
 resource "aws_route53_record" "api" {
   count   = var.domain_name != "" ? 1 : 0
   zone_id = data.aws_route53_zone.main[0].zone_id
   name    = "api.${var.domain_name}"
   type    = "CNAME"
   ttl     = 300
+
   records = [module.app_runner.service_url]
 }
 

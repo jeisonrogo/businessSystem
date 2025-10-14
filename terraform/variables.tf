@@ -415,6 +415,19 @@ variable "allow_public_rds_access" {
   default     = false
 }
 
+variable "allowed_cidr_blocks" {
+  description = "List of CIDR blocks allowed to access RDS (only used if allow_public_rds_access is true)"
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for cidr in var.allowed_cidr_blocks : can(cidrhost(cidr, 0))
+    ])
+    error_message = "All CIDR blocks must be valid IPv4 CIDR notation."
+  }
+}
+
 variable "skip_final_snapshot" {
   description = "Skip final snapshot when destroying RDS (for development only)"
   type        = bool
