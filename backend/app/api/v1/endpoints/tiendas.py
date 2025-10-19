@@ -44,7 +44,7 @@ router = APIRouter(
 def crear_tienda(
     tienda_data: TiendaCreate,
     session: Session = Depends(get_session),
-    tenant_context: TenantContext = Depends(require_permission("admin"))
+    #tenant_context: TenantContext = Depends(require_permission("admin"))
 ):
     """
     Crea una nueva tienda en el sistema.

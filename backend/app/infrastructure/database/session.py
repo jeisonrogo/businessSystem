@@ -27,7 +27,7 @@ def create_db_engine():
     """
     return create_engine(
         DATABASE_URL,
-        echo=True,  # Para debugging, cambiar a False en producción
+        echo=False,  # Deshabilitado para no mostrar queries SQL en logs
         pool_pre_ping=True,  # Verifica la conexión antes de usarla
         pool_recycle=300,  # Recicla conexiones cada 5 minutos
     )

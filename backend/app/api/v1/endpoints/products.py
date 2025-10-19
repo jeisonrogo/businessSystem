@@ -40,6 +40,8 @@ from app.infrastructure.auth.auth_dependency import get_current_user_sync
 from app.domain.models.user import User, UserRole
 from app.infrastructure.middleware.tenant_middleware import get_tenant_context
 from app.domain.models.tenant_context import TenantContext
+from app.application.services.i_storage_service import IStorageService
+from app.infrastructure.storage.storage_factory import get_storage
 from fastapi import Request
 
 router = APIRouter()
@@ -51,49 +53,25 @@ def get_product_repository(session: Session = Depends(get_session)) -> SQLProduc
     return SQLProductRepository(session)
 
 
-def populate_image_url(product_response: ProductResponse, request: Request = None) -> ProductResponse:
+def populate_image_url(
+    product_response: ProductResponse,
+    storage: IStorageService
+) -> ProductResponse:
     """
-    Popula la URL completa de la imagen del producto.
+    Popula la URL completa de la imagen del producto usando el storage service.
 
     Args:
         product_response: Response del producto
-        request: FastAPI request object para obtener base URL (opcional)
+        storage: Storage service para generar URLs
 
     Returns:
         ProductResponse con imagen_url poblada
     """
-    print(f"🔍 POPULATE_IMAGE_URL INICIO:")
-    print(f"🔍   product_response.id: {product_response.id}")
-    print(f"🔍   product_response.sku: {product_response.sku}")
-    print(f"🔍   product_response.imagen_path: {product_response.imagen_path}")
-    print(f"🔍   request is None: {request is None}")
+    if product_response.imagen_path:
+        # Generar URL usando el storage service (funciona para local y S3)
+        product_response.imagen_url = storage.get_image_url(product_response.imagen_path)
 
-    try:
-        if product_response.imagen_path:
-            # Si tenemos request, usar su base_url
-            if request is not None:
-                print(f"🔍   usando request.base_url")
-                base_url = str(request.base_url).rstrip('/')
-                print(f"🔍   base_url from request: {base_url}")
-            else:
-                # Fallback: usar URL estática por defecto
-                print(f"🔍   usando fallback URL")
-                base_url = "http://localhost:8000"
-
-            final_url = f"{base_url}/uploads/{product_response.imagen_path}"
-            print(f"🔍   imagen_url generada: {final_url}")
-            product_response.imagen_url = final_url
-        else:
-            print(f"🔍   No hay imagen_path, no se genera URL")
-
-        print(f"🔍 POPULATE_IMAGE_URL EXITOSO")
-        return product_response
-
-    except Exception as e:
-        print(f"🔍 POPULATE_IMAGE_URL ERROR: {type(e).__name__}: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        raise
+    return product_response
 
 
 @router.post(
@@ -110,11 +88,11 @@ def populate_image_url(product_response: ProductResponse, request: Request = Non
 )
 async def create_product(
     product_data: ProductCreateRequest,
-    request: Request,
     product_repo: SQLProductRepository = Depends(get_product_repository),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user_sync),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    tenant_context: TenantContext = Depends(get_tenant_context),
+    storage: IStorageService = Depends(get_storage)
 ) -> ProductResponse:
     """
     Crear un nuevo producto.
@@ -173,9 +151,9 @@ async def create_product(
         initial_stock = stock_repo.create(stock_create)
         
         print(f"✅ Stock inicial creado para producto {product.sku} en local {tenant_context.local_id}")
-        
+
         product_response = ProductResponse.model_validate(product)
-        return populate_image_url(product_response, request)
+        return populate_image_url(product_response, storage)
     except DuplicateSKUError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -205,7 +183,6 @@ async def create_product(
     }
 )
 async def list_products(
-    request: Request,
     page: int = Query(1, ge=1, description="Número de página"),
     limit: int = Query(10, ge=1, le=100, description="Productos por página"),
     search: Optional[str] = Query(None, description="Buscar por nombre o SKU"),
@@ -214,7 +191,8 @@ async def list_products(
     product_repo: SQLProductRepository = Depends(get_product_repository),
     current_user: User = Depends(get_current_user_sync),
     session: Session = Depends(get_session),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    tenant_context: TenantContext = Depends(get_tenant_context),
+    storage: IStorageService = Depends(get_storage)
 ) -> ProductListResponse:
     """
     Listar productos filtrados por contexto local con información de stock específica.
@@ -260,12 +238,12 @@ async def list_products(
         if todos_los_locales:
             # Mostrar productos de todos los locales de la tienda
             products_with_stock = await _get_products_all_locals(
-                stock_repo, current_user.tienda_id, page, limit, search, only_active, request
+                stock_repo, current_user.tienda_id, page, limit, search, only_active, storage
             )
         else:
             # Mostrar solo productos del local específico
             products_with_stock = await _get_products_by_local(
-                stock_repo, local_id, page, limit, search, only_active, request
+                stock_repo, local_id, page, limit, search, only_active, storage
             )
         
         # Construir respuesta con paginación correcta
@@ -300,10 +278,10 @@ async def list_products(
 )
 async def get_product(
     product_id: UUID,
-    request: Request,
     product_repo: SQLProductRepository = Depends(get_product_repository),
     session: Session = Depends(get_session),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    tenant_context: TenantContext = Depends(get_tenant_context),
+    storage: IStorageService = Depends(get_storage)
 ) -> ProductResponse:
     """
     Obtener un producto por su ID con información de stock local.
@@ -372,21 +350,7 @@ async def get_product(
             local_nombre=tenant_context.local_nombre
         )
 
-        print(f"🔍 GET_PRODUCT: === ANTES DE POPULATE_IMAGE_URL ===")
-        print(f"🔍 GET_PRODUCT: product_response.imagen_path={product_response.imagen_path}")
-        print(f"🔍 GET_PRODUCT: request disponible: {request is not None}")
-        print(f"🔍 GET_PRODUCT: type(request): {type(request)}")
-
-        try:
-            result = populate_image_url(product_response, request)
-            print(f"🔍 GET_PRODUCT: === DESPUÉS DE POPULATE_IMAGE_URL ===")
-            print(f"🔍 GET_PRODUCT: resultado.imagen_url={result.imagen_url}")
-            return result
-        except Exception as e:
-            print(f"🔍 GET_PRODUCT: ERROR EN POPULATE_IMAGE_URL: {type(e).__name__}: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            raise
+        return populate_image_url(product_response, storage)
 
     except ProductNotFoundError as e:
         print(f"🔍 GET_PRODUCT: ProductNotFoundError: {str(e)}")
@@ -417,8 +381,8 @@ async def get_product(
 )
 async def get_product_by_sku(
     sku: str,
-    request: Request,
-    product_repo: SQLProductRepository = Depends(get_product_repository)
+    product_repo: SQLProductRepository = Depends(get_product_repository),
+    storage: IStorageService = Depends(get_storage)
 ) -> ProductResponse:
     """
     Obtener un producto por su SKU.
@@ -429,7 +393,7 @@ async def get_product_by_sku(
         use_case = GetProductBySKUUseCase(product_repo)
         product = await use_case.execute(sku)
         product_response = ProductResponse.model_validate(product)
-        return populate_image_url(product_response, request)
+        return populate_image_url(product_response, storage)
     except ProductNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -457,8 +421,8 @@ async def get_product_by_sku(
 async def update_product(
     product_id: UUID,
     product_data: ProductUpdateRequest,
-    request: Request,
-    product_repo: SQLProductRepository = Depends(get_product_repository)
+    product_repo: SQLProductRepository = Depends(get_product_repository),
+    storage: IStorageService = Depends(get_storage)
 ) -> ProductResponse:
     """
     Actualizar un producto existente.
@@ -471,7 +435,7 @@ async def update_product(
         use_case = UpdateProductUseCase(product_repo)
         product = await use_case.execute(product_id, product_data)
         product_response = ProductResponse.model_validate(product)
-        return populate_image_url(product_response, request)
+        return populate_image_url(product_response, storage)
     except ProductNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -501,17 +465,41 @@ async def update_product(
 )
 async def delete_product(
     product_id: UUID,
-    product_repo: SQLProductRepository = Depends(get_product_repository)
+    product_repo: SQLProductRepository = Depends(get_product_repository),
+    storage: IStorageService = Depends(get_storage)
 ) -> ProductDeleteResponse:
     """
     Eliminar un producto (soft delete).
-    
+
     - **product_id**: UUID único del producto
     - **Nota**: El producto no se elimina físicamente, solo se marca como inactivo
+    - **Nota**: Si el producto tiene imagen asociada, será eliminada del storage
     """
     try:
+        # Get product before deleting to check if it has an image
+        product = await product_repo.get_by_id(product_id)
+        if not product:
+            raise ProductNotFoundError(f"Producto con ID {product_id} no encontrado")
+
+        # Delete image from storage if exists
+        if product.imagen_path:
+            try:
+                print(f"🗑️ Intentando eliminar imagen: {product.imagen_path}")
+                result = storage.delete_product_image(product.imagen_path)
+                if result:
+                    print(f"✅ Imagen eliminada del storage: {product.imagen_path}")
+                else:
+                    print(f"⚠️ No se pudo eliminar la imagen (no existe o error): {product.imagen_path}")
+            except Exception as e:
+                import traceback
+                print(f"⚠️ Error eliminando imagen del storage: {str(e)}")
+                traceback.print_exc()
+                # Continue even if image deletion fails
+
+        # Soft delete the product
         use_case = DeleteProductUseCase(product_repo)
         success = await use_case.execute(product_id)
+
         return ProductDeleteResponse(
             product_id=product_id,
             message="Producto eliminado exitosamente",
@@ -688,9 +676,9 @@ async def update_product_stock(
     }
 )
 async def get_low_stock_products(
-    request: Request,
     threshold: int = Query(10, ge=0, description="Umbral mínimo de stock"),
-    product_repo: SQLProductRepository = Depends(get_product_repository)
+    product_repo: SQLProductRepository = Depends(get_product_repository),
+    storage: IStorageService = Depends(get_storage)
 ) -> List[ProductResponse]:
     """
     Obtener productos con stock bajo.
@@ -701,7 +689,7 @@ async def get_low_stock_products(
         use_case = GetLowStockProductsUseCase(product_repo)
         products = await use_case.execute(threshold)
         product_responses = [ProductResponse.model_validate(product) for product in products]
-        return [populate_image_url(response, request) for response in product_responses]
+        return [populate_image_url(response, storage) for response in product_responses]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -720,7 +708,7 @@ async def _get_products_by_local(
     limit: int,
     search: Optional[str],
     only_active: bool,
-    request: Request
+    storage: IStorageService
 ) -> dict:
     """
     Obtiene productos que tienen stock registrado en un local específico.
@@ -826,10 +814,10 @@ async def _get_products_by_local(
         )
 
         # Agregar URL completa de imagen
-        product_response = populate_image_url(product_response, request)
+        product_response = populate_image_url(product_response, storage)
 
         enriched_products.append(product_response)
-    
+
     return {
         'products': enriched_products,
         'total': total
@@ -843,7 +831,7 @@ async def _get_products_all_locals(
     limit: int,
     search: Optional[str],
     only_active: bool,
-    request: Request
+    storage: IStorageService
 ) -> dict:
     """
     Obtiene productos de todos los locales de una tienda.
@@ -946,7 +934,7 @@ async def _get_products_all_locals(
         )
 
         # Agregar URL completa de imagen
-        product_response = populate_image_url(product_response, request)
+        product_response = populate_image_url(product_response, storage)
 
         enriched_products.append(product_response)
 

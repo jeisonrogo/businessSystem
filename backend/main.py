@@ -9,6 +9,9 @@ from fastapi.staticfiles import StaticFiles
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# Configuration
+from app.config import settings
+
 # Middleware imports
 from app.infrastructure.middleware.tenant_middleware import TenantContextMiddleware
 from app.application.services.tenant_context_service import TenantContextService
@@ -43,13 +46,14 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Configuración de CORS
+# Configuración de CORS desde settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción, especificar dominios exactos
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 def create_tenant_service_for_session(session) -> TenantContextService:
