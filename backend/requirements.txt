@@ -17,4 +17,5 @@ httpx
 aiofiles
 openpyxl
 boto3>=1.34.0
-moto[s3]>=5.0.0 
+moto[s3]>=5.0.0
+mangum>=0.17.0 
