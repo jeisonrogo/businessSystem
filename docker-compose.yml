@@ -6,17 +6,17 @@ services:
     image: postgres:17.2-alpine3.20
     container_name: business-system-db
     environment:
-      POSTGRES_DB: inventario
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: ${POSTGRES_DB:-inventario}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - business-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d inventario"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-inventario}"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -24,19 +24,19 @@ services:
 
   # Backend API (FastAPI)
   backend:
+    image: business-system-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: business-system-api
     environment:
-      - DATABASE_URL=postgresql+psycopg://business_admin:pc5dTLr38WkwkGlhq4F5@business-system-dev-db.cqrk2ecg4sic.us-east-1.rds.amazonaws.com:5432/business_system_dev
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin}@database:5432/${POSTGRES_DB:-inventario}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
-      - ALGORITHM=HS256
-      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000"]}
     ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
+      - "${BACKEND_PORT:-8000}:8000"
     networks:
       - business-network
     depends_on:
@@ -47,31 +47,43 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 40s
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE:-10m}"
+        max-file: "${LOG_MAX_FILE:-3}"
 
   # Frontend React (Nginx)
   frontend:
+    # En desarrollo: build local
+    # En producción: usa imagen pre-construida
+    image: ${FRONTEND_IMAGE:-business-system-frontend:latest}
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: business-system-web
-    environment:
-      - REACT_APP_API_URL=http://localhost:8000
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-3000}:80"
     networks:
       - business-network
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
       interval: 30s
       timeout: 10s
       retries: 5
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE:-10m}"
+        max-file: "${LOG_MAX_FILE:-3}"
 
-  # Nginx Reverse Proxy (Producción)
+  # Nginx Reverse Proxy (Opcional - para SSL)
   nginx:
     image: nginx:alpine
     container_name: business-system-proxy
@@ -79,9 +91,9 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./ssl:/etc/nginx/ssl
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
     networks:
       - business-network
     depends_on:
@@ -89,7 +101,12 @@ services:
       - backend
     restart: unless-stopped
     profiles:
-      - production
+      - ssl
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE:-10m}"
+        max-file: "${LOG_MAX_FILE:-3}"
 
 networks:
   business-network:

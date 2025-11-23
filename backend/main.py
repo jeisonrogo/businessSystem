@@ -3,6 +3,7 @@ Punto de entrada principal del Sistema de Gestión Empresarial.
 Este archivo inicializa la aplicación FastAPI siguiendo los principios de Clean Architecture.
 """
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -12,8 +13,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Configuration
 from app.config import settings
 
+# Logging setup
+from app.infrastructure.logging import setup_logging, get_logger
+
+# Configurar logging al inicio
+log_level = os.getenv("LOG_LEVEL", "INFO")
+use_json = os.getenv("LOG_FORMAT", "color") == "json"
+setup_logging(level=log_level, use_json=use_json)
+
+logger = get_logger(__name__)
+
 # Middleware imports
 from app.infrastructure.middleware.tenant_middleware import TenantContextMiddleware
+from app.infrastructure.middleware.logging_middleware import LoggingMiddleware
 from app.application.services.tenant_context_service import TenantContextService
 from app.infrastructure.database.session import get_session
 from app.infrastructure.repositories.tienda_repository import TiendaRepository
@@ -46,7 +58,11 @@ app = FastAPI(
     version="2.0.0"
 )
 
+# Logging Middleware (debe ir primero para capturar todas las requests)
+app.add_middleware(LoggingMiddleware)
+
 # Configuración de CORS desde settings
+logger.info(f"Configurando CORS con orígenes: {settings.CORS_ORIGINS}")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,

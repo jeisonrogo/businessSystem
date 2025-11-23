@@ -278,4 +278,14 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 .terraformrc
-terraform.rc 
+terraform.rc
+
+# VPS Deployment
+.env.production
+docker-images/
+backups/
+*.tar.gz
+*.tar
+logs/
+*.sql
+*.sql.gz 

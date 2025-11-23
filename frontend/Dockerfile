@@ -19,7 +19,7 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 
 # Variables de entorno para build
-ENV REACT_APP_API_URL=http://localhost:8000
+ENV REACT_APP_API_URL=http://srv1143929.hstgr.cloud:8000
 
 # Build de la aplicación
 RUN npm run build
@@ -41,7 +41,7 @@ RUN chmod +x /docker-entrypoint.sh
 EXPOSE 80
 
 # Variables de entorno por defecto
-ENV REACT_APP_API_URL=http://localhost:8000
+ENV REACT_APP_API_URL=http://srv1143929.hstgr.cloud:8000
 
 # Comando de inicio
 ENTRYPOINT ["/docker-entrypoint.sh"]

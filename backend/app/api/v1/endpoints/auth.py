@@ -57,31 +57,40 @@ async def login(
 ):
     """
     Endpoint para iniciar sesión.
-    
+
     Args:
         login_data (LoginRequest): Credenciales de login
         user_repository (SQLUserRepository): Repositorio de usuarios
-        
+
     Returns:
         LoginResponse: Token JWT y datos del usuario
-        
+
     Raises:
         HTTPException: Si las credenciales son inválidas
     """
+    import logging
+    import traceback
+    logger = logging.getLogger(__name__)
+
     try:
+        logger.info(f"Intento de login para email: {login_data.email}")
         login_use_case = LoginUseCase(user_repository)
         result = await login_use_case.execute(login_data.email, login_data.password)
+        logger.info(f"Login exitoso para: {login_data.email}")
         return LoginResponse(**result)
-        
+
     except AuthenticationError as e:
+        logger.warning(f"Autenticación fallida para {login_data.email}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e)
         )
     except Exception as e:
+        logger.error(f"Error inesperado en login para {login_data.email}: {str(e)}")
+        logger.error(f"Traceback completo:\n{traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error interno del servidor"
+            detail=f"Error interno del servidor: {str(e)}"
         )
 
 

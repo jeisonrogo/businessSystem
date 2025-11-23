@@ -6,9 +6,10 @@ centralized access to application settings.
 """
 
 import os
-from typing import Optional
+import json
+from typing import Optional, Union
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, field_validator
 
 
 class Settings(BaseSettings):
@@ -84,10 +85,22 @@ class Settings(BaseSettings):
     )
 
     # CORS settings
-    CORS_ORIGINS: list[str] = Field(
+    CORS_ORIGINS: Union[list[str], str] = Field(
         default=["http://localhost:3000", "http://localhost:5173"],
-        description="Allowed CORS origins"
+        description="Allowed CORS origins (JSON array string or list)"
     )
+
+    @field_validator('CORS_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS_ORIGINS from JSON string if needed."""
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                # If it's a single URL string, wrap it in a list
+                return [v]
+        return v
 
     class Config:
         env_file = ".env"
